@@ -1,0 +1,417 @@
+{
+  "_about": "Synthetic slices shaped like two measured probe runs: the fields judgeEvidence reads, in run-clock ms (frames, first witnessed draw) and page-clock ms (first rAF, mirror, camera), with the page-to-run offset already measured. slowBoot: 14 frames, every one boot or idle, capture ended before the first animation frame in run time. healthy: 52 frames, 45 in post-gesture phases.",
+  "slowBoot": {
+    "frames": [
+      {
+        "atMs": 1466,
+        "phase": "boot",
+        "label": "pre-draw",
+        "source": "page"
+      },
+      {
+        "atMs": 6933,
+        "phase": "boot",
+        "label": "first-draw",
+        "source": "page"
+      },
+      {
+        "atMs": 7050,
+        "phase": "idle-baseline",
+        "label": "idle",
+        "source": "page"
+      },
+      {
+        "atMs": 7709,
+        "phase": "idle-baseline",
+        "label": "idle",
+        "source": "page"
+      },
+      {
+        "atMs": 8359,
+        "phase": "idle-baseline",
+        "label": "idle",
+        "source": "page"
+      },
+      {
+        "atMs": 9283,
+        "phase": "idle-baseline",
+        "label": "idle",
+        "source": "page"
+      },
+      {
+        "atMs": 9934,
+        "phase": "idle-baseline",
+        "label": "idle",
+        "source": "page"
+      },
+      {
+        "atMs": 10588,
+        "phase": "idle-baseline",
+        "label": "idle",
+        "source": "page"
+      },
+      {
+        "atMs": 11233,
+        "phase": "idle-baseline",
+        "label": "idle",
+        "source": "page"
+      },
+      {
+        "atMs": 11885,
+        "phase": "idle-baseline",
+        "label": "idle",
+        "source": "page"
+      },
+      {
+        "atMs": 12538,
+        "phase": "idle-baseline",
+        "label": "idle",
+        "source": "page"
+      },
+      {
+        "atMs": 13189,
+        "phase": "idle-baseline",
+        "label": "idle",
+        "source": "page"
+      },
+      {
+        "atMs": 13853,
+        "phase": "idle-baseline",
+        "label": "idle",
+        "source": "page"
+      },
+      {
+        "atMs": 14521,
+        "phase": "idle-baseline",
+        "label": "idle",
+        "source": "page"
+      }
+    ],
+    "firstRafPageMs": 12193.1,
+    "firstRenderRunMs": 6819,
+    "pageToRunOffsetMs": 2586,
+    "mirrorFirstDrawPageMs": 18559.5,
+    "firstCameraSamplePageMs": 19983.19999998808
+  },
+  "healthy": {
+    "frames": [
+      {
+        "atMs": 14326,
+        "phase": "boot",
+        "label": "pre-draw",
+        "source": "page"
+      },
+      {
+        "atMs": 18497,
+        "phase": "boot",
+        "label": "first-draw",
+        "source": "page"
+      },
+      {
+        "atMs": 19965,
+        "phase": "idle-baseline",
+        "label": "idle",
+        "source": "page"
+      },
+      {
+        "atMs": 22183,
+        "phase": "idle-baseline",
+        "label": "idle",
+        "source": "page"
+      },
+      {
+        "atMs": 24244,
+        "phase": "idle-baseline",
+        "label": "idle",
+        "source": "page"
+      },
+      {
+        "atMs": 26392,
+        "phase": "idle-baseline",
+        "label": "idle",
+        "source": "page"
+      },
+      {
+        "atMs": 30417,
+        "phase": "entrance",
+        "label": "after-gesture",
+        "source": "page"
+      },
+      {
+        "atMs": 32461,
+        "phase": "directions",
+        "label": "KeyD-before",
+        "source": "page"
+      },
+      {
+        "atMs": 34936,
+        "phase": "directions",
+        "label": "KeyD-after",
+        "source": "page"
+      },
+      {
+        "atMs": 36948,
+        "phase": "directions",
+        "label": "KeyA-before",
+        "source": "page"
+      },
+      {
+        "atMs": 39551,
+        "phase": "directions",
+        "label": "KeyA-after",
+        "source": "page"
+      },
+      {
+        "atMs": 41381,
+        "phase": "directions",
+        "label": "ArrowRight-before",
+        "source": "page"
+      },
+      {
+        "atMs": 43523,
+        "phase": "directions",
+        "label": "ArrowRight-after",
+        "source": "page"
+      },
+      {
+        "atMs": 45440,
+        "phase": "directions",
+        "label": "ArrowLeft-before",
+        "source": "page"
+      },
+      {
+        "atMs": 47731,
+        "phase": "directions",
+        "label": "ArrowLeft-after",
+        "source": "page"
+      },
+      {
+        "atMs": 49510,
+        "phase": "directions",
+        "label": "KeyW-before",
+        "source": "page"
+      },
+      {
+        "atMs": 53859,
+        "phase": "directions",
+        "label": "KeyW-after",
+        "source": "page"
+      },
+      {
+        "atMs": 55905,
+        "phase": "directions",
+        "label": "KeyS-before",
+        "source": "page"
+      },
+      {
+        "atMs": 60236,
+        "phase": "directions",
+        "label": "KeyS-after",
+        "source": "page"
+      },
+      {
+        "atMs": 62423,
+        "phase": "directions",
+        "label": "ArrowUp-before",
+        "source": "page"
+      },
+      {
+        "atMs": 66858,
+        "phase": "directions",
+        "label": "ArrowUp-after",
+        "source": "page"
+      },
+      {
+        "atMs": 68994,
+        "phase": "directions",
+        "label": "ArrowDown-before",
+        "source": "page"
+      },
+      {
+        "atMs": 73461,
+        "phase": "directions",
+        "label": "ArrowDown-after",
+        "source": "page"
+      },
+      {
+        "atMs": 75623,
+        "phase": "directions",
+        "label": "drag-before",
+        "source": "page"
+      },
+      {
+        "atMs": 79209,
+        "phase": "directions",
+        "label": "drag-after",
+        "source": "page"
+      },
+      {
+        "atMs": 82428,
+        "phase": "ack",
+        "label": "after-Space",
+        "source": "page"
+      },
+      {
+        "atMs": 85779,
+        "phase": "ack",
+        "label": "after-MouseLeft",
+        "source": "page"
+      },
+      {
+        "atMs": 91679,
+        "phase": "ack",
+        "label": "after-MouseDrag",
+        "source": "page"
+      },
+      {
+        "atMs": 95094,
+        "phase": "interact",
+        "label": "after-KeyF",
+        "source": "page"
+      },
+      {
+        "atMs": 98304,
+        "phase": "interact",
+        "label": "after-KeyE",
+        "source": "page"
+      },
+      {
+        "atMs": 101451,
+        "phase": "interact",
+        "label": "after-Enter",
+        "source": "page"
+      },
+      {
+        "atMs": 104436,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "atMs": 119971,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "atMs": 134959,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "atMs": 151210,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "atMs": 165779,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "atMs": 182004,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "atMs": 198838,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "atMs": 214015,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "atMs": 229053,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "atMs": 246239,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "atMs": 261795,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "atMs": 277977,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "atMs": 293017,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "atMs": 310018,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "atMs": 326085,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "atMs": 341438,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "atMs": 356760,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "atMs": 372876,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "atMs": 387519,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "atMs": 402253,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "atMs": 402967,
+        "phase": "soak",
+        "label": "final",
+        "source": "page"
+      }
+    ],
+    "firstRafPageMs": 1429.8,
+    "firstRenderRunMs": 16592,
+    "pageToRunOffsetMs": 350,
+    "mirrorFirstDrawPageMs": 1429.8,
+    "firstCameraSamplePageMs": 255231
+  }
+}

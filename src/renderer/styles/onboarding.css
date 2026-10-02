@@ -1,0 +1,684 @@
+/* First launch (renderer/onboarding): one full-window layer above the app, in the app's own roles. */
+.onboarding {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden auto;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-family-content);
+  outline: none;
+  transition: opacity 260ms var(--ease-smooth-out);
+}
+.onboarding[data-leaving] {
+  opacity: 0;
+  pointer-events: none;
+}
+/* The first game is being made behind the welcome: nothing is clickable twice, and the wait shows. */
+.onboarding[data-closing] {
+  cursor: progress;
+}
+.onboarding[data-closing] * {
+  pointer-events: none;
+}
+.onboarding-drag {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 40px;
+  -webkit-app-region: drag;
+}
+.onboarding-screen {
+  position: relative;
+  flex: 1 0 auto;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 44px 32px 40px;
+}
+/* The canvas reads its colours back from these: accent, ink, muted ink, pass and warning. The
+   accent is the art's own (themes.ts `art`), the app's accent until a palette sets it. */
+.onboarding-art {
+  display: block;
+  pointer-events: none;
+  color: var(--art, var(--accent-ink));
+  border-style: none;
+  border-left-color: var(--ink);
+  border-right-color: var(--ink-3);
+  border-top-color: var(--green);
+  border-bottom-color: var(--orange);
+}
+
+/* Welcome: the wordmark, the stage, a caption, two steps and Next. */
+.onboarding-hello {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding-top: 24px;
+}
+.onboarding-hello p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: 0.02em;
+  color: var(--ink-3);
+}
+.onboarding-wordmark {
+  width: 142px;
+  height: auto;
+}
+.onboarding-fit {
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-block: 8px;
+}
+.onboarding-stage {
+  position: relative;
+  width: 760px;
+  height: 380px;
+  transform-origin: 0 0;
+}
+.onboarding-stage > .onboarding-art {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+.onboarding-composer {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transition:
+    opacity 420ms var(--ease-smooth-out),
+    transform 420ms var(--ease-smooth-out);
+}
+.onboarding-composer[data-shown="false"] {
+  opacity: 0;
+  transform: translateY(8px) scale(0.97);
+  pointer-events: none;
+}
+.onboarding-idea {
+  width: 100%;
+  min-width: 0;
+  height: 33px;
+  padding: 4px 8px 9px 7px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  caret-color: var(--accent-ink);
+  font-family: var(--font-family-content);
+  outline: none;
+  transition: color 140ms linear;
+}
+.onboarding-idea::placeholder {
+  color: var(--ink-3);
+}
+.onboarding-idea[data-let-go] {
+  color: transparent;
+}
+.onboarding-idea:disabled {
+  cursor: default;
+}
+.onboarding-composer .onboarding-send {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  margin: 0;
+}
+.onboarding-composer .onboarding-send[data-pressed] {
+  transform: scale(0.88);
+}
+.onboarding-composer .onboarding-send:enabled {
+  cursor: pointer;
+}
+.onboarding-ripple {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--accent-primary);
+  opacity: 0;
+  pointer-events: none;
+  animation: onboarding-ripple 720ms ease-out;
+}
+/* The empty bar's caret, blinking while the demo waits to type. */
+.onboarding-caret {
+  position: absolute;
+  left: 17px;
+  top: 15px;
+  width: 1.5px;
+  height: 18px;
+  background: var(--accent-ink);
+  pointer-events: none;
+  animation: onboarding-blink 1s step-end infinite;
+}
+/* Loop is on: the composer's own Mode button. Its ∞ draws itself once as the bar appears and a
+   light passes over the word once, then both rest. */
+.onboarding-loop {
+  cursor: default;
+}
+.onboarding-loop svg path:first-child {
+  stroke-opacity: 1;
+  animation: onboarding-dim-once 1.85s 0.3s linear backwards;
+}
+.onboarding-loop .a-trace {
+  stroke: var(--accent-ink);
+  stroke-dasharray: 0.23 0.77;
+  opacity: 0;
+  animation: onboarding-trace-once 1.85s 0.3s cubic-bezier(0.45, 0, 0.25, 1) backwards;
+}
+.onboarding-loop-label {
+  background:
+    linear-gradient(
+      90deg,
+      var(--ink) 0 38%,
+      var(--accent-ink) 46%,
+      color-mix(in oklab, var(--ink) 55%, white) 50%,
+      var(--accent-ink) 54%,
+      var(--ink) 62% 100%
+    )
+    0 0 / 250% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  background-position: -25% 0;
+  animation: onboarding-shimmer 1.85s 0.3s linear backwards;
+}
+.onboarding-letters {
+  position: absolute;
+  max-width: 470px;
+  height: 20px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: var(--font-family-content);
+  color: var(--ink);
+  pointer-events: none;
+  opacity: 0;
+}
+.onboarding-letters[data-shown="true"] {
+  opacity: 1;
+  transition: opacity 120ms linear;
+}
+.onboarding-role {
+  position: absolute;
+  top: 272px;
+  width: 240px;
+  text-align: center;
+  animation: onboarding-rise 480ms var(--ease-smooth-out) backwards;
+}
+.onboarding-role-name {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--ink);
+}
+.onboarding-role-does {
+  margin: 2px 0 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ink-3);
+}
+/* The demo's pointer is the Mac's own arrow, the same in either theme. */
+.onboarding-pointer {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  transform-origin: 3px 2px;
+  filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.45));
+  transition:
+    transform 950ms var(--ease-smooth-out),
+    opacity 250ms ease;
+}
+.onboarding-pointer path {
+  fill: #fff;
+  stroke: #111;
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+}
+.onboarding-pointer[data-at="off"] {
+  opacity: 0;
+  transform: translate(89px, 135px);
+}
+.onboarding-pointer[data-at="gone"] {
+  opacity: 0;
+  transform: translate(20px, 23px);
+}
+.onboarding-pointer[data-at="on"][data-pressed] {
+  transform: scale(0.86);
+  transition-duration: 120ms;
+}
+.onboarding-caption {
+  flex: none;
+  min-height: 28px;
+  max-width: 100%;
+  margin: 0;
+  font-size: 20px;
+  line-height: 28px;
+  color: var(--ink);
+  text-align: center;
+  text-wrap: balance;
+}
+.onboarding-steps {
+  flex: none;
+  display: flex;
+  gap: 6px;
+  margin-top: 24px;
+}
+.onboarding-step {
+  display: flex;
+  align-items: center;
+  width: 36px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+.onboarding-step-track {
+  position: relative;
+  display: block;
+  width: 36px;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--line-strong);
+  transition: background-color var(--duration-quick);
+}
+.onboarding-step:is(:hover, :focus-visible) .onboarding-step-track {
+  background: color-mix(in oklab, var(--ink-3) 55%, var(--line-strong));
+}
+.onboarding-step-fill {
+  position: absolute;
+  inset: 0;
+  background: var(--ink-3);
+  transform-origin: left center;
+}
+.onboarding-step[aria-current] .onboarding-step-fill {
+  background: var(--ink);
+}
+.onboarding-step-fill[data-running] {
+  animation-name: onboarding-fill;
+  animation-timing-function: linear;
+  animation-fill-mode: backwards;
+}
+.onboarding-cta {
+  flex: none;
+  min-width: 200px;
+  margin-top: 24px;
+}
+/* Connect and local models: one centred group under the Back/Skip bar, with Start building's place kept below it. */
+.onboarding-connect-screen,
+.onboarding-local {
+  justify-content: center;
+  padding-block: 96px 56px;
+}
+
+/* Connect and local models. */
+.onboarding-bar {
+  position: absolute;
+  top: 44px;
+  left: 24px;
+  right: 24px;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+}
+.onboarding-title {
+  max-width: 640px;
+  margin: 0;
+  font-size: 28px;
+  line-height: 36px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  text-align: center;
+  text-wrap: balance;
+  outline: none;
+}
+.onboarding-lede {
+  max-width: 640px;
+  margin: 8px 0 0;
+  font-size: 15px;
+  line-height: 22px;
+  color: var(--ink-3);
+  text-align: center;
+  text-wrap: pretty;
+}
+.onboarding-marks {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 640px;
+  margin-top: 40px;
+}
+/* Two columns 24px apart, each hugging its button; each mark stands over its column. */
+.onboarding-choices {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-top: 4px;
+}
+.onboarding-choice {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.onboarding-hug {
+  overflow: hidden;
+  border-radius: var(--radius-button);
+  transition: width 250ms var(--ease-smooth-out);
+}
+.onboarding-hug-inner {
+  width: max-content;
+  animation: onboarding-fade 220ms ease backwards;
+}
+.onboarding-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  padding-inline: 16px;
+  border-radius: var(--radius-button);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-family: var(--font-family-controls);
+  font-size: 14px;
+  white-space: nowrap;
+  color: var(--ink);
+}
+.onboarding-status-cancel {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-inline: -2px -10px;
+  border-radius: 8px;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition:
+    background-color var(--duration-quick),
+    color var(--duration-quick);
+}
+.onboarding-status-cancel:hover {
+  background: var(--control-hover, var(--hover));
+  color: var(--ink);
+}
+.onboarding-code {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+}
+.onboarding-code input {
+  width: 168px;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-control);
+  background: var(--field);
+  color: var(--ink);
+  font-family: var(--font-family-mono);
+  font-size: 14px;
+  outline: none;
+}
+.onboarding-code input::placeholder {
+  color: var(--ink-3);
+}
+.onboarding-code input:focus {
+  border-color: var(--focus-edge);
+}
+.onboarding-code [data-slot="button"] {
+  height: 40px;
+}
+.onboarding-local-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 36px;
+}
+.onboarding-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: var(--radius-control);
+  font-family: var(--font-family-controls);
+  font-size: 14px;
+  color: var(--ink-2);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklab, var(--ink-2) 40%, transparent);
+  text-underline-offset: 4px;
+  cursor: pointer;
+  transition: color var(--duration-quick);
+}
+.onboarding-link:hover {
+  color: var(--ink);
+}
+.onboarding-link:not([data-state="idle"]) {
+  text-decoration: none;
+}
+.onboarding-problem {
+  min-height: 20px;
+  max-width: 560px;
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--orange);
+  text-align: center;
+}
+.onboarding-foot {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  height: 40px;
+  margin-top: 20px;
+}
+.onboarding-foot .onboarding-cta {
+  margin-top: 0;
+}
+.onboarding-chip {
+  margin-top: 24px;
+}
+.onboarding-model {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 560px;
+  max-width: 100%;
+  min-height: 84px;
+  margin-top: 8px;
+  padding: 14px 16px 14px 22px;
+  overflow: hidden;
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+.onboarding-model-name {
+  font-size: 16px;
+  line-height: 22px;
+  color: var(--ink);
+}
+.onboarding-model-detail {
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 18px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--ink-3);
+}
+.onboarding-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: var(--accent-tint);
+  color: var(--accent-ink);
+  font-family: var(--font-family-mono);
+  font-size: 11px;
+}
+.onboarding-percent {
+  min-width: 44px;
+  font-family: var(--font-family-mono);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--ink);
+}
+.onboarding-model-bar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  background: var(--accent-primary);
+  transition: width 200ms linear;
+}
+.onboarding-note {
+  margin: 16px 0 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--ink-3);
+  text-align: center;
+}
+.onboarding-check {
+  flex: none;
+}
+.onboarding-check circle {
+  fill: var(--green);
+}
+.onboarding-check path {
+  fill: none;
+  stroke: var(--canvas);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  animation: onboarding-draw 420ms 140ms cubic-bezier(0.65, 0, 0.35, 1) backwards;
+}
+
+/* An entrance in chunks, 80 ms apart: heading, words, art, then what to do. Back slides in from the leading side. */
+.onboarding-enter > :not(.onboarding-bar) {
+  animation: onboarding-rise 480ms var(--ease-smooth-out) backwards;
+}
+.onboarding-enter > :nth-child(3) {
+  animation-delay: 80ms;
+}
+.onboarding-enter > :nth-child(4) {
+  animation-delay: 160ms;
+}
+.onboarding-enter > :nth-child(n + 5) {
+  animation-delay: 240ms;
+}
+.onboarding-enter-back {
+  animation: onboarding-enter-back 440ms var(--ease-smooth-out) backwards;
+}
+.onboarding-rise {
+  animation: onboarding-rise 480ms var(--ease-smooth-out) backwards;
+}
+.onboarding-swap {
+  animation: onboarding-fade 260ms ease backwards;
+}
+@keyframes onboarding-enter-back {
+  from {
+    opacity: 0;
+    transform: translateX(-28px);
+  }
+}
+@keyframes onboarding-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@keyframes onboarding-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes onboarding-fill {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes onboarding-shimmer {
+  from {
+    background-position: 125% 0;
+  }
+  to {
+    background-position: -25% 0;
+  }
+}
+@keyframes onboarding-trace-once {
+  from {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  to {
+    stroke-dashoffset: -1;
+    opacity: 0;
+  }
+}
+@keyframes onboarding-dim-once {
+  from {
+    stroke-opacity: 0.4;
+  }
+}
+@keyframes onboarding-blink {
+  50% {
+    opacity: 0;
+  }
+}
+@keyframes onboarding-ripple {
+  from {
+    opacity: 0.9;
+    transform: scale(0.7);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.4);
+  }
+}
+@keyframes onboarding-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .onboarding,
+  .onboarding *,
+  .onboarding *::before,
+  .onboarding *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* The connect buttons' fill is the onboarding's own (themes.ts `artButton`), the accent tint until
+   a palette sets it. This file is unlayered, so it wins over the tint's utility classes. */
+.onboarding-connect-action {
+  background-color: var(--art-button, color-mix(in oklab, var(--accent-primary) 12%, transparent));
+}
+.onboarding-connect-action:hover {
+  background-color: var(--art-button-hover, color-mix(in oklab, var(--accent-primary) 20%, transparent));
+}

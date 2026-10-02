@@ -1,0 +1,1717 @@
+[
+  {
+    "id": "event-0000",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T06:58:06.020Z",
+    "data": {
+      "type": "custom",
+      "event_type": "run_started",
+      "payload": {
+        "runId": "run_village",
+        "project": "fixture-village",
+        "mode": "director"
+      }
+    }
+  },
+  {
+    "id": "event-0001",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T07:03:07.506Z",
+    "data": {
+      "type": "custom",
+      "event_type": "autopilot_base",
+      "payload": {
+        "runId": "run_village",
+        "ok": true,
+        "commit": "3012064759f252507070b923b51d34b18a5d0e0d",
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0002",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T07:04:26.793Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_verdict",
+      "payload": {
+        "runId": "run_village",
+        "pass": "judge",
+        "build": {
+          "head": "3012064759f252507070b923b51d34b18a5d0e0d",
+          "worker": null,
+          "round": null
+        },
+        "measured": {
+          "planned": [],
+          "grown": [],
+          "flips": [],
+          "regressions": [],
+          "unmeasured": []
+        },
+        "seen": {
+          "pick": null,
+          "veto": null,
+          "satisfied": null,
+          "question": null,
+          "answer": null,
+          "alive": null,
+          "aliveMax": null,
+          "judgeCalls": 0
+        },
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0003",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T07:05:58.519Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_village",
+        "workerId": "villager-life",
+        "title": "Villager routines and conversations",
+        "mode": "loop",
+        "state": "running",
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0004",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T07:05:58.527Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_village",
+        "workerId": "environment-cycle",
+        "title": "Village land and living sky",
+        "mode": "loop",
+        "state": "running",
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0005",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T07:05:58.536Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_village",
+        "workerId": "village-landmarks",
+        "title": "Homes, well and working forge",
+        "mode": "loop",
+        "state": "running",
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0006",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T07:06:08.358Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_build_started",
+      "payload": {
+        "runId": "run_village",
+        "facetId": "village-landmarks",
+        "facetTitle": "Homes, well and working forge",
+        "iteration": 1,
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0007",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T07:06:08.369Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_build_started",
+      "payload": {
+        "runId": "run_village",
+        "facetId": "environment-cycle",
+        "facetTitle": "Village land and living sky",
+        "iteration": 1,
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0008",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T07:06:08.379Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_build_started",
+      "payload": {
+        "runId": "run_village",
+        "facetId": "villager-life",
+        "facetTitle": "Villager routines and conversations",
+        "iteration": 1,
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0009",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T07:06:15.012Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_village",
+        "workerId": "player-experience",
+        "title": "First-person walk and village HUD",
+        "mode": "loop",
+        "state": "running",
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0010",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T07:06:15.066Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_build_started",
+      "payload": {
+        "runId": "run_village",
+        "facetId": "player-experience",
+        "facetTitle": "First-person walk and village HUD",
+        "iteration": 1,
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0011",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T07:21:25.763Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_village",
+        "project": "fixture-village",
+        "facetId": "player-experience",
+        "facetTitle": "First-person walk and village HUD",
+        "iteration": 1,
+        "winner": "incumbent",
+        "verdictSource": "broken"
+      }
+    }
+  },
+  {
+    "id": "event-0012",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T07:21:25.777Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_build_started",
+      "payload": {
+        "runId": "run_village",
+        "facetId": "player-experience",
+        "facetTitle": "First-person walk and village HUD",
+        "iteration": 2,
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0013",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T07:21:49.984Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_village",
+        "project": "fixture-village",
+        "facetId": "environment-cycle",
+        "facetTitle": "Village land and living sky",
+        "iteration": 1,
+        "winner": null,
+        "verdictSource": "stopped"
+      }
+    }
+  },
+  {
+    "id": "event-0014",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T07:21:50.075Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_village",
+        "workerId": "environment-cycle",
+        "title": "Village land and living sky",
+        "mode": "loop",
+        "state": "stopped",
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0015",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T07:23:11.156Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_verdict",
+      "payload": {
+        "runId": "run_village",
+        "pass": "gate",
+        "build": {
+          "head": "266ba20b61f4aa30e9183beba4a30404a209a116",
+          "worker": "environment-cycle-landing",
+          "round": null
+        },
+        "measured": {
+          "planned": [],
+          "grown": [],
+          "flips": [],
+          "regressions": [],
+          "unmeasured": []
+        },
+        "seen": {
+          "pick": null,
+          "veto": null,
+          "satisfied": null,
+          "question": null,
+          "answer": null,
+          "alive": null,
+          "aliveMax": null,
+          "judgeCalls": 0
+        },
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0016",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T07:23:29.239Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_village",
+        "project": "fixture-village",
+        "facetId": "village-landmarks",
+        "facetTitle": "Homes, well and working forge",
+        "iteration": 1,
+        "winner": null,
+        "verdictSource": "stopped"
+      }
+    }
+  },
+  {
+    "id": "event-0017",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T07:23:29.269Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_village",
+        "project": "fixture-village",
+        "facetId": "player-experience",
+        "facetTitle": "First-person walk and village HUD",
+        "iteration": 2,
+        "winner": null,
+        "verdictSource": "stopped"
+      }
+    }
+  },
+  {
+    "id": "event-0018",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T07:23:29.286Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_village",
+        "project": "fixture-village",
+        "facetId": "villager-life",
+        "facetTitle": "Villager routines and conversations",
+        "iteration": 1,
+        "winner": null,
+        "verdictSource": "stopped"
+      }
+    }
+  },
+  {
+    "id": "event-0019",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T07:23:29.335Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_village",
+        "workerId": "village-landmarks",
+        "title": "Homes, well and working forge",
+        "mode": "loop",
+        "state": "stopped",
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0020",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T07:23:29.366Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_village",
+        "workerId": "player-experience",
+        "title": "First-person walk and village HUD",
+        "mode": "loop",
+        "state": "stopped",
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0021",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T07:23:29.387Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_village",
+        "workerId": "villager-life",
+        "title": "Villager routines and conversations",
+        "mode": "loop",
+        "state": "stopped",
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0022",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T07:24:14.573Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_village",
+        "workerId": "world-slice",
+        "title": "Complete visible village world",
+        "mode": "loop",
+        "state": "running",
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0023",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T07:24:23.862Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_build_started",
+      "payload": {
+        "runId": "run_village",
+        "facetId": "world-slice",
+        "facetTitle": "Complete visible village world",
+        "iteration": 1,
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0024",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T07:50:26.831Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_village",
+        "project": "fixture-village",
+        "facetId": "world-slice",
+        "facetTitle": "Complete visible village world",
+        "iteration": 1,
+        "winner": "challenger",
+        "verdictSource": "checks"
+      }
+    }
+  },
+  {
+    "id": "event-0025",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T07:50:26.842Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_build_started",
+      "payload": {
+        "runId": "run_village",
+        "facetId": "world-slice",
+        "facetTitle": "Complete visible village world",
+        "iteration": 2,
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0026",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T07:50:35.799Z",
+    "data": {
+      "type": "custom",
+      "event_type": "integration_merge",
+      "payload": {
+        "runId": "run_village",
+        "facetId": "world-slice",
+        "commit": "9c787690c8c4aae94c33b9e1515825d697e1ef8c",
+        "head": "0adaec422ecc0bd61b67d0349c4101c56e2809a2",
+        "conflict": false,
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0027",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T07:50:39.241Z",
+    "data": {
+      "type": "custom",
+      "event_type": "integration_health",
+      "payload": {
+        "runId": "run_village",
+        "head": "0adaec422ecc0bd61b67d0349c4101c56e2809a2",
+        "ok": true,
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0028",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T07:50:39.253Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_verdict",
+      "payload": {
+        "runId": "run_village",
+        "pass": "health",
+        "build": {
+          "head": "0adaec422ecc0bd61b67d0349c4101c56e2809a2",
+          "worker": "world-slice",
+          "round": null
+        },
+        "measured": {
+          "planned": [],
+          "grown": [],
+          "flips": [],
+          "regressions": [],
+          "unmeasured": []
+        },
+        "seen": {
+          "pick": null,
+          "veto": null,
+          "satisfied": null,
+          "question": null,
+          "answer": null,
+          "alive": null,
+          "aliveMax": null,
+          "judgeCalls": 0
+        },
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0029",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T07:50:45.612Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_village",
+        "project": "fixture-village",
+        "facetId": "world-slice",
+        "facetTitle": "Complete visible village world",
+        "iteration": 2,
+        "winner": null,
+        "verdictSource": "stopped"
+      }
+    }
+  },
+  {
+    "id": "event-0030",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T07:50:45.742Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_village",
+        "workerId": "world-slice",
+        "title": "Complete visible village world",
+        "mode": "loop",
+        "state": "stopped",
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0031",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T07:51:01.997Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_village",
+        "workerId": "life-slice",
+        "title": "Residents and personal conversations",
+        "mode": "loop",
+        "state": "running",
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0032",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T07:51:11.804Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_build_started",
+      "payload": {
+        "runId": "run_village",
+        "facetId": "life-slice",
+        "facetTitle": "Residents and personal conversations",
+        "iteration": 1,
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0033",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T08:08:46.623Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_village",
+        "project": "fixture-village",
+        "facetId": "life-slice",
+        "facetTitle": "Residents and personal conversations",
+        "iteration": 1,
+        "winner": null,
+        "verdictSource": "stopped"
+      }
+    }
+  },
+  {
+    "id": "event-0034",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T08:08:46.721Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_village",
+        "workerId": "life-slice",
+        "title": "Residents and personal conversations",
+        "mode": "loop",
+        "state": "done",
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0035",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T08:10:08.719Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_verdict",
+      "payload": {
+        "runId": "run_village",
+        "pass": "gate",
+        "build": {
+          "head": "925c8e533f86adb767d7c08b66d13d57d4bac76a",
+          "worker": "life-slice-landing",
+          "round": null
+        },
+        "measured": {
+          "planned": [],
+          "grown": [],
+          "flips": [],
+          "regressions": [],
+          "unmeasured": []
+        },
+        "seen": {
+          "pick": null,
+          "veto": null,
+          "satisfied": null,
+          "question": null,
+          "answer": null,
+          "alive": null,
+          "aliveMax": null,
+          "judgeCalls": 0
+        },
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0036",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T08:10:08.762Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_village",
+        "workerId": "life-slice-landing",
+        "title": "Residents and personal conversations",
+        "mode": "single",
+        "state": "running",
+        "replaces": "life-slice",
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0037",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T08:10:37.726Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_village",
+        "workerId": "life-slice-landing",
+        "title": "Residents and personal conversations",
+        "mode": "single",
+        "state": "done",
+        "replaces": "life-slice",
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0038",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T08:10:43.485Z",
+    "data": {
+      "type": "custom",
+      "event_type": "integration_merge",
+      "payload": {
+        "runId": "run_village",
+        "facetId": "life-slice-landing",
+        "commit": "47f89a497af37d2b503324db0c7b8659c3fce563",
+        "head": "398e1dde02df2da3ec8f8de762367e49958e55c4",
+        "conflict": false,
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0039",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T08:10:46.573Z",
+    "data": {
+      "type": "custom",
+      "event_type": "integration_health",
+      "payload": {
+        "runId": "run_village",
+        "head": "398e1dde02df2da3ec8f8de762367e49958e55c4",
+        "ok": true,
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0040",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T08:10:46.586Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_verdict",
+      "payload": {
+        "runId": "run_village",
+        "pass": "health",
+        "build": {
+          "head": "398e1dde02df2da3ec8f8de762367e49958e55c4",
+          "worker": "life-slice-landing",
+          "round": null
+        },
+        "measured": {
+          "planned": [],
+          "grown": [],
+          "flips": [],
+          "regressions": [],
+          "unmeasured": []
+        },
+        "seen": {
+          "pick": null,
+          "veto": null,
+          "satisfied": null,
+          "question": null,
+          "answer": null,
+          "alive": null,
+          "aliveMax": null,
+          "judgeCalls": 0
+        },
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0041",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T08:11:04.832Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_village",
+        "workerId": "play-slice",
+        "title": "First-person exploration and presentation",
+        "mode": "loop",
+        "state": "running",
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0042",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T08:11:14.534Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_build_started",
+      "payload": {
+        "runId": "run_village",
+        "facetId": "play-slice",
+        "facetTitle": "First-person exploration and presentation",
+        "iteration": 1,
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0043",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T08:27:49.335Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_village",
+        "project": "fixture-village",
+        "facetId": "play-slice",
+        "facetTitle": "First-person exploration and presentation",
+        "iteration": 1,
+        "winner": "challenger",
+        "verdictSource": "checks"
+      }
+    }
+  },
+  {
+    "id": "event-0044",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T08:27:49.346Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_build_started",
+      "payload": {
+        "runId": "run_village",
+        "facetId": "play-slice",
+        "facetTitle": "First-person exploration and presentation",
+        "iteration": 2,
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0045",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T08:27:57.897Z",
+    "data": {
+      "type": "custom",
+      "event_type": "integration_merge",
+      "payload": {
+        "runId": "run_village",
+        "facetId": "play-slice",
+        "commit": "9c853a0afc1fde45050a5cf4fd7686712ff00666",
+        "head": "c1da28997cc7841085057e560ff2b07bfaa1801b",
+        "conflict": false,
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0046",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T08:28:01.435Z",
+    "data": {
+      "type": "custom",
+      "event_type": "integration_health",
+      "payload": {
+        "runId": "run_village",
+        "head": "c1da28997cc7841085057e560ff2b07bfaa1801b",
+        "ok": true,
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0047",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T08:28:01.445Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_verdict",
+      "payload": {
+        "runId": "run_village",
+        "pass": "health",
+        "build": {
+          "head": "c1da28997cc7841085057e560ff2b07bfaa1801b",
+          "worker": "play-slice",
+          "round": null
+        },
+        "measured": {
+          "planned": [],
+          "grown": [],
+          "flips": [],
+          "regressions": [],
+          "unmeasured": []
+        },
+        "seen": {
+          "pick": null,
+          "veto": null,
+          "satisfied": null,
+          "question": null,
+          "answer": null,
+          "alive": null,
+          "aliveMax": null,
+          "judgeCalls": 0
+        },
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0048",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T08:28:10.648Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_village",
+        "project": "fixture-village",
+        "facetId": "play-slice",
+        "facetTitle": "First-person exploration and presentation",
+        "iteration": 2,
+        "winner": null,
+        "verdictSource": "stopped"
+      }
+    }
+  },
+  {
+    "id": "event-0049",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T08:28:10.744Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_village",
+        "workerId": "play-slice",
+        "title": "First-person exploration and presentation",
+        "mode": "loop",
+        "state": "stopped",
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0050",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T08:28:46.228Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_village",
+        "workerId": "final-polish",
+        "title": "Cozy lived-in village polish",
+        "mode": "loop",
+        "state": "running",
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0051",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T08:28:55.850Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_build_started",
+      "payload": {
+        "runId": "run_village",
+        "facetId": "final-polish",
+        "facetTitle": "Cozy lived-in village polish",
+        "iteration": 1,
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0052",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T08:52:46.892Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_village",
+        "project": "fixture-village",
+        "facetId": "final-polish",
+        "facetTitle": "Cozy lived-in village polish",
+        "iteration": 1,
+        "winner": "challenger",
+        "verdictSource": "checks"
+      }
+    }
+  },
+  {
+    "id": "event-0053",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T08:52:46.903Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_build_started",
+      "payload": {
+        "runId": "run_village",
+        "facetId": "final-polish",
+        "facetTitle": "Cozy lived-in village polish",
+        "iteration": 2,
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0054",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T08:52:56.466Z",
+    "data": {
+      "type": "custom",
+      "event_type": "integration_merge",
+      "payload": {
+        "runId": "run_village",
+        "facetId": "final-polish",
+        "commit": "232f9b8e907957bd7210b8e5f0723a8baf6fb46e",
+        "head": "3f8de640118fce3e10919ec6901f868dcbe02197",
+        "conflict": false,
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0055",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T08:53:01.680Z",
+    "data": {
+      "type": "custom",
+      "event_type": "integration_health",
+      "payload": {
+        "runId": "run_village",
+        "head": "3f8de640118fce3e10919ec6901f868dcbe02197",
+        "ok": true,
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0056",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T08:53:01.690Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_verdict",
+      "payload": {
+        "runId": "run_village",
+        "pass": "health",
+        "build": {
+          "head": "3f8de640118fce3e10919ec6901f868dcbe02197",
+          "worker": "final-polish",
+          "round": null
+        },
+        "measured": {
+          "planned": [],
+          "grown": [],
+          "flips": [],
+          "regressions": [],
+          "unmeasured": []
+        },
+        "seen": {
+          "pick": null,
+          "veto": null,
+          "satisfied": null,
+          "question": null,
+          "answer": null,
+          "alive": null,
+          "aliveMax": null,
+          "judgeCalls": 0
+        },
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0057",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T08:53:11.470Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_village",
+        "project": "fixture-village",
+        "facetId": "final-polish",
+        "facetTitle": "Cozy lived-in village polish",
+        "iteration": 2,
+        "winner": null,
+        "verdictSource": "stopped"
+      }
+    }
+  },
+  {
+    "id": "event-0058",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T08:53:11.577Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_village",
+        "workerId": "final-polish",
+        "title": "Cozy lived-in village polish",
+        "mode": "loop",
+        "state": "stopped",
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0059",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T08:56:21.721Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_verdict",
+      "payload": {
+        "runId": "run_village",
+        "pass": "judge",
+        "build": {
+          "head": "3f8de640118fce3e10919ec6901f868dcbe02197",
+          "worker": null,
+          "round": null
+        },
+        "measured": {
+          "planned": [
+            {
+              "id": "world-complete",
+              "kind": "scene",
+              "pass": false,
+              "reason": "scene check error: house is not defined"
+            },
+            {
+              "id": "movement",
+              "kind": "probe",
+              "pass": true,
+              "reason": ""
+            },
+            {
+              "id": "hud-single",
+              "kind": "scene",
+              "pass": true,
+              "reason": ""
+            },
+            {
+              "id": "detail",
+              "kind": "scene",
+              "pass": false,
+              "reason": "scene check error: prop is not defined"
+            }
+          ],
+          "grown": [],
+          "flips": [],
+          "regressions": [],
+          "unmeasured": []
+        },
+        "seen": {
+          "pick": null,
+          "veto": null,
+          "satisfied": null,
+          "question": "Does this now present a coherent, warm, walkable medieval village with clear landmarks, lived-in residents and a polished exploration HUD?",
+          "answer": false,
+          "alive": null,
+          "aliveMax": null,
+          "judgeCalls": 0
+        },
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0060",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T08:56:50.883Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_verdict",
+      "payload": {
+        "runId": "run_village",
+        "pass": "judge",
+        "build": {
+          "head": "3f8de640118fce3e10919ec6901f868dcbe02197",
+          "worker": null,
+          "round": null
+        },
+        "measured": {
+          "planned": [
+            {
+              "id": "world-complete",
+              "kind": "scene",
+              "pass": true,
+              "reason": ""
+            },
+            {
+              "id": "movement",
+              "kind": "probe",
+              "pass": true,
+              "reason": ""
+            },
+            {
+              "id": "hud-single",
+              "kind": "scene",
+              "pass": true,
+              "reason": ""
+            },
+            {
+              "id": "detail",
+              "kind": "scene",
+              "pass": true,
+              "reason": ""
+            }
+          ],
+          "grown": [],
+          "flips": [],
+          "regressions": [],
+          "unmeasured": []
+        },
+        "seen": {
+          "pick": null,
+          "veto": null,
+          "satisfied": null,
+          "question": "From this first-person view, are the central well, several timber-framed houses, villagers, connected paths, and a restrained exploration HUD all visibly present?",
+          "answer": true,
+          "alive": null,
+          "aliveMax": null,
+          "judgeCalls": 0
+        },
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0061",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T09:01:05.540Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_village",
+        "workerId": "camera-follow-fix",
+        "title": "Final player camera follow fix",
+        "mode": "single",
+        "state": "running",
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0062",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T09:01:41.922Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_village",
+        "workerId": "camera-follow-fix",
+        "title": "Final player camera follow fix",
+        "mode": "single",
+        "state": "done",
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0063",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T09:01:46.752Z",
+    "data": {
+      "type": "custom",
+      "event_type": "integration_merge",
+      "payload": {
+        "runId": "run_village",
+        "facetId": "camera-follow-fix",
+        "commit": "671204db6efc1ee980dc971c86b1c76d90320d74",
+        "head": "4a54df62d3ec5b34fd934270a58ea916a721ebbf",
+        "conflict": false,
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0064",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T09:01:50.756Z",
+    "data": {
+      "type": "custom",
+      "event_type": "integration_health",
+      "payload": {
+        "runId": "run_village",
+        "head": "4a54df62d3ec5b34fd934270a58ea916a721ebbf",
+        "ok": true,
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0065",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T09:01:50.767Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_verdict",
+      "payload": {
+        "runId": "run_village",
+        "pass": "health",
+        "build": {
+          "head": "4a54df62d3ec5b34fd934270a58ea916a721ebbf",
+          "worker": "camera-follow-fix",
+          "round": null
+        },
+        "measured": {
+          "planned": [],
+          "grown": [],
+          "flips": [],
+          "regressions": [],
+          "unmeasured": []
+        },
+        "seen": {
+          "pick": null,
+          "veto": null,
+          "satisfied": null,
+          "question": null,
+          "answer": null,
+          "alive": null,
+          "aliveMax": null,
+          "judgeCalls": 0
+        },
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0066",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T09:05:09.101Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_village",
+        "workerId": "camera-follow-fix2",
+        "title": "Final player camera follow fix",
+        "mode": "single",
+        "state": "running",
+        "replaces": "camera-follow-fix",
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0067",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T09:05:35.611Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_village",
+        "workerId": "camera-follow-fix2",
+        "title": "Final player camera follow fix",
+        "mode": "single",
+        "state": "done",
+        "replaces": "camera-follow-fix",
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0068",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T09:05:40.051Z",
+    "data": {
+      "type": "custom",
+      "event_type": "integration_merge",
+      "payload": {
+        "runId": "run_village",
+        "facetId": "camera-follow-fix2",
+        "commit": "50d2f230c50aefe4c0730960f414f6c27f7fb61f",
+        "head": "77184baf98772b0d7a86ce770c64fb03992f0fd6",
+        "conflict": false,
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0069",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T09:05:43.889Z",
+    "data": {
+      "type": "custom",
+      "event_type": "integration_health",
+      "payload": {
+        "runId": "run_village",
+        "head": "77184baf98772b0d7a86ce770c64fb03992f0fd6",
+        "ok": true,
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0070",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T09:05:43.902Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_verdict",
+      "payload": {
+        "runId": "run_village",
+        "pass": "health",
+        "build": {
+          "head": "77184baf98772b0d7a86ce770c64fb03992f0fd6",
+          "worker": "camera-follow-fix2",
+          "round": null
+        },
+        "measured": {
+          "planned": [],
+          "grown": [],
+          "flips": [],
+          "regressions": [],
+          "unmeasured": []
+        },
+        "seen": {
+          "pick": null,
+          "veto": null,
+          "satisfied": null,
+          "question": null,
+          "answer": null,
+          "alive": null,
+          "aliveMax": null,
+          "judgeCalls": 0
+        },
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0071",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T09:29:52.591Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_verdict",
+      "payload": {
+        "runId": "run_village",
+        "pass": "judge",
+        "build": {
+          "head": "77184baf98772b0d7a86ce770c64fb03992f0fd6",
+          "worker": null,
+          "round": null
+        },
+        "measured": {
+          "planned": [
+            {
+              "id": "world-complete",
+              "kind": "scene",
+              "pass": true,
+              "reason": ""
+            },
+            {
+              "id": "movement",
+              "kind": "probe",
+              "pass": true,
+              "reason": ""
+            },
+            {
+              "id": "hud-single",
+              "kind": "scene",
+              "pass": true,
+              "reason": ""
+            },
+            {
+              "id": "detail",
+              "kind": "scene",
+              "pass": true,
+              "reason": ""
+            }
+          ],
+          "grown": [],
+          "flips": [],
+          "regressions": [],
+          "unmeasured": []
+        },
+        "seen": {
+          "pick": null,
+          "veto": null,
+          "satisfied": null,
+          "question": "From this first-person view, are the central well, timber-framed houses, named villagers, connected paths, and restrained exploration HUD all visibly present?",
+          "answer": false,
+          "alive": null,
+          "aliveMax": null,
+          "judgeCalls": 0
+        },
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0072",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T09:31:25.602Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_verdict",
+      "payload": {
+        "runId": "run_village",
+        "pass": "close",
+        "build": {
+          "head": "77184baf98772b0d7a86ce770c64fb03992f0fd6",
+          "worker": null,
+          "round": null
+        },
+        "measured": {
+          "planned": [],
+          "grown": [],
+          "flips": [],
+          "regressions": [],
+          "unmeasured": []
+        },
+        "seen": {
+          "pick": null,
+          "veto": null,
+          "satisfied": null,
+          "question": null,
+          "answer": null,
+          "alive": null,
+          "aliveMax": null,
+          "judgeCalls": 0
+        },
+        "project": "fixture-village"
+      }
+    }
+  },
+  {
+    "id": "event-0073",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-09-17T09:31:25.724Z",
+    "data": {
+      "type": "custom",
+      "event_type": "run_finished",
+      "payload": {
+        "runId": "run_village",
+        "project": "fixture-village",
+        "mode": "director",
+        "landed": true,
+        "integrationHead": "77184baf98772b0d7a86ce770c64fb03992f0fd6",
+        "baseCommit": "fc469040393dbea0182e755219128994f68eade2"
+      }
+    }
+  }
+]

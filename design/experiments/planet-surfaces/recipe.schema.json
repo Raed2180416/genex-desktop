@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Genex planet surface recipe v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "seed",
+    "surface",
+    "palette"
+  ],
+  "properties": {
+    "version": {
+      "const": 2
+    },
+    "seed": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4294967295
+    },
+    "surface": {
+      "enum": [
+        "ocean",
+        "craters",
+        "bands",
+        "marble",
+        "cloud-pearl"
+      ]
+    },
+    "layer": {
+      "enum": [
+        "none",
+        "clouds",
+        "frost",
+        "metallic",
+        "storms",
+        "veins"
+      ],
+      "default": "none"
+    },
+    "palette": {
+      "enum": [
+        "ice",
+        "violet",
+        "jade",
+        "amber",
+        "rose",
+        "silver"
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "surface": {
+            "const": "ocean"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "layer": {
+            "enum": [
+              "none",
+              "clouds",
+              "frost"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "surface": {
+            "const": "craters"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "layer": {
+            "enum": [
+              "none",
+              "frost",
+              "metallic"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "surface": {
+            "const": "bands"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "layer": {
+            "enum": [
+              "none",
+              "storms",
+              "clouds"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "surface": {
+            "const": "marble"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "layer": {
+            "enum": [
+              "none",
+              "veins",
+              "metallic"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "surface": {
+            "const": "cloud-pearl"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "layer": {
+            "enum": [
+              "none"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "prompt": "Third-person gameplay footage from a medieval village adventure game. The hooded archer walks forward along the dirt path toward the stone well, and the game camera follows smoothly behind her at a constant distance, gliding slightly. Grass and leaves sway in a light breeze, smoke drifts from the chimney, two small birds fly across the sky. Smooth steady game camera, natural walk cycle, no cuts, no text, no user interface.",
+  "image_url": "file:out/clips/game-still.jpg",
+  "resolution": "720p",
+  "duration": "5",
+  "generate_audio": false
+}

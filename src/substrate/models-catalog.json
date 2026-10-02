@@ -1,0 +1,249 @@
+{
+  "$comment": "Curated local-model picks. Data, not code. `models` holds one entry per model; `about` is the one line the user reads (60 characters at most) and `notes` is evidence that is never displayed. `tiers` rank model ids for a RAM class: the first that fits the machine is Best fit. Sizes are download sizes of the pinned tag, read from registry.ollama.ai manifests on 22 Sep 2026 for the models added then. The 32 GB Qwen MLX figures were measured on a real M2 Max, 21 Aug 2026; the large-Mac models added 22 Sep 2026 have not been measured in Studio.",
+  "updated": "2026-09-22",
+  "models": {
+    "bonsai-2:27b-pq2_0": {
+      "engine": "bonsai",
+      "name": "Bonsai 2 27B",
+      "variant": "PQ2_0",
+      "sizeGb": 7.84,
+      "tools": true,
+      "vision": true,
+      "appleSilicon": true,
+      "minRamGb": 16,
+      "about": "Best balance of quality and speed. Runs without Ollama.",
+      "notes": "Managed Prism runtime. 100K working context on Macs with 32 GB or more; 16K on smaller Macs."
+    },
+    "bonsai-2:27b-ptq1_0": {
+      "engine": "bonsai",
+      "name": "Bonsai 2 27B",
+      "variant": "PTQ1_0",
+      "sizeGb": 6.58,
+      "tools": true,
+      "vision": true,
+      "appleSilicon": true,
+      "minRamGb": 16,
+      "about": "Smaller download, slightly lower quality.",
+      "notes": "Smaller packing of the same weights; includes vision."
+    },
+    "qwen3.5:4b": {
+      "name": "Qwen 3.5 4B",
+      "sizeGb": 3.4,
+      "tools": true,
+      "vision": true,
+      "about": "Chat only: too small for reliable game building.",
+      "notes": "Steer real work to a subscription engine on 8 GB machines."
+    },
+    "gemma4:12b": {
+      "name": "Gemma 4 12B",
+      "sizeGb": 7.6,
+      "tools": true,
+      "vision": true,
+      "about": "Small and capable, with room for a long context.",
+      "notes": "The best judge model on a small Mac."
+    },
+    "gpt-oss:20b": {
+      "name": "gpt-oss 20B",
+      "sizeGb": 14,
+      "tools": true,
+      "vision": false,
+      "about": "Fast, dependable builder.",
+      "notes": "Best tool-calling in class; reasoning effort is configurable — keep it low for long runs. Text-only, so it cannot judge a screenshot."
+    },
+    "qwen3.8:27b-mlx": {
+      "name": "Qwen 3.8 27B",
+      "sizeGb": 18.2,
+      "tools": true,
+      "vision": true,
+      "appleSilicon": true,
+      "about": "Strongest all-rounder that fits. Slower replies.",
+      "notes": "Measured on an M2 Max/32 GB: 18.0 GiB peak with all 66 layers on the GPU, tool calling and vision both verified. Apple's MLX build of qwen3.8:27b, faster there than the GGUF."
+    },
+    "qwen3.8:27b": {
+      "name": "Qwen 3.8 27B",
+      "sizeGb": 17.7,
+      "tools": true,
+      "vision": true,
+      "mlx": "qwen3.8:27b-mlx",
+      "about": "Strong all-rounder. Keep reasoning effort low.",
+      "notes": "Portable GGUF build. Needs Ollama >= 0.32.12; thinking defaults high, so a single answer can run for many minutes."
+    },
+    "gemma4:26b": {
+      "name": "Gemma 4 26B",
+      "sizeGb": 18,
+      "tools": true,
+      "vision": true,
+      "about": "Mixture-of-experts: quick replies for its size."
+    },
+    "gemma4:31b": {
+      "name": "Gemma 4 31B",
+      "sizeGb": 19.9,
+      "tools": true,
+      "vision": true,
+      "about": "Dense model, strong for its size.",
+      "notes": "256K context."
+    },
+    "qwen3.6:35b": {
+      "name": "Qwen 3.6 35B",
+      "sizeGb": 22.6,
+      "tools": true,
+      "vision": true,
+      "about": "Larger mixture-of-experts Qwen."
+    },
+    "nemotron-3.5-lightning:30b": {
+      "name": "Nemotron 3.5 Lightning",
+      "sizeGb": 25.4,
+      "tools": true,
+      "vision": false,
+      "about": "Very fast: only 3B parameters active.",
+      "notes": "30B mixture-of-experts, tools and thinking; text only."
+    },
+    "qwen3-coder-next": {
+      "name": "Qwen3 Coder Next 80B",
+      "sizeGb": 51.7,
+      "tools": true,
+      "vision": false,
+      "about": "Coding specialist with 3B parameters active.",
+      "notes": "80B/3B-active mixture-of-experts, non-thinking; the latest tag is q4_K_M."
+    },
+    "gpt-oss:120b": {
+      "name": "gpt-oss 120B",
+      "sizeGb": 65.4,
+      "tools": true,
+      "vision": false,
+      "about": "Larger gpt-oss with stronger reasoning.",
+      "notes": "Needs ~70 GB of model budget — in practice 128 GB of RAM."
+    },
+    "devstral-2:123b": {
+      "name": "Devstral 2 123B",
+      "sizeGb": 74.9,
+      "tools": true,
+      "vision": false,
+      "about": "Built for editing many files at once."
+    },
+    "qwen3.5:122b": {
+      "name": "Qwen 3.5 122B",
+      "sizeGb": 81.4,
+      "tools": true,
+      "vision": true,
+      "about": "Largest local model that can see your game.",
+      "notes": "122B mixture-of-experts; ollama.com lists vision, tools and thinking."
+    },
+    "qwen3.8-flash-next:125b-mlx": {
+      "name": "Qwen 3.8 Flash Next",
+      "sizeGb": 104.9,
+      "tools": true,
+      "vision": true,
+      "appleSilicon": true,
+      "about": "6B parameters active: fast for its size.",
+      "notes": "125B mixture-of-experts; vision, tools and thinking. MLX only."
+    }
+  },
+  "tiers": [
+    {
+      "minRamGb": 8,
+      "expectation": "weak",
+      "label": "8 GB — chat only",
+      "picks": ["qwen3.5:4b"]
+    },
+    {
+      "minRamGb": 16,
+      "expectation": "usable",
+      "label": "16 GB — small builds",
+      "picks": ["bonsai-2:27b-pq2_0", "gemma4:12b", "bonsai-2:27b-ptq1_0", "gpt-oss:20b"]
+    },
+    {
+      "minRamGb": 24,
+      "expectation": "usable",
+      "label": "24 GB — solid",
+      "picks": ["bonsai-2:27b-pq2_0", "gpt-oss:20b", "gemma4:12b", "bonsai-2:27b-ptq1_0"]
+    },
+    {
+      "minRamGb": 32,
+      "expectation": "good",
+      "label": "32 GB — the sweet spot",
+      "picks": [
+        "bonsai-2:27b-pq2_0",
+        "qwen3.8:27b-mlx",
+        "qwen3.8:27b",
+        "gemma4:26b",
+        "gpt-oss:20b",
+        "bonsai-2:27b-ptq1_0"
+      ]
+    },
+    {
+      "minRamGb": 64,
+      "expectation": "good",
+      "label": "64 GB — comfortable",
+      "picks": [
+        "bonsai-2:27b-pq2_0",
+        "qwen3.8:27b-mlx",
+        "qwen3.8:27b",
+        "qwen3.6:35b",
+        "gemma4:31b",
+        "nemotron-3.5-lightning:30b"
+      ]
+    },
+    {
+      "minRamGb": 96,
+      "expectation": "strong",
+      "label": "96 GB — roomy",
+      "picks": ["bonsai-2:27b-pq2_0", "gemma4:31b", "qwen3-coder-next", "qwen3.8:27b-mlx", "qwen3.8:27b", "qwen3.6:35b"]
+    },
+    {
+      "minRamGb": 128,
+      "expectation": "strong",
+      "label": "128 GB — large models",
+      "picks": [
+        "qwen3.5:122b",
+        "devstral-2:123b",
+        "gpt-oss:120b",
+        "qwen3-coder-next",
+        "qwen3.8:27b-mlx",
+        "qwen3.8:27b",
+        "bonsai-2:27b-pq2_0"
+      ]
+    },
+    {
+      "minRamGb": 192,
+      "expectation": "strong",
+      "label": "192 GB+",
+      "picks": [
+        "qwen3.5:122b",
+        "qwen3.8-flash-next:125b-mlx",
+        "devstral-2:123b",
+        "gpt-oss:120b",
+        "qwen3-coder-next",
+        "qwen3.8:27b-mlx",
+        "bonsai-2:27b-pq2_0"
+      ]
+    }
+  ],
+  "judges": {
+    "$comment": "Blind judging needs vision. On 32 GB only one large model is resident at a time, so prefer using ONE vision+tools model for both roles over swapping two — swapping costs more than the quality difference. Local judging of 3D 'feel' is still unproven; the contractor engine is the fallback.",
+    "local": ["qwen3.8:27b-mlx", "qwen3.8:27b", "gemma4:26b", "gemma4:12b"],
+    "delegated": ["claude-code", "codex"]
+  },
+  "superseded": {
+    "$comment": "Installed models the catalog considers outdated → the model manager flags them.",
+    "llama3.1:8b": "gemma4:12b",
+    "llama3.2:3b": "qwen3.5:4b",
+    "qwen2.5-coder:32b": "qwen3.8:27b",
+    "codellama:34b": "qwen3.8:27b",
+    "mistral:7b": "gemma4:12b",
+    "deepseek-coder-v2:16b": "qwen3.8:27b",
+    "qwen3:8b": "gemma4:12b",
+    "gemma3:12b": "gemma4:12b",
+    "gemma3:27b": "qwen3.8:27b",
+    "qwen2.5:32b": "qwen3.8:27b",
+    "deepseek-r1:32b": "gpt-oss:20b",
+    "qwen3.6:27b": "qwen3.8:27b"
+  },
+  "requiresOllama": {
+    "$comment": "Minimum Ollama version per model; the app warns instead of failing a pull that cannot work.",
+    "qwen3.8:27b": "0.32.12",
+    "qwen3.8:27b-mlx": "0.32.12",
+    "gemma4:26b": "0.32.0",
+    "gemma4:31b": "0.32.0"
+  }
+}

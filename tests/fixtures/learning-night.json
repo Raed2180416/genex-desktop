@@ -1,0 +1,521 @@
+[
+  {
+    "created_at": "2026-01-01T00:00:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_fixture123456",
+        "workerId": "post",
+        "title": "Post processing",
+        "minutes": 75
+      }
+    }
+  },
+  {
+    "created_at": "2026-01-01T00:01:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_fixture123456",
+        "workerId": "vehicles",
+        "title": "Vehicle silhouettes",
+        "minutes": 30
+      }
+    }
+  },
+  {
+    "created_at": "2026-01-01T00:02:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_fixture123456",
+        "workerId": "lighting",
+        "title": "Lighting",
+        "minutes": 30
+      }
+    }
+  },
+  {
+    "created_at": "2026-01-01T00:03:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_fixture123456",
+        "workerId": "terrain",
+        "title": "Terrain",
+        "minutes": 30
+      }
+    }
+  },
+  {
+    "created_at": "2026-01-01T00:04:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_fixture123456",
+        "workerId": "camera",
+        "title": "Camera",
+        "minutes": 30
+      }
+    }
+  },
+  {
+    "created_at": "2026-01-01T00:05:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "post",
+        "iteration": 1,
+        "winner": "incumbent",
+        "verdictSource": "broken",
+        "satisfied": false,
+        "biggest_gap": "",
+        "scoreboard": {
+          "passing": 0,
+          "total": 1,
+          "unmeasured": 0
+        }
+      }
+    }
+  },
+  {
+    "created_at": "2026-01-01T00:06:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "post",
+        "iteration": 2,
+        "winner": "incumbent",
+        "verdictSource": "broken",
+        "satisfied": false,
+        "biggest_gap": "",
+        "scoreboard": {
+          "passing": 0,
+          "total": 1,
+          "unmeasured": 0
+        }
+      }
+    }
+  },
+  {
+    "created_at": "2026-01-01T00:07:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "post",
+        "iteration": 3,
+        "winner": "incumbent",
+        "verdictSource": "broken",
+        "satisfied": false,
+        "biggest_gap": "",
+        "scoreboard": {
+          "passing": 0,
+          "total": 1,
+          "unmeasured": 0
+        }
+      }
+    }
+  },
+  {
+    "created_at": "2026-01-01T00:08:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "post",
+        "iteration": 4,
+        "winner": "incumbent",
+        "verdictSource": "broken",
+        "satisfied": false,
+        "biggest_gap": "",
+        "scoreboard": {
+          "passing": 0,
+          "total": 1,
+          "unmeasured": 0
+        }
+      }
+    }
+  },
+  {
+    "created_at": "2026-01-01T00:09:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "post",
+        "iteration": 5,
+        "winner": "incumbent",
+        "verdictSource": "broken",
+        "satisfied": false,
+        "biggest_gap": "",
+        "scoreboard": {
+          "passing": 0,
+          "total": 1,
+          "unmeasured": 0
+        }
+      }
+    }
+  },
+  {
+    "created_at": "2026-01-01T00:10:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "post",
+        "iteration": 6,
+        "winner": "incumbent",
+        "verdictSource": "broken",
+        "satisfied": false,
+        "biggest_gap": "",
+        "scoreboard": {
+          "passing": 0,
+          "total": 1,
+          "unmeasured": 0
+        }
+      }
+    }
+  },
+  {
+    "created_at": "2026-01-01T00:11:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "post",
+        "iteration": 7,
+        "winner": "incumbent",
+        "verdictSource": "broken",
+        "satisfied": false,
+        "biggest_gap": "",
+        "scoreboard": {
+          "passing": 0,
+          "total": 1,
+          "unmeasured": 0
+        }
+      }
+    }
+  },
+  {
+    "created_at": "2026-01-01T00:12:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "post",
+        "iteration": 8,
+        "winner": "incumbent",
+        "verdictSource": "broken",
+        "satisfied": false,
+        "biggest_gap": "",
+        "scoreboard": {
+          "passing": 0,
+          "total": 1,
+          "unmeasured": 0
+        }
+      }
+    }
+  },
+  {
+    "created_at": "2026-01-01T00:13:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "vehicles",
+        "iteration": 9,
+        "winner": "challenger",
+        "verdictSource": "taste",
+        "satisfied": false,
+        "biggest_gap": "[floating] Objects need visible ground contact.",
+        "scoreboard": {
+          "passing": 1,
+          "total": 1,
+          "unmeasured": 0
+        }
+      }
+    }
+  },
+  {
+    "created_at": "2026-01-01T00:14:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "vehicles",
+        "iteration": 10,
+        "winner": "challenger",
+        "verdictSource": "taste",
+        "satisfied": false,
+        "biggest_gap": "[floating] Objects need visible ground contact.",
+        "scoreboard": {
+          "passing": 1,
+          "total": 1,
+          "unmeasured": 0
+        }
+      }
+    }
+  },
+  {
+    "created_at": "2026-01-01T00:15:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "vehicles",
+        "iteration": 11,
+        "winner": "challenger",
+        "verdictSource": "taste",
+        "satisfied": false,
+        "biggest_gap": "[floating] Objects need visible ground contact.",
+        "scoreboard": {
+          "passing": 1,
+          "total": 1,
+          "unmeasured": 0
+        }
+      }
+    }
+  },
+  {
+    "created_at": "2026-01-01T00:16:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "lighting",
+        "iteration": 12,
+        "winner": "challenger",
+        "verdictSource": "checks",
+        "satisfied": false,
+        "biggest_gap": "",
+        "scoreboard": {
+          "passing": 1,
+          "total": 1,
+          "unmeasured": 0
+        }
+      }
+    }
+  },
+  {
+    "created_at": "2026-01-01T00:17:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "lighting",
+        "iteration": 13,
+        "winner": "challenger",
+        "verdictSource": "checks",
+        "satisfied": false,
+        "biggest_gap": "",
+        "scoreboard": {
+          "passing": 1,
+          "total": 1,
+          "unmeasured": 0
+        }
+      }
+    }
+  },
+  {
+    "created_at": "2026-01-01T00:18:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "lighting",
+        "iteration": 14,
+        "winner": "challenger",
+        "verdictSource": "checks",
+        "satisfied": false,
+        "biggest_gap": "",
+        "scoreboard": {
+          "passing": 1,
+          "total": 1,
+          "unmeasured": 0
+        }
+      }
+    }
+  },
+  {
+    "created_at": "2026-01-01T00:19:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "terrain",
+        "iteration": 15,
+        "winner": "challenger",
+        "verdictSource": "taste",
+        "satisfied": false,
+        "biggest_gap": "",
+        "scoreboard": {
+          "passing": 1,
+          "total": 1,
+          "unmeasured": 0
+        }
+      }
+    }
+  },
+  {
+    "created_at": "2026-01-01T00:20:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "terrain",
+        "iteration": 16,
+        "winner": "challenger",
+        "verdictSource": "taste",
+        "satisfied": false,
+        "biggest_gap": "",
+        "scoreboard": {
+          "passing": 1,
+          "total": 1,
+          "unmeasured": 0
+        }
+      }
+    }
+  },
+  {
+    "created_at": "2026-01-01T00:21:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "camera",
+        "iteration": 17,
+        "winner": "challenger",
+        "verdictSource": "checks",
+        "satisfied": false,
+        "biggest_gap": "",
+        "scoreboard": {
+          "passing": 1,
+          "total": 1,
+          "unmeasured": 0
+        }
+      }
+    }
+  },
+  {
+    "created_at": "2026-01-01T00:22:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "camera",
+        "iteration": 18,
+        "winner": "challenger",
+        "verdictSource": "checks",
+        "satisfied": false,
+        "biggest_gap": "",
+        "scoreboard": {
+          "passing": 1,
+          "total": 1,
+          "unmeasured": 0
+        }
+      }
+    }
+  },
+  {
+    "created_at": "2026-01-01T00:23:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "terrain",
+        "iteration": 19,
+        "winner": "incumbent",
+        "verdictSource": "taste",
+        "satisfied": false,
+        "biggest_gap": "[floating] Objects need visible ground contact.",
+        "scoreboard": {
+          "passing": 0,
+          "total": 1,
+          "unmeasured": 0
+        }
+      }
+    }
+  },
+  {
+    "created_at": "2026-01-01T00:24:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "terrain",
+        "iteration": 20,
+        "winner": "incumbent",
+        "verdictSource": "taste",
+        "satisfied": false,
+        "biggest_gap": "[floating] Objects need visible ground contact.",
+        "scoreboard": {
+          "passing": 0,
+          "total": 1,
+          "unmeasured": 0
+        }
+      }
+    }
+  },
+  {
+    "created_at": "2026-01-01T00:25:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "terrain",
+        "iteration": 21,
+        "winner": "incumbent",
+        "verdictSource": "taste",
+        "satisfied": false,
+        "biggest_gap": "[floating] Objects need visible ground contact.",
+        "scoreboard": {
+          "passing": 0,
+          "total": 1,
+          "unmeasured": 0
+        }
+      }
+    }
+  },
+  {
+    "created_at": "2026-01-01T00:26:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "run_finished",
+      "payload": {
+        "runId": "run_fixture123456",
+        "mode": "director",
+        "landed": false,
+        "stoppedBecause": "ran out of time without calling finish; nothing was landed (land=no)"
+      }
+    }
+  }
+]

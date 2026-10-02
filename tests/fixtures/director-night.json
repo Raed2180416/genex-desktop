@@ -1,0 +1,1808 @@
+[
+  {
+    "id": "fixture-0000",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:00:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "run_registered",
+      "payload": {
+        "runId": "run_fixture123456",
+        "goal": "Improve a synthetic vehicle demo",
+        "project": "fixture-derby",
+        "mode": "director",
+        "engine": "ollama",
+        "model": "fixture-model",
+        "budgets": {
+          "wallClockMs": 7200000
+        }
+      }
+    }
+  },
+  {
+    "id": "fixture-0001",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:01:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "run_started",
+      "payload": {
+        "runId": "run_fixture123456",
+        "goal": "Improve a synthetic vehicle demo",
+        "project": "fixture-derby",
+        "mode": "director",
+        "engine": "ollama",
+        "model": "fixture-model",
+        "budgets": {
+          "wallClockMs": 7200000
+        }
+      }
+    }
+  },
+  {
+    "id": "fixture-0002",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:02:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "autopilot_started",
+      "payload": {
+        "runId": "run_fixture123456",
+        "project": "fixture-derby",
+        "facets": [],
+        "maxParallel": 2,
+        "director": true
+      }
+    }
+  },
+  {
+    "id": "fixture-0003",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:03:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_fixture123456",
+        "workerId": "crumple",
+        "title": "Impact response",
+        "mode": "loop",
+        "state": "running",
+        "minutes": 30
+      }
+    }
+  },
+  {
+    "id": "fixture-0004",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:04:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_build_started",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "crumple",
+        "facetTitle": "Impact response",
+        "iteration": 1
+      }
+    }
+  },
+  {
+    "id": "fixture-0005",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:05:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "crumple",
+        "facetTitle": "Impact response",
+        "iteration": 1,
+        "winner": "incumbent",
+        "verdictSource": "broken",
+        "satisfied": false,
+        "biggest_gap": "",
+        "scoreboard": {
+          "passing": 0,
+          "total": 1,
+          "unmeasured": 0,
+          "flips": [],
+          "regressions": [],
+          "unmeasuredChecks": [],
+          "results": [
+            {
+              "id": "fixture-starts",
+              "pass": false
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "id": "fixture-0006",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:06:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_build_started",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "crumple",
+        "facetTitle": "Impact response",
+        "iteration": 2
+      }
+    }
+  },
+  {
+    "id": "fixture-0007",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:07:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "crumple",
+        "facetTitle": "Impact response",
+        "iteration": 2,
+        "winner": "incumbent",
+        "verdictSource": "broken",
+        "satisfied": false,
+        "biggest_gap": "",
+        "scoreboard": {
+          "passing": 0,
+          "total": 1,
+          "unmeasured": 0,
+          "flips": [],
+          "regressions": [],
+          "unmeasuredChecks": [],
+          "results": [
+            {
+              "id": "fixture-starts",
+              "pass": false
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "id": "fixture-0008",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:08:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_fixture123456",
+        "workerId": "contact",
+        "title": "Ground contact",
+        "mode": "loop",
+        "state": "running",
+        "minutes": 30
+      }
+    }
+  },
+  {
+    "id": "fixture-0009",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:09:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_build_started",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "contact",
+        "facetTitle": "Ground contact",
+        "iteration": 1
+      }
+    }
+  },
+  {
+    "id": "fixture-0010",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:10:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "contact",
+        "facetTitle": "Ground contact",
+        "iteration": 1,
+        "winner": "incumbent",
+        "verdictSource": "broken",
+        "satisfied": false,
+        "biggest_gap": "",
+        "scoreboard": {
+          "passing": 0,
+          "total": 1,
+          "unmeasured": 0,
+          "flips": [],
+          "regressions": [],
+          "unmeasuredChecks": [],
+          "results": [
+            {
+              "id": "fixture-starts",
+              "pass": false
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "id": "fixture-0011",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:11:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_build_started",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "contact",
+        "facetTitle": "Ground contact",
+        "iteration": 2
+      }
+    }
+  },
+  {
+    "id": "fixture-0012",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:12:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "contact",
+        "facetTitle": "Ground contact",
+        "iteration": 2,
+        "winner": "incumbent",
+        "verdictSource": "broken",
+        "satisfied": false,
+        "biggest_gap": "",
+        "scoreboard": {
+          "passing": 0,
+          "total": 1,
+          "unmeasured": 0,
+          "flips": [],
+          "regressions": [],
+          "unmeasuredChecks": [],
+          "results": [
+            {
+              "id": "fixture-starts",
+              "pass": false
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "id": "fixture-0013",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:13:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_fixture123456",
+        "workerId": "cars",
+        "title": "Vehicle silhouettes",
+        "mode": "loop",
+        "state": "running",
+        "minutes": 30
+      }
+    }
+  },
+  {
+    "id": "fixture-0014",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:14:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_build_started",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "cars",
+        "facetTitle": "Vehicle silhouettes",
+        "iteration": 1
+      }
+    }
+  },
+  {
+    "id": "fixture-0015",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:15:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "cars",
+        "facetTitle": "Vehicle silhouettes",
+        "iteration": 1,
+        "winner": "incumbent",
+        "verdictSource": "broken",
+        "satisfied": false,
+        "biggest_gap": "",
+        "scoreboard": {
+          "passing": 0,
+          "total": 1,
+          "unmeasured": 0,
+          "flips": [],
+          "regressions": [],
+          "unmeasuredChecks": [],
+          "results": [
+            {
+              "id": "fixture-starts",
+              "pass": false
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "id": "fixture-0016",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:16:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_fixture123456",
+        "workerId": "dirt",
+        "title": "Surface marks",
+        "mode": "loop",
+        "state": "running",
+        "minutes": 30
+      }
+    }
+  },
+  {
+    "id": "fixture-0017",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:17:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_build_started",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "dirt",
+        "facetTitle": "Surface marks",
+        "iteration": 1
+      }
+    }
+  },
+  {
+    "id": "fixture-0018",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:18:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "dirt",
+        "facetTitle": "Surface marks",
+        "iteration": 1,
+        "winner": "incumbent",
+        "verdictSource": "broken",
+        "satisfied": false,
+        "biggest_gap": "",
+        "scoreboard": {
+          "passing": 0,
+          "total": 1,
+          "unmeasured": 0,
+          "flips": [],
+          "regressions": [],
+          "unmeasuredChecks": [],
+          "results": [
+            {
+              "id": "fixture-starts",
+              "pass": false
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "id": "fixture-0019",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:19:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_fixture123456",
+        "workerId": "post",
+        "title": "Post processing",
+        "mode": "loop",
+        "state": "running",
+        "minutes": 75
+      }
+    }
+  },
+  {
+    "id": "fixture-0020",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:20:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_build_started",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "post",
+        "facetTitle": "Post processing",
+        "iteration": 1
+      }
+    }
+  },
+  {
+    "id": "fixture-0021",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:21:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "post",
+        "facetTitle": "Post processing",
+        "iteration": 1,
+        "winner": "incumbent",
+        "verdictSource": "broken",
+        "satisfied": false,
+        "biggest_gap": "",
+        "scoreboard": {
+          "passing": 0,
+          "total": 1,
+          "unmeasured": 0,
+          "flips": [],
+          "regressions": [],
+          "unmeasuredChecks": [],
+          "results": [
+            {
+              "id": "fixture-starts",
+              "pass": false
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "id": "fixture-0022",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:22:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_build_started",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "post",
+        "facetTitle": "Post processing",
+        "iteration": 2
+      }
+    }
+  },
+  {
+    "id": "fixture-0023",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:23:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "post",
+        "facetTitle": "Post processing",
+        "iteration": 2,
+        "winner": "incumbent",
+        "verdictSource": "broken",
+        "satisfied": false,
+        "biggest_gap": "",
+        "scoreboard": {
+          "passing": 0,
+          "total": 1,
+          "unmeasured": 0,
+          "flips": [],
+          "regressions": [],
+          "unmeasuredChecks": [],
+          "results": [
+            {
+              "id": "fixture-starts",
+              "pass": false
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "id": "fixture-0024",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:24:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_fixture123456",
+        "workerId": "crumple",
+        "title": "Impact response",
+        "state": "stopped",
+        "stoppedBecause": "Restarted for a different approach"
+      }
+    }
+  },
+  {
+    "id": "fixture-0025",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:25:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_fixture123456",
+        "workerId": "contact",
+        "title": "Ground contact",
+        "state": "stopped",
+        "stoppedBecause": "Restarted for a different approach"
+      }
+    }
+  },
+  {
+    "id": "fixture-0026",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:26:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_fixture123456",
+        "workerId": "cars",
+        "title": "Vehicle silhouettes",
+        "state": "stopped",
+        "stoppedBecause": "Restarted for a different approach"
+      }
+    }
+  },
+  {
+    "id": "fixture-0027",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:27:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_fixture123456",
+        "workerId": "dirt",
+        "title": "Surface marks",
+        "state": "stopped",
+        "stoppedBecause": "Restarted for a different approach"
+      }
+    }
+  },
+  {
+    "id": "fixture-0028",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:28:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_fixture123456",
+        "workerId": "post",
+        "title": "Post processing",
+        "state": "stopped",
+        "stoppedBecause": "Restarted for a different approach"
+      }
+    }
+  },
+  {
+    "id": "fixture-0029",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:29:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_fixture123456",
+        "workerId": "crumple2",
+        "title": "Impact response (restart)",
+        "mode": "loop",
+        "state": "running",
+        "minutes": 30
+      }
+    }
+  },
+  {
+    "id": "fixture-0030",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:30:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_build_started",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "crumple2",
+        "facetTitle": "Impact response (restart)",
+        "iteration": 1
+      }
+    }
+  },
+  {
+    "id": "fixture-0031",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:31:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "crumple2",
+        "facetTitle": "Impact response (restart)",
+        "iteration": 1,
+        "winner": "challenger",
+        "verdictSource": "taste",
+        "satisfied": false,
+        "biggest_gap": "",
+        "scoreboard": {
+          "passing": 1,
+          "total": 1,
+          "unmeasured": 0,
+          "flips": [],
+          "regressions": [],
+          "unmeasuredChecks": [],
+          "results": [
+            {
+              "id": "fixture-starts",
+              "pass": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "id": "fixture-0032",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:32:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_build_started",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "crumple2",
+        "facetTitle": "Impact response (restart)",
+        "iteration": 2
+      }
+    }
+  },
+  {
+    "id": "fixture-0033",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:33:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "crumple2",
+        "facetTitle": "Impact response (restart)",
+        "iteration": 2,
+        "winner": "challenger",
+        "verdictSource": "taste",
+        "satisfied": false,
+        "biggest_gap": "",
+        "scoreboard": {
+          "passing": 1,
+          "total": 1,
+          "unmeasured": 0,
+          "flips": [],
+          "regressions": [],
+          "unmeasuredChecks": [],
+          "results": [
+            {
+              "id": "fixture-starts",
+              "pass": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "id": "fixture-0034",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:34:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_fixture123456",
+        "workerId": "crumple2",
+        "title": "Impact response (restart)",
+        "state": "done"
+      }
+    }
+  },
+  {
+    "id": "fixture-0035",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:35:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_fixture123456",
+        "workerId": "contact2",
+        "title": "Ground contact (restart)",
+        "mode": "loop",
+        "state": "running",
+        "minutes": 30
+      }
+    }
+  },
+  {
+    "id": "fixture-0036",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:36:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_build_started",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "contact2",
+        "facetTitle": "Ground contact (restart)",
+        "iteration": 1
+      }
+    }
+  },
+  {
+    "id": "fixture-0037",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:37:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "contact2",
+        "facetTitle": "Ground contact (restart)",
+        "iteration": 1,
+        "winner": "challenger",
+        "verdictSource": "taste",
+        "satisfied": false,
+        "biggest_gap": "",
+        "scoreboard": {
+          "passing": 1,
+          "total": 1,
+          "unmeasured": 0,
+          "flips": [],
+          "regressions": [],
+          "unmeasuredChecks": [],
+          "results": [
+            {
+              "id": "fixture-starts",
+              "pass": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "id": "fixture-0038",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:38:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_build_started",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "contact2",
+        "facetTitle": "Ground contact (restart)",
+        "iteration": 2
+      }
+    }
+  },
+  {
+    "id": "fixture-0039",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:39:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "contact2",
+        "facetTitle": "Ground contact (restart)",
+        "iteration": 2,
+        "winner": "challenger",
+        "verdictSource": "taste",
+        "satisfied": false,
+        "biggest_gap": "",
+        "scoreboard": {
+          "passing": 1,
+          "total": 1,
+          "unmeasured": 0,
+          "flips": [],
+          "regressions": [],
+          "unmeasuredChecks": [],
+          "results": [
+            {
+              "id": "fixture-starts",
+              "pass": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "id": "fixture-0040",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:40:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_build_started",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "contact2",
+        "facetTitle": "Ground contact (restart)",
+        "iteration": 3
+      }
+    }
+  },
+  {
+    "id": "fixture-0041",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:41:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "contact2",
+        "facetTitle": "Ground contact (restart)",
+        "iteration": 3,
+        "winner": "challenger",
+        "verdictSource": "taste",
+        "satisfied": false,
+        "biggest_gap": "",
+        "scoreboard": {
+          "passing": 1,
+          "total": 1,
+          "unmeasured": 0,
+          "flips": [],
+          "regressions": [],
+          "unmeasuredChecks": [],
+          "results": [
+            {
+              "id": "fixture-starts",
+              "pass": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "id": "fixture-0042",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:42:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_fixture123456",
+        "workerId": "contact2",
+        "title": "Ground contact (restart)",
+        "state": "done"
+      }
+    }
+  },
+  {
+    "id": "fixture-0043",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:43:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_fixture123456",
+        "workerId": "cars2",
+        "title": "Vehicle silhouettes (restart)",
+        "mode": "loop",
+        "state": "running",
+        "minutes": 30
+      }
+    }
+  },
+  {
+    "id": "fixture-0044",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:44:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_build_started",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "cars2",
+        "facetTitle": "Vehicle silhouettes (restart)",
+        "iteration": 1
+      }
+    }
+  },
+  {
+    "id": "fixture-0045",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:45:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "cars2",
+        "facetTitle": "Vehicle silhouettes (restart)",
+        "iteration": 1,
+        "winner": "challenger",
+        "verdictSource": "taste",
+        "satisfied": false,
+        "biggest_gap": "",
+        "scoreboard": {
+          "passing": 1,
+          "total": 1,
+          "unmeasured": 0,
+          "flips": [],
+          "regressions": [],
+          "unmeasuredChecks": [],
+          "results": [
+            {
+              "id": "fixture-starts",
+              "pass": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "id": "fixture-0046",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:46:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_build_started",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "cars2",
+        "facetTitle": "Vehicle silhouettes (restart)",
+        "iteration": 2
+      }
+    }
+  },
+  {
+    "id": "fixture-0047",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:47:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "cars2",
+        "facetTitle": "Vehicle silhouettes (restart)",
+        "iteration": 2,
+        "winner": "challenger",
+        "verdictSource": "taste",
+        "satisfied": false,
+        "biggest_gap": "",
+        "scoreboard": {
+          "passing": 1,
+          "total": 1,
+          "unmeasured": 0,
+          "flips": [],
+          "regressions": [],
+          "unmeasuredChecks": [],
+          "results": [
+            {
+              "id": "fixture-starts",
+              "pass": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "id": "fixture-0048",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:48:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_build_started",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "cars2",
+        "facetTitle": "Vehicle silhouettes (restart)",
+        "iteration": 3
+      }
+    }
+  },
+  {
+    "id": "fixture-0049",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:49:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "cars2",
+        "facetTitle": "Vehicle silhouettes (restart)",
+        "iteration": 3,
+        "winner": "challenger",
+        "verdictSource": "taste",
+        "satisfied": false,
+        "biggest_gap": "",
+        "scoreboard": {
+          "passing": 1,
+          "total": 1,
+          "unmeasured": 0,
+          "flips": [],
+          "regressions": [],
+          "unmeasuredChecks": [],
+          "results": [
+            {
+              "id": "fixture-starts",
+              "pass": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "id": "fixture-0050",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:50:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_fixture123456",
+        "workerId": "cars2",
+        "title": "Vehicle silhouettes (restart)",
+        "state": "done"
+      }
+    }
+  },
+  {
+    "id": "fixture-0051",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:51:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_fixture123456",
+        "workerId": "dirt2",
+        "title": "Surface marks (restart)",
+        "mode": "loop",
+        "state": "running",
+        "minutes": 30
+      }
+    }
+  },
+  {
+    "id": "fixture-0052",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:52:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_build_started",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "dirt2",
+        "facetTitle": "Surface marks (restart)",
+        "iteration": 1
+      }
+    }
+  },
+  {
+    "id": "fixture-0053",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:53:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "dirt2",
+        "facetTitle": "Surface marks (restart)",
+        "iteration": 1,
+        "winner": "challenger",
+        "verdictSource": "taste",
+        "satisfied": false,
+        "biggest_gap": "",
+        "scoreboard": {
+          "passing": 1,
+          "total": 1,
+          "unmeasured": 0,
+          "flips": [],
+          "regressions": [],
+          "unmeasuredChecks": [],
+          "results": [
+            {
+              "id": "fixture-starts",
+              "pass": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "id": "fixture-0054",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:54:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_build_started",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "dirt2",
+        "facetTitle": "Surface marks (restart)",
+        "iteration": 2
+      }
+    }
+  },
+  {
+    "id": "fixture-0055",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:55:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "dirt2",
+        "facetTitle": "Surface marks (restart)",
+        "iteration": 2,
+        "winner": "incumbent",
+        "verdictSource": "taste",
+        "satisfied": false,
+        "biggest_gap": "",
+        "scoreboard": {
+          "passing": 0,
+          "total": 1,
+          "unmeasured": 0,
+          "flips": [],
+          "regressions": [],
+          "unmeasuredChecks": [],
+          "results": [
+            {
+              "id": "fixture-starts",
+              "pass": false
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "id": "fixture-0056",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:56:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_build_started",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "dirt2",
+        "facetTitle": "Surface marks (restart)",
+        "iteration": 3
+      }
+    }
+  },
+  {
+    "id": "fixture-0057",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:57:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "dirt2",
+        "facetTitle": "Surface marks (restart)",
+        "iteration": 3,
+        "winner": "incumbent",
+        "verdictSource": "taste",
+        "satisfied": false,
+        "biggest_gap": "",
+        "scoreboard": {
+          "passing": 0,
+          "total": 1,
+          "unmeasured": 0,
+          "flips": [],
+          "regressions": [],
+          "unmeasuredChecks": [],
+          "results": [
+            {
+              "id": "fixture-starts",
+              "pass": false
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "id": "fixture-0058",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:58:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_fixture123456",
+        "workerId": "dirt2",
+        "title": "Surface marks (restart)",
+        "state": "done"
+      }
+    }
+  },
+  {
+    "id": "fixture-0059",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T00:59:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_fixture123456",
+        "workerId": "post2",
+        "title": "Post processing (restart)",
+        "mode": "loop",
+        "state": "running",
+        "minutes": 30
+      }
+    }
+  },
+  {
+    "id": "fixture-0060",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T01:00:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_build_started",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "post2",
+        "facetTitle": "Post processing (restart)",
+        "iteration": 1
+      }
+    }
+  },
+  {
+    "id": "fixture-0061",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T01:01:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "post2",
+        "facetTitle": "Post processing (restart)",
+        "iteration": 1,
+        "winner": "challenger",
+        "verdictSource": "taste",
+        "satisfied": false,
+        "biggest_gap": "",
+        "scoreboard": {
+          "passing": 1,
+          "total": 1,
+          "unmeasured": 0,
+          "flips": [],
+          "regressions": [],
+          "unmeasuredChecks": [],
+          "results": [
+            {
+              "id": "fixture-starts",
+              "pass": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "id": "fixture-0062",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T01:02:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_build_started",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "post2",
+        "facetTitle": "Post processing (restart)",
+        "iteration": 2
+      }
+    }
+  },
+  {
+    "id": "fixture-0063",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T01:03:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "facet_iteration",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "post2",
+        "facetTitle": "Post processing (restart)",
+        "iteration": 2,
+        "winner": "incumbent",
+        "verdictSource": "taste",
+        "satisfied": false,
+        "biggest_gap": "",
+        "scoreboard": {
+          "passing": 0,
+          "total": 1,
+          "unmeasured": 0,
+          "flips": [],
+          "regressions": [],
+          "unmeasuredChecks": [],
+          "results": [
+            {
+              "id": "fixture-starts",
+              "pass": false
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "id": "fixture-0064",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T01:04:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_fixture123456",
+        "workerId": "post2",
+        "title": "Post processing (restart)",
+        "state": "done"
+      }
+    }
+  },
+  {
+    "id": "fixture-working-during-merge",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T01:05:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_fixture123456",
+        "workerId": "crumple2",
+        "title": "Impact response (restart)",
+        "state": "running"
+      }
+    }
+  },
+  {
+    "id": "fixture-0065",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T01:05:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "integration_merge",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "crumple2",
+        "commit": "0000000000000000000000000000000000000001",
+        "head": "0000000000000000000000000000000000000001",
+        "conflict": false,
+        "stage": "merged"
+      }
+    }
+  },
+  {
+    "id": "fixture-0066",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T01:06:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "integration_merge",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "contact2",
+        "commit": "0000000000000000000000000000000000000002",
+        "head": "0000000000000000000000000000000000000002",
+        "conflict": false,
+        "stage": "merged"
+      }
+    }
+  },
+  {
+    "id": "fixture-0067",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T01:07:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "integration_merge",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "cars2",
+        "commit": "0000000000000000000000000000000000000003",
+        "head": "0000000000000000000000000000000000000003",
+        "conflict": false,
+        "stage": "merged"
+      }
+    }
+  },
+  {
+    "id": "fixture-0068",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T01:08:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "integration_merge",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "dirt2",
+        "commit": "0000000000000000000000000000000000000004",
+        "head": "0000000000000000000000000000000000000004",
+        "conflict": false,
+        "stage": "merged"
+      }
+    }
+  },
+  {
+    "id": "fixture-0069",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T01:09:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "integration_merge",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "post2",
+        "commit": "0000000000000000000000000000000000000005",
+        "head": "0000000000000000000000000000000000000005",
+        "conflict": false,
+        "stage": "merged"
+      }
+    }
+  },
+  {
+    "id": "fixture-0070",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T01:10:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "integration_merge",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "crumple2",
+        "commit": "0000000000000000000000000000000000000006",
+        "head": "0000000000000000000000000000000000000006",
+        "conflict": false,
+        "stage": "merged"
+      }
+    }
+  },
+  {
+    "id": "fixture-0071",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T01:11:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "integration_merge",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "contact2",
+        "commit": "0000000000000000000000000000000000000007",
+        "head": "0000000000000000000000000000000000000007",
+        "conflict": false,
+        "stage": "merged"
+      }
+    }
+  },
+  {
+    "id": "fixture-0072",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T01:12:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "integration_merge",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "cars2",
+        "commit": "0000000000000000000000000000000000000008",
+        "head": "0000000000000000000000000000000000000008",
+        "conflict": false,
+        "stage": "merged"
+      }
+    }
+  },
+  {
+    "id": "fixture-0073",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T01:13:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "integration_merge",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "dirt2",
+        "commit": "0000000000000000000000000000000000000009",
+        "head": "0000000000000000000000000000000000000009",
+        "conflict": false,
+        "stage": "merged"
+      }
+    }
+  },
+  {
+    "id": "fixture-0074",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T01:14:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "integration_merge",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "post2",
+        "commit": "000000000000000000000000000000000000000a",
+        "head": "000000000000000000000000000000000000000a",
+        "conflict": false,
+        "stage": "merged"
+      }
+    }
+  },
+  {
+    "id": "fixture-0075",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T01:15:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "integration_merge",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "crumple2",
+        "commit": "000000000000000000000000000000000000000b",
+        "head": "000000000000000000000000000000000000000b",
+        "conflict": false,
+        "stage": "merged"
+      }
+    }
+  },
+  {
+    "id": "fixture-0076",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T01:16:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "integration_merge",
+      "payload": {
+        "runId": "run_fixture123456",
+        "facetId": "contact2",
+        "commit": "000000000000000000000000000000000000000c",
+        "head": "000000000000000000000000000000000000000c",
+        "conflict": false,
+        "stage": "merged"
+      }
+    }
+  },
+  {
+    "id": "fixture-end-background-work",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T01:17:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "director_worker",
+      "payload": {
+        "runId": "run_fixture123456",
+        "workerId": "crumple2",
+        "title": "Impact response (restart)",
+        "state": "done"
+      }
+    }
+  },
+  {
+    "id": "fixture-0077",
+    "thread_id": "fixture-thread",
+    "session_id": null,
+    "turn_id": null,
+    "created_at": "2026-01-01T01:17:00.000Z",
+    "data": {
+      "type": "custom",
+      "event_type": "run_finished",
+      "payload": {
+        "runId": "run_fixture123456",
+        "project": "fixture-derby",
+        "mode": "director",
+        "victory": false,
+        "landed": false,
+        "integrationHead": "000000000000000000000000000000000000000c",
+        "stoppedBecause": "ran out of time without calling finish; nothing was landed (land=no)",
+        "notes": [
+          {
+            "text": "Fixture starting point re-based after a synthetic shader correction."
+          }
+        ]
+      }
+    }
+  }
+]

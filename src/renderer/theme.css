@@ -1,0 +1,5035 @@
+@import "tailwindcss";
+@import "@xterm/xterm/css/xterm.css";
+@import "tw-animate-css";
+@import "./styles/icons.css";
+@import "./styles/covers.css";
+@import "./styles/empty-states.css";
+@import "./styles/onboarding.css";
+@import "./styles/genex.css";
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@source "./";
+
+/* Genex typography, vendored for offline use. See design/genex/SOURCES.md. */
+@font-face {
+  font-family: "Zalando Sans SemiExpanded";
+  font-style: normal;
+  font-weight: 200 900;
+  font-display: swap;
+  src: url("./fonts/ZalandoSansSemiExpanded-variable.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Geist Fallback";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("./fonts/Geist-variable.woff2") format("woff2");
+  unicode-range: U+0301, U+0370-03FF, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: "Geist Mono";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("./fonts/GeistMono-variable.woff2") format("woff2");
+}
+
+/* Genex dark fallback. appearance/store.ts applies the selected semantic palette before mount. */
+:root {
+  color-scheme: dark;
+  --font-family-sans: "Geist Fallback", "Zalando Sans SemiExpanded", ui-sans-serif, system-ui, sans-serif;
+  --font-family-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --background: #0e0d0f;
+  --foreground: #dee0e2;
+  --card: #141416;
+  --popover: #19191b;
+  --popover-foreground: var(--foreground);
+  --primary: #dee0e2;
+  --primary-foreground: #0e0d0f;
+  --secondary: #212224;
+  --secondary-foreground: var(--foreground);
+  --muted: #1b1c1d;
+  --muted-foreground: #a8a9ac;
+  --accent-primary: #3c44c4;
+  --accent-primary-dark: #3c44c4;
+  /* Filled accent controls carry white text (themes.ts accentFill). */
+  --accent-fill: #3c44c4;
+  --accent-foreground: #ffffff;
+  --accent-hover: #4a57d9;
+  --destructive: #f08287;
+  --border: color-mix(in oklab, #1f2020 100%, #141416);
+  --input: #29292b;
+  --ring: #3c44c4;
+  --control-quiet: #1b1c1d;
+  --control-quiet-edge: #29292b;
+  --composer: #141416;
+  --composer-panel: #19191b;
+  --composer-panel-border: color-mix(in oklab, #1f2020 100%, #141416);
+  --radius: 0.775rem;
+  --radius-button: 11px;
+  --duration-quick: 150ms;
+  --duration-fast: 250ms;
+  --duration-medium: 350ms;
+  --ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --page: var(--background);
+  --canvas: var(--background);
+  --surface: var(--card);
+  --inset: var(--muted);
+  --hover: #212224;
+  --hover-2: color-mix(in oklab, #dee0e2 6%, #212224);
+  --ink: var(--foreground);
+  --ink-2: color-mix(in oklab, #dee0e2 70%, #a8a9ac);
+  --ink-3: var(--muted-foreground);
+  --line: var(--border);
+  --line-strong: #29292b;
+  --field: #1b1c1d;
+  --stripe: color-mix(in oklab, #dee0e2 4%, transparent);
+  --stripe-bg: var(--background);
+  /* Studio's historic accent name is brand blue, not shadcn's neutral accent. */
+  --accent: var(--accent-primary);
+  --accent-ink: #3c44c4;
+  --accent-tint: color-mix(in srgb, var(--accent-primary) 16%, transparent);
+  --green: #7cd194;
+  --green-tint: color-mix(in srgb, var(--green) 14%, transparent);
+  --orange: #efbe72;
+  --orange-tint: color-mix(in srgb, var(--orange) 14%, transparent);
+  --red: var(--destructive);
+  --red-tint: color-mix(in srgb, var(--red) 14%, transparent);
+  --tooltip-bg: var(--popover);
+  --tooltip-fg: var(--foreground);
+  --tooltip-muted: var(--muted-foreground);
+  --tooltip-border: var(--border);
+  --shadow-hairline: 0 0 0 1px var(--border);
+  --shadow-btn: none;
+  --shadow-card: 0 0 0 1px var(--border);
+  --shadow-raised: 0 0 0 1px color-mix(in oklab, #1f2020 100%, #141416), 0 8px 24px #00000020;
+  --shadow-overlay: 0 0 0 1px color-mix(in oklab, #1f2020 100%, #141416), 0 16px 48px #00000026;
+  --radius-card: 16px;
+  --radius-control: var(--radius-button);
+  --radius-chip: 10px;
+  --ease-link: var(--ease-smooth-out);
+  --base: var(--background);
+  --soft: var(--muted);
+  --float: var(--popover);
+  --fg-3: var(--muted-foreground);
+  --shadow-float: var(--shadow-overlay);
+  --r-sm: calc(var(--radius) - 4px);
+  --r-md: calc(var(--radius) - 2px);
+  --h-ctl: 32px;
+  --t-xs: 12px;
+  --t-sm: 14px;
+  --t-md: 13px;
+  --dur: var(--duration-quick);
+  --dur-2: var(--duration-fast);
+  --ease: var(--ease-smooth-out);
+  --sidebar: #0b0b0d;
+  --danger-fill: #f08287;
+  --danger-foreground: #000000;
+  --danger-hover: color-mix(in oklab, #f08287 92%, #ffffff);
+  --success-foreground: #000000;
+  --image-outline: #ffffff1a;
+  --error-foreground: #000000;
+  --focus-edge: color-mix(in oklab, #3c44c4 18%, #29292b);
+  --sidebar-selected: color-mix(in oklab, #212224 62%, #0b0b0d);
+  --sidebar-hover: color-mix(in oklab, #212224 45%, #0b0b0d);
+}
+
+/* Source vocabulary and Studio aliases share the same semantic values. */
+@theme inline {
+  --color-*: initial;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent-primary: var(--accent-primary);
+  --color-accent-primary-dark: var(--accent-primary-dark);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-fill: var(--accent-fill);
+  /* Quiet icons: the palette's icon colour when it sets one, else the ink each place used before. */
+  --color-icon: var(--icon, var(--ink-3));
+  --color-icon-strong: var(--icon, var(--ink-2));
+  /* Chips, tabs and hover states: the palette's own when it sets them, else the colour each place used before. */
+  --color-control-hover: var(--control-hover, var(--hover));
+  --color-control-text: var(--control-text, var(--muted-foreground));
+  --color-control-text-hover: var(--control-text-hover, var(--foreground));
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-composer: var(--composer);
+  --color-black: #000;
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+
+  --color-page: var(--page);
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-inset: var(--inset);
+  --color-hover: var(--hover);
+  --color-hover-2: var(--hover-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-field: var(--field);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-tint: var(--accent-tint);
+  --color-green: var(--green);
+  --color-green-tint: var(--green-tint);
+  --color-orange: var(--orange);
+  --color-orange-tint: var(--orange-tint);
+  --color-red: var(--red);
+  --color-red-tint: var(--red-tint);
+  --color-tooltip: var(--tooltip-bg);
+  --color-white: #fff;
+  --color-transparent: transparent;
+  --radius-card: var(--radius-card);
+  --radius-control: var(--radius-control);
+  --radius-chip: var(--radius-chip);
+  --shadow-hairline: var(--shadow-hairline);
+  --shadow-btn: var(--shadow-btn);
+  --shadow-card: var(--shadow-card);
+  --shadow-raised: var(--shadow-raised);
+  --shadow-overlay: var(--shadow-overlay);
+  --font-sans: var(--font-family-sans);
+  --font-mono: var(--font-family-mono);
+
+  /* The ported kit's utilities (bg-base, text-fg-3, rounded-sm, size-ctl…). */
+  --color-base: var(--base);
+  --color-soft: var(--soft);
+  --color-float: var(--float);
+  --color-fg-3: var(--fg-3);
+  --shadow-float: var(--shadow-overlay);
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --spacing-ctl: var(--h-ctl);
+  --text-xs: var(--t-xs);
+  --text-xs--line-height: 16px;
+  --text-sm: var(--t-sm);
+  --text-sm--line-height: 20px;
+}
+
+/* Existing graph/status effects use the same palette as the shared controls. */
+@keyframes shimmer-text {
+  0% {
+    background-position: 150% center;
+  }
+  100% {
+    background-position: -50% center;
+  }
+}
+@keyframes fade-up {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes records-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+@keyframes spin {
+  100% {
+    transform: rotate(1turn);
+  }
+}
+/* LoaderGrid: nine dim pixels, each brightening once a cycle at the delay the component gives it. */
+.loader-grid {
+  display: grid;
+  flex-shrink: 0;
+  grid-template-columns: repeat(3, 4px);
+  gap: 1.5px;
+}
+.loader-grid > span {
+  width: 4px;
+  height: 4px;
+  border-radius: 1px;
+  background: var(--ink);
+  opacity: 0.15;
+  animation: loader-pixel 650ms ease-in-out infinite;
+}
+@keyframes loader-pixel {
+  0%,
+  65%,
+  100% {
+    opacity: 0.15;
+  }
+  30% {
+    opacity: 1;
+  }
+}
+/* The builds graph draws what is live or selected in its own accent (themes.ts `graph`), the app's until set. */
+[data-stage-graph] {
+  --accent: var(--graph, var(--accent-primary));
+  --accent-tint: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+/* Ours: the run graph's "building right now" halo, and the still that is not there yet. */
+@keyframes graph-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0;
+    transform: scale(1.06);
+  }
+}
+@keyframes gate-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(1.2);
+  }
+}
+[data-graph-node][data-working="true"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 2px solid var(--accent);
+  pointer-events: none;
+  animation: graph-pulse 1.6s ease-in-out infinite;
+}
+[inert] [data-stage-graph] *,
+[inert] [data-stage-graph] *::after {
+  animation-play-state: paused !important;
+}
+/* Endless "working" motion rests while nobody looks: the window is behind or untouched for two
+ * minutes (renderer/motion-rest.ts). Chromium draws every frame while one runs. Only endless
+ * animations are listed, inline ones by their `infinite`; entrance and exit animations finish. */
+:root[data-motion="rest"]
+:is(.chat-status-shimmer, .app-loader-shine, .animate-ping, .animate-spin, .loader-grid > span, [style*="infinite"]),
+:root[data-motion="rest"] :is([data-graph-node], .graph-shimmer)::after {
+  animation-play-state: paused !important;
+}
+/* A selected node opening into its card over the zoomed canvas. */
+@keyframes focus-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes graph-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Their shared primitives. Layered so utility classes can still override them —
+ * an UNLAYERED rule would silently beat every Tailwind utility on the same element. */
+@layer components {
+  /* The Builds tab: a placeholder still while the builder works, and the judges' notes sheet. */
+  .graph-shimmer {
+    /* The sweep's box; a tile that is itself absolute keeps its utility (utilities beat this layer). */
+    position: relative;
+    overflow: hidden;
+    background: var(--inset);
+  }
+  .graph-shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(100deg, transparent 30%, var(--hover) 50%, transparent 70%);
+    animation: graph-shimmer 1.8s linear infinite;
+  }
+  .graph-sheet h3 {
+    margin: 14px 0 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .graph-sheet h3:first-child {
+    margin-top: 0;
+  }
+  .graph-sheet p,
+  .graph-sheet ul {
+    margin: 0 0 8px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--ink-2);
+  }
+  .graph-sheet ul {
+    padding-left: 18px;
+  }
+  .graph-sheet li {
+    margin: 2px 0;
+  }
+  .graph-sheet li::marker {
+    color: var(--ink-3);
+  }
+  .graph-sheet strong {
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .primitive-card-pad {
+    padding: 12px;
+  }
+  .primitive-card-bar,
+  .primitive-card-footer,
+  .primitive-table-cell {
+    padding: 10px 12px;
+  }
+  .primitive-icon-button {
+    border-radius: var(--radius-control);
+    justify-content: center;
+    align-items: center;
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+  }
+
+  /* The hatch — their empty-space texture. */
+  .hatch {
+    background:
+      repeating-linear-gradient(
+        -45deg,
+        var(--hatch-stripe, var(--stripe)) 0,
+        var(--hatch-stripe, var(--stripe)) 1px,
+        transparent 1px,
+        transparent 8px
+      ),
+      var(--hatch-ground, var(--stripe-bg));
+  }
+
+  /* A control drawn smaller than the 24px hit-area baseline gets the missing pixels back as an
+   * invisible pad, so a glyph can stay small without being fiddly to hit. Centred, so it never
+   * grows the layout. */
+  .hit-24 {
+    position: relative;
+  }
+  .hit-24::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    translate: -50% -50%;
+    width: max(100%, 24px);
+    height: max(100%, 24px);
+  }
+
+  .titlebar-drag {
+    -webkit-app-region: drag;
+  }
+  .titlebar-drag button,
+  .titlebar-drag [role="button"],
+  .no-drag {
+    -webkit-app-region: no-drag;
+  }
+
+  /* Chat markdown — the contractor writes real reports (tables, bold, code). Same type
+   * scale as plain chat text; structure comes from spacing and hairlines, not size. */
+  .prose {
+    font-family: var(--font-family-content);
+    font-size: 14px;
+    line-height: 1.5;
+    letter-spacing: -0.26px;
+    color: var(--ink-2);
+    overflow-wrap: anywhere;
+  }
+  .prose > :first-child {
+    margin-top: 0;
+  }
+  .prose > :last-child {
+    margin-bottom: 0;
+  }
+  .prose p,
+  .prose ul,
+  .prose ol,
+  .prose table,
+  .prose pre,
+  .prose blockquote {
+    margin: 0 0 8px;
+  }
+  .prose h1,
+  .prose h2,
+  .prose h3,
+  .prose h4 {
+    margin: 14px 0 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    letter-spacing: -0.1px;
+  }
+  .prose strong {
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .prose ul,
+  .prose ol {
+    padding-left: 18px;
+  }
+  .prose li {
+    margin: 2px 0;
+  }
+  .prose li::marker {
+    color: var(--ink-3);
+  }
+  .prose code {
+    font-family: var(--font-family-code);
+    font-size: 11.5px;
+    background: var(--inset);
+    border-radius: 4px;
+    padding: 1px 4px;
+  }
+  .prose pre {
+    background: var(--tooltip-bg);
+    border-radius: var(--radius-control);
+    box-shadow: var(--shadow-hairline);
+    padding: 10px 12px;
+    overflow-x: auto;
+  }
+  .prose pre code {
+    background: none;
+    padding: 0;
+    font-size: 11px;
+    line-height: 1.6;
+  }
+  /* A one-line shell block a reply offers to run: Run and Copy sit inside it on the right, and
+   * once it runs, its output is a card under it. */
+  .prose-command {
+    position: relative;
+    margin: 0 0 8px;
+  }
+  .prose-command > pre {
+    margin-bottom: 0;
+    background: none;
+  }
+  .prose-command:has(.command-actions) > pre {
+    padding: 9px 76px 9px 12px;
+  }
+  .command-actions {
+    position: absolute;
+    top: 3px;
+    right: 4px;
+    display: flex;
+    gap: 2px;
+    color: var(--ink-2);
+  }
+  .command-output {
+    position: relative;
+    margin-top: 6px;
+    border-radius: var(--radius-control);
+    box-shadow: var(--shadow-hairline);
+  }
+  .command-output-text {
+    max-height: 144px;
+    overflow: hidden;
+    padding: 10px 44px 10px 12px;
+    font-family: var(--font-family-code);
+    font-size: 12px;
+    line-height: 18px;
+    color: var(--ink-2);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .command-output-text:empty {
+    padding-block: 0;
+  }
+  .command-output[data-overflows]:not([data-expanded]) .command-output-text {
+    mask-image: linear-gradient(to bottom, transparent 0, black 36px);
+  }
+  .command-output[data-expanded] .command-output-text {
+    max-height: 360px;
+    overflow-y: auto;
+  }
+  .command-output-terminal {
+    position: absolute;
+    top: 3px;
+    right: 4px;
+    color: var(--ink-3);
+  }
+  .command-output-foot {
+    display: flex;
+    min-height: 32px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 4px 2px 12px;
+    font-size: 12px;
+    color: var(--ink-3);
+  }
+  .command-problem {
+    margin: 6px 0 0;
+    font-size: 12px;
+    color: var(--orange);
+  }
+  .prose table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 12px;
+  }
+  .prose th,
+  .prose td {
+    text-align: left;
+    padding: 5px 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  .prose th {
+    font-family: var(--font-family-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 500;
+    color: var(--ink-3);
+  }
+  .prose .prose-file {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 100%;
+    padding: 0 5px;
+    border-radius: 6px;
+    background: var(--field);
+    color: var(--ink);
+    font: inherit;
+    text-align: start;
+    vertical-align: baseline;
+    cursor: pointer;
+  }
+  .prose .prose-file:hover {
+    background: var(--control-hover, var(--hover));
+  }
+  .prose .prose-file:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .prose .prose-file svg {
+    flex-shrink: 0;
+    color: var(--ink-3);
+  }
+  /* A document opened beside the chat reads at chat size, with headings that can be scanned. */
+  .prose.file-doc {
+    font-size: 15px;
+    line-height: 24px;
+  }
+  .prose.file-doc p,
+  .prose.file-doc ul,
+  .prose.file-doc ol,
+  .prose.file-doc table,
+  .prose.file-doc pre,
+  .prose.file-doc blockquote {
+    margin-bottom: 12px;
+  }
+  .prose.file-doc h1 {
+    margin: 0 0 12px;
+    font-size: 20px;
+    line-height: 28px;
+    letter-spacing: -0.24px;
+  }
+  .prose.file-doc h2,
+  .prose.file-doc h3,
+  .prose.file-doc h4 {
+    margin: 20px 0 8px;
+    font-size: 15px;
+    line-height: 22px;
+  }
+  .prose.file-doc code {
+    font-size: 13px;
+  }
+  .prose.file-doc table {
+    font-size: 14px;
+  }
+  .prose blockquote {
+    border-left: 2px solid var(--line-strong);
+    padding-left: 10px;
+    color: var(--ink-3);
+  }
+  .prose hr {
+    border: 0;
+    border-top: 1px solid var(--line);
+    margin: 10px 0;
+  }
+}
+
+/* ── app shell ──────────────────────────────────────────────────────────────── */
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+  }
+  body {
+    background: var(--canvas);
+    color: var(--ink);
+    font-family: var(--font-family-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    letter-spacing: -0.03em;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  a {
+    color: var(--accent-ink);
+  }
+  a:hover {
+    color: var(--ink);
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--line);
+    border: 2px solid transparent;
+    background-clip: content-box;
+    border-radius: 99px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--line-strong);
+  }
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+}
+
+/* Family tracking travels with the family; text roles override it deliberately. */
+@utility font-sans {
+  font-family: var(--font-family-sans);
+  letter-spacing: -0.03em;
+}
+@utility font-mono {
+  font-family: var(--font-family-mono);
+  letter-spacing: -0.02em;
+}
+@utility text-micro {
+  font-size: 11px;
+  line-height: 16px;
+  letter-spacing: 0.01em;
+}
+@utility text-body-sm {
+  font-size: 13px;
+  line-height: 18px;
+}
+@utility text-chat {
+  font-size: 15px;
+  line-height: 22px;
+  letter-spacing: -0.26px;
+}
+@utility text-step {
+  font-size: 15px;
+  line-height: 22px;
+  letter-spacing: -0.26px;
+}
+@utility text-chat-sub {
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: -0.26px;
+}
+@utility text-composer {
+  font-size: 15px;
+  line-height: 20px;
+  letter-spacing: -0.44px;
+}
+@utility text-name {
+  font-size: 15px;
+  line-height: 20px;
+}
+@utility text-heading {
+  font-size: 18px;
+  line-height: 26px;
+  letter-spacing: -0.3px;
+}
+@utility text-title {
+  font-size: 20px;
+  line-height: 28px;
+  letter-spacing: -0.24px;
+}
+@utility text-dialog-body {
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: -0.26px;
+}
+@utility text-dialog-sub {
+  font-size: 13px;
+  line-height: 18px;
+  letter-spacing: -0.26px;
+}
+
+@utility control-quiet {
+  background: var(--control-fill, var(--control-quiet));
+  border: 0;
+}
+@utility surface-glass {
+  background: var(--composer-panel);
+  border: 1px solid var(--composer-panel-border);
+  backdrop-filter: blur(4.5px);
+}
+@layer base {
+  button:enabled,
+  select:enabled,
+  input[type="checkbox"]:enabled,
+  input[type="radio"]:enabled,
+  a[href],
+  summary,
+  [role="button"]:not([aria-disabled="true"]):not(:disabled),
+  [role="menuitem"]:not([data-disabled]),
+  [role="option"]:not([aria-disabled="true"]):not(:disabled) {
+    cursor: pointer;
+  }
+  button:disabled,
+  [aria-disabled="true"],
+  [data-disabled] {
+    cursor: default;
+  }
+  :focus-visible {
+    outline: none;
+  }
+  button,
+  input,
+  select {
+    accent-color: var(--accent-primary);
+  }
+  button svg,
+  a svg {
+    pointer-events: none;
+  }
+  ::selection {
+    background: var(--accent-fill);
+    color: var(--accent-foreground);
+  }
+}
+@layer components {
+  .composer-panel {
+    border: 1px solid var(--prompt-bar-edge);
+    background: var(--composer);
+
+    border-radius: 26px;
+    padding: 10px 10px 7px;
+    box-shadow: var(--prompt-shadow, none);
+  }
+  .composer-panel:focus-within {
+    border-color: var(--prompt-edge, color-mix(in oklab, var(--border) 85%, transparent));
+  }
+  .composer-control {
+    min-height: 32px;
+    border-radius: 999px;
+    border: 0;
+    background: var(--field);
+  }
+  .composer-control:hover:enabled {
+    background: var(--control-hover, var(--hover));
+  }
+  /* A suggestion's include box: recessed while left out, green with a check while included. */
+  .include-mark {
+    display: grid;
+    flex-shrink: 0;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    background: var(--inset);
+    color: var(--ink-3);
+    box-shadow: var(--shadow-hairline);
+    transform: scale(0.92);
+    transition:
+      background-color var(--duration-quick),
+      color var(--duration-quick),
+      transform var(--duration-quick) var(--ease-smooth-out);
+  }
+  .include-mark[data-on] {
+    background: var(--green);
+    color: var(--success-foreground);
+    box-shadow: none;
+    transform: none;
+  }
+  /* A diff in review: a sign gutter, then the line; additions and removals carry their tint. */
+  .diff-lines {
+    overflow-x: auto;
+    padding-block: 4px;
+  }
+  .diff-line {
+    display: flex;
+    gap: 8px;
+    padding-inline: 10px;
+    white-space: pre;
+    color: var(--ink-2);
+  }
+  .diff-line[data-tone="add"] {
+    background: var(--green-tint);
+    color: var(--green);
+  }
+  .diff-line[data-tone="del"] {
+    background: var(--red-tint);
+    color: var(--red);
+  }
+  .diff-sign {
+    flex-shrink: 0;
+    width: 12px;
+    user-select: none;
+  }
+  .disclosure-body {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    visibility: hidden;
+    transition:
+      grid-template-rows var(--duration-fast) var(--ease-smooth-out),
+      opacity var(--duration-quick),
+      visibility 0s var(--duration-fast);
+  }
+  .disclosure-body[data-open="true"] {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    visibility: visible;
+    transition-delay: 0s;
+  }
+  .disclosure-body > div {
+    min-height: 0;
+    overflow: hidden;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  [data-shimmer] {
+    background: none !important;
+    color: var(--muted-foreground) !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+}
+
+/* Disclosures keep optional configuration out of the reading path. */
+.settings-disclosure {
+  border-block-start: 1px solid var(--line);
+  padding-block-start: 16px;
+}
+.settings-disclosure > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  cursor: pointer;
+  font-size: var(--t-md);
+  font-weight: 600;
+  color: var(--ink);
+  border-radius: var(--radius-control);
+}
+.settings-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+.settings-disclosure > summary::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-block-start: 1.5px solid currentColor;
+  border-inline-end: 1.5px solid currentColor;
+  transform: rotate(45deg);
+  margin-inline: 2px 4px;
+  transition: transform var(--duration-quick);
+}
+.settings-disclosure[open] > summary::before {
+  transform: rotate(135deg);
+}
+
+/* Native window controls, by the platform main reports (`data-platform` on the root). macOS draws its
+ * traffic lights in the leading 72px of the headers, so the sidebar toggle sits at 80px whether or not
+ * the sidebar is open. Windows and Linux draw minimise, maximise and close over the trailing edge
+ * (Electron's titleBarOverlay); the header under them leaves that width free. */
+:root[data-platform="win32"],
+:root[data-platform="linux"] {
+  --window-controls-end: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, calc(100vw - 144px)));
+}
+:root[data-platform="win32"] .window-controls-end,
+:root[data-platform="linux"] .window-controls-end {
+  padding-inline-end: calc(var(--window-controls-end) + 8px);
+}
+
+/* Conversation-led shell. */
+.studio-shell {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  overflow: hidden;
+}
+.studio-shell[data-sidebar-open="false"] {
+  grid-template-columns: 0 minmax(0, 1fr);
+}
+.studio-sidebar {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.studio-sidebar > nav {
+  width: 240px;
+}
+.studio-shell[data-sidebar-open="false"] .studio-sidebar {
+  visibility: hidden;
+}
+.studio-workspace {
+  display: grid;
+  grid-template-columns: min(var(--chat-width), 52%) minmax(0, 1fr);
+}
+/* Home: one line and one composer over the workspace, nothing selected (shell/HomeScreen.tsx). */
+.home-layer {
+  position: absolute;
+  inset: 0;
+  /* Above the chat column's resize and terminal handles (z-20), which are inert beneath it. */
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  background: var(--page);
+}
+/* Home's background picture (home-backdrop/), beneath home's line and composer: the window's
+   drawing, centered on the window, of which home shows its own part, so the sidebar opening or
+   closing only uncovers or covers it. Until a resize settles and it is drawn again, it grows evenly
+   to cover a larger window rather than stretch. */
+.home-backdrop-frame {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.home-backdrop {
+  --backdrop-shown: max(var(--backdrop-width, 100vw), 100vw, calc(100vh * var(--backdrop-aspect, 1)));
+  position: absolute;
+  top: calc((100vh - var(--backdrop-shown) / var(--backdrop-aspect, 1)) / 2);
+  right: calc((100vw - var(--backdrop-shown)) / 2);
+  width: var(--backdrop-shown);
+  aspect-ratio: var(--backdrop-aspect, 1);
+  color: var(--ink);
+  font-family: var(--font-family-mono);
+  opacity: 0;
+}
+/* Over a picture, the words under the composer carry a soft halo of the page, so they read without a cut-out. */
+.home-layer:has(.home-backdrop) :is(.home-folder-chip, .home-suggest) {
+  text-shadow:
+    0 0 3px var(--page),
+    0 0 8px var(--page),
+    0 0 16px var(--page);
+}
+.home-layer:has(.home-backdrop) :is(.home-folder-chip, .home-suggest) svg {
+  filter: drop-shadow(0 0 3px var(--page)) drop-shadow(0 0 6px var(--page));
+}
+.home-backdrop[data-ready] {
+  opacity: var(--backdrop-strength);
+  animation: home-backdrop-in var(--duration-medium) var(--ease-smooth-out);
+}
+@keyframes home-backdrop-in {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-backdrop[data-ready] {
+    animation: none;
+  }
+}
+.home-layer > .home-header,
+.home-layer > .home-body {
+  position: relative;
+}
+.home-header {
+  display: flex;
+  height: 48px;
+  flex: none;
+  align-items: center;
+  padding-inline: 10px 8px;
+}
+/* Home's Background button sits at the header's far end. */
+.home-backdrop-button {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  margin-inline-start: auto;
+  place-items: center;
+  border-radius: var(--radius-control);
+  color: var(--color-icon);
+  cursor: pointer;
+  transition:
+    background-color var(--duration-quick),
+    color var(--duration-quick);
+}
+.home-backdrop-button:hover,
+.home-backdrop-button[data-popup-open] {
+  background: var(--color-control-hover);
+  color: var(--color-control-text-hover);
+}
+/* The Background panel: the same controls as Settings, narrower, scrolling inside the window. */
+.backdrop-panel {
+  width: 380px;
+  max-height: min(680px, var(--available-height));
+  overflow-y: auto;
+  padding: 12px 16px 8px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.backdrop-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 32px;
+  margin-block-end: 4px;
+}
+.backdrop-panel-heading h2 {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.backdrop-panel .backdrop-slider {
+  width: 150px;
+}
+.backdrop-panel .backdrop-row[data-top] {
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+.backdrop-panel .backdrop-row[data-top] > .backdrop-label {
+  line-height: 20px;
+}
+.backdrop-panel .backdrop-pictures {
+  justify-content: flex-start;
+}
+.backdrop-panel .backdrop-picture-choice {
+  width: 56px;
+  height: 36px;
+}
+.backdrop-panel .backdrop-picture-add {
+  height: 36px;
+}
+:root[data-platform="darwin"] .studio-shell[data-sidebar-open="false"] .home-header {
+  padding-inline-start: 80px;
+}
+.home-body {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  overflow-y: auto;
+  padding: 0 48px 96px;
+}
+.home-title {
+  margin: 0;
+  font-size: 21px;
+  line-height: 28px;
+  font-weight: 500;
+  letter-spacing: -0.24px;
+  text-align: center;
+  color: var(--ink);
+}
+.home-compose {
+  display: flex;
+  width: 100%;
+  max-width: 680px;
+  flex-direction: column;
+  gap: 6px;
+}
+/* Under the composer, where the next game is saved: quiet until it is pointed at. */
+.home-folder-chip {
+  display: inline-flex;
+  min-width: 0;
+  height: 28px;
+  align-items: center;
+  gap: 6px;
+  margin-inline-start: 10px;
+  padding-inline: 8px;
+  border-radius: var(--radius-control);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition:
+    background-color var(--duration-quick),
+    color var(--duration-quick);
+}
+.home-folder-chip:enabled:hover,
+.home-folder-chip[data-state="open"] {
+  background: var(--hover);
+  color: var(--ink-2);
+}
+.home-folder-chip:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+/* Under the composer: where the game is saved on the left, Suggest prompt on the right. */
+.home-compose-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+/* A ghost button in the folder chip's voice (mono 12px, ink-3); it steps aside while the user writes. */
+.home-suggest {
+  display: inline-flex;
+  height: 28px;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  margin-inline-end: 10px;
+  padding-inline: 8px;
+  border-radius: var(--radius-control);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition:
+    background-color var(--duration-quick),
+    color var(--duration-quick),
+    opacity var(--duration-quick);
+}
+.home-suggest:enabled:hover {
+  background: var(--hover);
+  color: var(--ink-2);
+}
+.home-suggest:disabled {
+  visibility: hidden;
+  opacity: 0;
+}
+/* Home on its way to the game it launched: the chat and stage it is becoming, then a fade over them. */
+.home-launching {
+  display: grid;
+  grid-template-columns: min(var(--chat-width), 52%) minmax(0, 1fr);
+  transition: opacity var(--duration-fast) var(--ease-smooth-out);
+}
+.home-launching[data-leaving] {
+  opacity: 0;
+  pointer-events: none;
+}
+/* A game being named has no name yet: its header and its row say so in quiet ink. */
+.home-launch-chat .chat-header-title[data-naming] {
+  color: var(--ink-3);
+}
+.game-avatar-pending {
+  display: block;
+  flex: none;
+  background: var(--hover);
+}
+.home-launch-chat {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  border-inline-end: 1px solid var(--line);
+  background: var(--page);
+}
+.home-launch-stage {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  view-transition-name: launch-stage;
+}
+/* Home ⇄ game (ui/view-transition.ts): the composer glides to its new place and the rest crossfades.
+   Only one composer may carry the name, so the chat's has it only while home is not up. */
+.home-composer [data-promptbar],
+.studio-shell:not(:has(.home-layer)) [data-chat-composer] [data-promptbar] {
+  view-transition-name: composer;
+}
+/* biome-ignore lint/correctness/noUnknownTypeSelector: a view transition's name, not an element */
+::view-transition-group(composer) {
+  animation-duration: 380ms;
+  animation-timing-function: var(--ease-smooth-out);
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 240ms;
+}
+::view-transition-new(launch-stage) {
+  animation: launch-stage-in 380ms var(--ease-smooth-out) both;
+}
+@keyframes launch-stage-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+  .home-launching {
+    transition: none;
+  }
+}
+:root[data-platform="darwin"] .chat-header-sidebar-hidden {
+  padding-inline-start: 80px;
+}
+/* 48px headers: 8px above and below the 32px controls. The title hugs its text; the rest drags the window. */
+.chat-header-title {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 320px;
+  padding: 5px 8px;
+  border-radius: var(--radius-control);
+  font-size: var(--label-size, 14px);
+  line-height: 20px;
+  letter-spacing: var(--label-tracking, -0.015em);
+  font-weight: var(--label-weight, 450);
+  color: var(--ink);
+  text-align: start;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: background-color var(--duration-quick);
+}
+button.chat-header-title:hover {
+  background: var(--field);
+}
+.header-control {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-control);
+  color: var(--ink-3);
+  transition:
+    background-color var(--duration-quick),
+    color var(--duration-quick);
+}
+.header-control:hover,
+.header-control[aria-expanded="true"] {
+  background: var(--control-hover, var(--hover));
+  color: var(--ink);
+}
+.studio-shell[data-compact="true"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+.studio-shell[data-compact="true"] .studio-sidebar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 240px;
+  z-index: 101;
+  transform: translateX(0);
+  transition:
+    transform var(--duration-fast) var(--ease-smooth-out),
+    visibility 0s;
+}
+.studio-shell[data-compact="true"][data-sidebar-open="false"] .studio-sidebar {
+  transform: translateX(-100%);
+  transition:
+    transform var(--duration-fast) var(--ease-smooth-out),
+    visibility 0s var(--duration-fast);
+}
+.studio-sidebar-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  background: rgb(0 0 0 / 45%);
+  cursor: pointer;
+}
+@media (prefers-reduced-motion: reduce) {
+  .studio-shell,
+  .studio-shell[data-compact="true"][data-sidebar-open] .studio-sidebar {
+    transition: none;
+  }
+}
+
+/* Game library: stable chrome, a single scrolling navigation region, quiet row actions. */
+.game-sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--sidebar);
+  border-inline-end: 1px solid var(--line);
+}
+.sidebar-fixed {
+  flex: none;
+  position: relative;
+  z-index: 1;
+  padding-inline: 8px;
+}
+.sidebar-titlebar {
+  display: flex;
+  align-items: center;
+  height: 44px;
+}
+/* 72px keeps the toggle just clear of macOS's traffic lights; 8px down centres it on them and on the
+ * headers' line, 24px from the top, where the chat and Plugins headers put it while the sidebar is hidden. */
+:root[data-platform="darwin"] .sidebar-titlebar {
+  align-items: flex-start;
+  padding-block-start: 8px;
+  padding-inline-start: 72px;
+}
+.sidebar-toggle {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-control);
+  color: var(--ink-3);
+  transition:
+    background-color var(--duration-quick),
+    color var(--duration-quick);
+}
+.sidebar-toggle:hover,
+.game-sidebar .sidebar-icon:enabled:hover {
+  background: var(--sidebar-hover);
+  color: var(--ink);
+}
+.sidebar-brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 0 14px 8px;
+}
+.sidebar-wordmark {
+  width: var(--logo-width, 80px);
+  height: auto;
+}
+/* The wordmark is the way home: a quiet button around it, its focus ring on the mark. */
+.sidebar-home {
+  display: flex;
+  border-radius: var(--radius-control);
+  margin: -4px -6px;
+  padding: 4px 6px;
+}
+.sidebar-home:focus-visible {
+  outline: 2px solid var(--focus-edge);
+  outline-offset: 0;
+}
+/* One stack for New game, Plugins, Harness and Settings: equal 36px rows, 2px apart. */
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+/* Labels read exactly like game titles and the chat header's title: one type (the colour tweaker tries
+   --label-size, --label-tracking and --label-weight), secondary ink until hovered or current. */
+.sidebar-action {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 36px;
+  padding-inline: 8px;
+  border-radius: var(--radius-control);
+  color: var(--ink-2);
+  font-size: var(--label-size, 14px);
+  line-height: 20px;
+  letter-spacing: var(--label-tracking, -0.015em);
+  font-weight: var(--label-weight, 450);
+  text-align: start;
+  background: transparent;
+  transition:
+    background-color var(--duration-quick),
+    color var(--duration-quick);
+}
+.sidebar-action:hover {
+  background: var(--sidebar-hover);
+  color: var(--ink);
+}
+.sidebar-action[aria-current="page"] {
+  background: var(--sidebar-selected);
+  color: var(--ink);
+}
+.sidebar-action > .gi {
+  color: var(--icon, var(--ink-2));
+}
+.sidebar-action[aria-current="page"] > .gi {
+  color: var(--icon-selected, var(--accent-ink));
+}
+.sidebar-badge {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  min-width: 20px;
+  height: 18px;
+  padding-inline: 6px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--accent-primary) 16%, transparent);
+  color: var(--accent-ink);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+/* Search and the bell sit close as one quiet pair, in the bell's grey rather than the icon colour. */
+.sidebar-brand-actions {
+  display: flex;
+  align-items: center;
+}
+.sidebar-brand-actions .sidebar-icon {
+  width: 28px;
+  height: 28px;
+  color: var(--ink-3);
+}
+.sidebar-brand-actions .notify-badge {
+  left: 15px;
+}
+/* The bell: a count for work waiting on you, a dot for unread news. The mark grows and fades in
+   over the bell's corner, so the bell itself never moves under the pointer. */
+.notify-bell {
+  position: relative;
+}
+.game-sidebar .notify-bell[data-open] {
+  background: var(--sidebar-selected);
+  color: var(--ink);
+}
+.notify-badge {
+  position: absolute;
+  top: 1px;
+  left: 17px;
+  pointer-events: none;
+}
+.notify-badge-mark {
+  display: grid;
+  place-items: center;
+  min-width: 15px;
+  height: 15px;
+  padding-inline: 4px;
+  border-radius: 8px;
+  background: var(--accent-fill);
+  color: var(--accent-foreground);
+  box-shadow: 0 0 0 2px var(--sidebar);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 15px;
+  font-variant-numeric: tabular-nums;
+  transform: scale(0.4);
+  opacity: 0;
+  transition:
+    transform var(--duration-quick) var(--ease-smooth-out),
+    opacity var(--duration-quick) var(--ease-smooth-out);
+}
+.notify-badge[data-show="dot"] .notify-badge-mark {
+  min-width: 8px;
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  margin: 4px 0 0 1px;
+  background: var(--accent-primary);
+}
+.notify-badge[data-show] .notify-badge-mark {
+  transform: none;
+  opacity: 1;
+  transition-duration: var(--duration-fast);
+}
+/* With the sidebar hidden, the button that brings it back carries the same dot, also while an update waits there. */
+.studio-shell:is([data-notices], [data-update-ready]) [aria-controls="studio-sidebar"][aria-expanded="false"] {
+  position: relative;
+}
+.studio-shell:is([data-notices], [data-update-ready]) [aria-controls="studio-sidebar"][aria-expanded="false"]::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  box-shadow: 0 0 0 2px var(--background);
+  pointer-events: none;
+}
+/* Live is behind (builds-live.md): the stage's Reload carries the same dot and breathes once. */
+[data-stage-reload="behind"] {
+  position: relative;
+  animation: gate-pulse 1.6s ease-out 1;
+}
+[data-stage-reload="behind"]::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  box-shadow: 0 0 0 2px var(--background);
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .notify-badge,
+  .notify-badge-mark,
+  [data-stage-reload="behind"] {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+/* The panel: a header, then Waiting for you, then the news by day. Rows open where the answer lives. */
+.notify-head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 32px;
+  padding: 2px 4px 4px 10px;
+}
+.notify-head h2 {
+  font-family: var(--font-family-content);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.notify-clear {
+  height: 24px;
+  padding-inline: 8px;
+  border-radius: var(--radius-chip);
+  font-family: var(--font-family-content);
+  font-size: 12px;
+  line-height: 24px;
+  color: var(--ink-3);
+  transition:
+    background-color var(--duration-quick),
+    color var(--duration-quick);
+}
+.notify-clear:is(:hover, :focus-visible) {
+  background: var(--control-hover, var(--hover));
+  color: var(--ink);
+}
+.notify-list {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.notify-list::-webkit-scrollbar {
+  width: 7px;
+}
+.notify-list::-webkit-scrollbar-thumb {
+  background: transparent;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 4px;
+}
+.notify-panel:hover .notify-list::-webkit-scrollbar-thumb {
+  background-color: var(--line-strong);
+}
+.notify-list > section + section {
+  margin-top: 4px;
+}
+.notify-row {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-control);
+  text-align: start;
+  transition: background-color var(--duration-quick);
+}
+.notify-row:is(:hover, :focus-visible) {
+  background: var(--control-hover, var(--hover));
+}
+.notify-row,
+.notify-row * {
+  cursor: pointer;
+}
+.notify-art {
+  margin-top: 2px;
+}
+.notify-art-tile {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--inset);
+  color: var(--ink-2);
+}
+.notify-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  font-family: var(--font-family-content);
+}
+.notify-title {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.notify-time {
+  flex: none;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 400;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.notify-text {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ink-2);
+}
+.notify-row[data-tone="failed"] .notify-text {
+  color: var(--orange);
+}
+.notify-action {
+  flex: none;
+  align-self: center;
+  height: 24px;
+  padding-inline: 10px;
+  border-radius: var(--radius-chip);
+  background: var(--accent-tint);
+  color: var(--accent-ink);
+  font-family: var(--font-family-content);
+  font-size: 13px;
+  line-height: 24px;
+  white-space: nowrap;
+}
+.notify-dot {
+  flex: none;
+  align-self: center;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+}
+.notify-empty {
+  padding: 28px 16px 32px;
+  text-align: center;
+  font-family: var(--font-family-content);
+}
+.notify-empty p:first-child {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.notify-empty p + p {
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ink-3);
+  text-wrap: balance;
+}
+.shortcut {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 22px;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 5px;
+  background: color-mix(in oklab, currentColor 10%, transparent);
+  color: inherit;
+  opacity: 0.8;
+  font: 10px / 16px var(--font-family-mono);
+  letter-spacing: normal;
+}
+.sidebar-games-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-block: 18px 4px;
+  padding-inline-start: 8px;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--ink-3);
+}
+.sidebar-games-heading .sidebar-icon {
+  width: 28px;
+  height: 28px;
+}
+/* Only the game list scrolls. Its 3px thumb sits 2px from the border and shows while the sidebar is hovered or scrolling. */
+.sidebar-list {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+.sidebar-scroll {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* The scrollbar's 7px stay reserved, so a selected game keeps its right inset with no scrollbar. */
+  scrollbar-gutter: stable;
+  padding: 0 1px 12px 8px;
+}
+.sidebar-scroll::-webkit-scrollbar {
+  width: 7px;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: transparent;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 4px;
+}
+.game-sidebar:is(:hover, [data-scrolling="true"]) .sidebar-scroll::-webkit-scrollbar-thumb {
+  background-color: var(--line-strong);
+}
+.sidebar-fade {
+  position: absolute;
+  inset-inline: 0 7px;
+  top: 0;
+  height: 24px;
+  background: linear-gradient(var(--sidebar), transparent);
+  opacity: 0;
+  transition: opacity var(--duration-quick);
+  pointer-events: none;
+}
+.game-sidebar[data-scrolled="true"] .sidebar-fade {
+  opacity: 1;
+}
+/* Relaunch to update floats over the foot of the game list while a downloaded version waits. The
+ * list scrolls under it and fades out above it, as it does under the chrome at the top; its last
+ * game and its scrollbar stop clear of the button. */
+.sidebar-footer {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  padding: 4px 8px 8px;
+  background: var(--sidebar);
+}
+.sidebar-footer::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 100%;
+  height: 24px;
+  background: linear-gradient(transparent, var(--sidebar));
+  pointer-events: none;
+}
+.sidebar-list:has(.sidebar-footer) .sidebar-scroll {
+  padding-block-end: 72px;
+}
+.sidebar-list:has(.sidebar-footer) .sidebar-scroll::-webkit-scrollbar-track {
+  margin-block-end: 48px;
+}
+/* A secondary button in the field colour: the light palette's own secondary fill is one step from the
+ * sidebar and would vanish here. The label and the reload glyph share the ink, never the accent. */
+.sidebar-update {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 36px;
+  padding-inline: 12px 10px;
+  border-radius: var(--radius-control);
+  background: var(--field);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  text-align: start;
+  transition: background-color var(--duration-quick);
+}
+.sidebar-update > span {
+  flex: 1;
+  min-width: 0;
+}
+.sidebar-update:enabled:hover {
+  background: color-mix(in oklab, var(--ink) 5%, var(--field));
+}
+.sidebar-update:disabled {
+  opacity: 0.6;
+}
+.sidebar-update[aria-busy="true"] .gi .a-spin {
+  animation: gi-spin 1.5s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+.sidebar-games {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.sidebar-game {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border-radius: var(--radius-control);
+  transition: background-color var(--duration-quick);
+}
+.sidebar-game:hover,
+.sidebar-game:focus-within,
+.sidebar-game[data-menu-open="true"] {
+  background: var(--sidebar-hover);
+}
+.sidebar-game[data-active="true"] {
+  background: var(--sidebar-selected);
+}
+.sidebar-game-select {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 38px 6px 8px;
+  border-radius: inherit;
+  font-size: var(--label-size, 14px);
+  line-height: 20px;
+  letter-spacing: var(--label-tracking, -0.015em);
+  font-weight: var(--label-weight, 450);
+  text-align: start;
+  color: var(--ink-2);
+}
+.sidebar-game[data-active="true"] .sidebar-game-select,
+.sidebar-game-select:hover {
+  color: var(--ink);
+}
+.sidebar-game-menu {
+  position: absolute;
+  inset-inline-end: 6px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-control);
+  color: var(--ink-2);
+  opacity: 0;
+  transition:
+    opacity var(--duration-quick),
+    background-color var(--duration-quick);
+}
+.sidebar-game:hover .sidebar-game-menu,
+.sidebar-game:focus-within .sidebar-game-menu,
+.sidebar-game[data-menu-open="true"] .sidebar-game-menu {
+  opacity: 1;
+}
+.sidebar-game-menu:hover {
+  background: var(--inset);
+  color: var(--ink);
+}
+/* The pin and the working dot sit where ⋯ appears, centred in its 28px slot, and give way to it on hover. */
+.sidebar-pin,
+.sidebar-game-status {
+  position: absolute;
+  inset-inline-end: 6px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  color: var(--ink-3);
+  pointer-events: none;
+  transition: opacity var(--duration-quick);
+}
+.sidebar-game:hover :is(.sidebar-pin, .sidebar-game-status),
+.sidebar-game:focus-within :is(.sidebar-pin, .sidebar-game-status),
+.sidebar-game[data-menu-open="true"] :is(.sidebar-pin, .sidebar-game-status) {
+  opacity: 0;
+}
+.game-text-input {
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  padding: 10px 12px;
+  color: var(--ink);
+  font-size: var(--t-md);
+  background: var(--field);
+}
+@media (hover: none) {
+  .sidebar-game-menu {
+    opacity: 1;
+  }
+  .sidebar-pin,
+  .sidebar-game-status {
+    display: none;
+  }
+  .sidebar-game[data-busy="true"] .sidebar-game-menu {
+    box-shadow: inset 0 0 0 1.5px var(--accent);
+  }
+}
+.game-search-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-block-end: 1px solid var(--line);
+  color: var(--ink-3);
+}
+.game-search-input input {
+  min-width: 0;
+  flex: 1;
+  height: 28px;
+  outline: none;
+  color: var(--ink);
+  background: transparent;
+  font-family: var(--font-family-mono);
+  font-size: var(--t-md);
+}
+.game-search-results {
+  max-height: min(55vh, 440px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px;
+}
+.game-search-result {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  border-radius: var(--radius-control);
+  padding: 8px;
+  text-align: start;
+}
+.game-search-result[aria-selected="true"],
+.game-search-result:hover {
+  background: var(--control-hover, var(--hover));
+}
+.search-cover {
+  width: 44px;
+  height: 44px;
+}
+.game-search-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 8px 16px;
+  border-block-start: 1px solid var(--line);
+  font-size: var(--t-xs);
+  color: var(--ink-3);
+}
+.game-search-footer > span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+[data-testid="game-search-dialog"] > div:first-child {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+/* Extensions are a workspace destination; the game and conversation stay mounted behind it. */
+.extensions-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+  background: var(--canvas);
+  container-type: inline-size;
+}
+/* As tall as the other headers, so its sidebar toggle and tabs share their line with the traffic lights. */
+.extensions-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 0 24px;
+  flex-shrink: 0;
+}
+:root[data-platform="darwin"] .extensions-toolbar-inset {
+  padding-inline-start: 80px;
+}
+.extensions-tabs {
+  display: flex;
+  gap: 4px;
+}
+.extensions-tabs button {
+  padding: 7px 12px;
+  border-radius: var(--radius-control);
+  color: var(--ink-3);
+  font: 13px var(--font-family-mono);
+}
+.extensions-tabs button:hover,
+.extensions-tabs button[aria-current="page"] {
+  color: var(--ink);
+  background: var(--soft);
+}
+.extensions-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+.extensions-content {
+  width: 100%;
+  max-width: 1040px;
+  margin-inline: auto;
+  padding: 32px 48px 80px;
+}
+.extensions-content-detail {
+  max-width: 900px;
+}
+.extensions-back {
+  margin-block-end: 26px;
+}
+.extensions-title-row {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  justify-content: space-between;
+}
+.extensions-title-row h1 {
+  font-size: 32px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+.extensions-title-row h1:focus {
+  outline: none;
+}
+.extensions-intro {
+  color: var(--ink-3);
+  font-size: 14px;
+  line-height: 1.6;
+  margin-block-start: 12px;
+  max-width: 68ch;
+  text-wrap: pretty;
+}
+.extensions-search {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-block: 28px 36px;
+  min-height: 42px;
+  padding-inline: 15px 8px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--soft);
+  color: var(--ink-3);
+}
+.extensions-search:focus-within {
+  border-color: var(--focus-edge);
+}
+.extensions-search input {
+  width: 100%;
+  min-width: 0;
+  flex: 1;
+  background: transparent;
+  color: var(--ink);
+  font-size: 14px;
+  outline: none;
+  padding-block: 10px;
+}
+.extensions-search input::-webkit-search-cancel-button {
+  display: none;
+}
+.extensions-section {
+  margin-block-start: 36px;
+}
+.extensions-section-heading {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  justify-content: space-between;
+  min-height: 36px;
+  padding-block-end: 12px;
+  margin-block-end: 8px;
+  border-block-end: 1px solid var(--line);
+}
+.extensions-section-heading h2 {
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.extensions-section-heading h2 span {
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+.extension-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  min-width: 0;
+  padding-block: 6px;
+}
+.extension-open {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+  min-width: 0;
+  text-align: start;
+  padding: 12px 8px;
+  margin-inline: -8px;
+  border-radius: var(--radius-control);
+  transition: background-color var(--dur);
+}
+.extension-open:hover {
+  background: var(--stripe);
+}
+/* A row that looks like one but opens nothing: a catalog entry, a plugin's connection. */
+.extension-static,
+.extension-static:hover {
+  background: transparent;
+}
+.extension-mark {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--soft);
+  color: var(--color-icon);
+}
+.extension-mark-large {
+  display: flex;
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  margin-block: 4px 24px;
+}
+/* A plugin's or server's own picture, like an app's in the Dock; its initial on a quiet tile when it has none. */
+.extension-icon {
+  display: block;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  object-fit: cover;
+  user-select: none;
+}
+.extension-icon-large {
+  width: 64px;
+  height: 64px;
+  border-radius: 14px;
+  margin-block: 4px 24px;
+}
+.extension-icon-menu {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+}
+.extension-icon-letter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--line-strong);
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1;
+}
+.extension-icon-large.extension-icon-letter {
+  display: flex;
+  font-size: 26px;
+}
+.extension-icon-menu.extension-icon-letter {
+  font-size: 10px;
+}
+.extension-icon-make {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--line-strong);
+  color: var(--color-icon);
+}
+.extension-copy {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 5px;
+}
+.extension-name {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.extension-description {
+  overflow: hidden;
+  color: var(--ink-3);
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+/* A row's account once it needs no button: the browser step, or the balance. */
+.extension-account-note,
+.extension-credits,
+.extension-connection-state {
+  flex-shrink: 0;
+  color: var(--ink-3);
+  font: 13px var(--font-family-mono);
+  white-space: nowrap;
+}
+.extension-credits,
+.extension-connection-state[data-state="ready"] {
+  color: var(--ink-2);
+}
+.extension-connection-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.extension-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--green);
+}
+.extension-connection-setting {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.extension-connection-setting .extension-input {
+  width: 260px;
+  max-width: 100%;
+}
+.extension-skills-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-block: 8px;
+  color: var(--ink-3);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.extension-own {
+  margin-block-start: 28px;
+  padding-block-start: 18px;
+  border-block-start: 1px solid var(--line);
+}
+.extension-own .extension-description {
+  white-space: normal;
+}
+.extensions-empty {
+  padding-block: 16px;
+  color: var(--ink-3);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.extensions-error {
+  color: var(--red);
+  margin-block: 18px;
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.extensions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 40px;
+  row-gap: 8px;
+}
+.extensions-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-block-start: 24px;
+}
+.extensions-detail-actions:empty {
+  display: none;
+}
+/* Install from GitHub: the link, what it leads to, and the one next step. */
+.github-install {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+.github-install-field {
+  display: grid;
+  gap: 8px;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+.github-install-field input {
+  height: 42px;
+  min-width: 0;
+  padding-inline: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--soft);
+  color: var(--ink);
+  font-size: 14px;
+  outline: none;
+}
+.github-install-field input:focus {
+  border-color: var(--focus-edge);
+}
+.github-install-field input[aria-invalid="true"] {
+  border-color: color-mix(in oklab, var(--red) 45%, var(--line));
+}
+.github-install-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+.github-install-plugin {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+.github-install-owner {
+  margin-inline-start: 8px;
+  color: var(--ink-3);
+  font-size: 13px;
+  font-weight: 400;
+}
+.github-install-plugin + .github-install-version {
+  padding-block-start: 12px;
+  border-block-start: 1px solid var(--line);
+}
+.github-install-version {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  font-size: 13px;
+}
+.github-install-version-label {
+  flex-shrink: 0;
+  width: 64px;
+  color: var(--ink-3);
+}
+.github-install-version-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.github-install-note,
+.github-install-problem p:not(.text-red) {
+  color: var(--ink-3);
+  font-size: 13px;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+.github-install-problem {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.github-install-guide {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  justify-self: start;
+  margin-block-start: 4px;
+  color: var(--ink);
+  cursor: pointer;
+}
+.github-install-guide:hover {
+  text-decoration: underline;
+}
+.github-install-choices {
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+}
+.github-install-choice {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 8px;
+  border-radius: var(--radius-control);
+  text-align: start;
+  cursor: pointer;
+}
+.github-install-choice:hover {
+  background: var(--stripe);
+}
+.github-install-choice[aria-checked="true"] {
+  background: var(--soft);
+  box-shadow: inset 0 0 0 1px var(--focus-edge);
+}
+.github-install-folder {
+  color: var(--ink-3);
+  font: 12px var(--font-family-mono);
+}
+.github-install-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+/* Local Blender's setup card. */
+.blender-path {
+  overflow-wrap: anywhere;
+  font-family: var(--font-family-mono);
+  font-size: 12px;
+}
+.blender-progress {
+  width: 100%;
+  height: 4px;
+  margin-block-start: 16px;
+  accent-color: var(--ink);
+}
+.extension-information {
+  display: grid;
+  grid-template-columns: 128px minmax(0, 1fr);
+  gap: 16px 24px;
+  padding-block-start: 16px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.extension-information dt {
+  color: var(--ink-3);
+}
+.extension-information dd {
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+.extension-frame {
+  width: 100%;
+  height: 65vh;
+  min-height: 360px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  margin-block-start: 12px;
+}
+.extension-setting {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-block: 10px;
+  font-size: 13px;
+}
+.extension-setting input:not([type="checkbox"]),
+.extension-input {
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-control);
+  background: var(--soft);
+  font-size: 13px;
+}
+.extension-install-form {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.extension-disclosure {
+  color: var(--ink-3);
+  font-size: 12px;
+  line-height: 1.7;
+  padding-inline-start: 60px;
+  overflow-wrap: anywhere;
+}
+.extension-disclosure summary {
+  cursor: pointer;
+  width: fit-content;
+  padding-block: 4px;
+}
+.extension-disclosure summary:hover {
+  color: var(--ink);
+}
+.skill-instructions {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: 13px / 1.75 var(--font-family-mono);
+  color: var(--ink-2);
+  padding-block: 16px;
+}
+.connector-note {
+  margin-inline-start: 60px;
+  font-size: 12px;
+  line-height: 1.6;
+  padding-block-end: 8px;
+  overflow-wrap: anywhere;
+}
+.connector-details {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-inline-start: 60px;
+  padding-block: 4px 18px;
+}
+.connector-form:has(> div) {
+  margin-block-start: 20px;
+  max-width: 640px;
+}
+.connector-form > div {
+  gap: 16px;
+  padding-block-start: 24px;
+}
+@container (max-width: 680px) {
+  .extensions-content {
+    padding: 24px 24px 64px;
+  }
+  .extensions-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .extensions-toolbar {
+    padding-inline-end: 16px;
+    gap: 8px;
+  }
+  .extensions-title-row h1 {
+    font-size: 28px;
+  }
+  .extension-row {
+    gap: 12px;
+  }
+  .extension-information {
+    grid-template-columns: 96px minmax(0, 1fr);
+    gap: 12px 16px;
+  }
+}
+@container (max-width: 420px) {
+  .extensions-content {
+    padding-inline: 16px;
+  }
+  :root[data-platform="darwin"] .extensions-toolbar-inset {
+    padding-inline-start: 76px;
+  }
+  .extensions-tabs button {
+    padding-inline: 8px;
+  }
+  .extensions-toolbar .ml-auto {
+    gap: 0;
+  }
+  .extension-open {
+    gap: 10px;
+  }
+  .extension-mark {
+    width: 36px;
+    height: 36px;
+  }
+  .connector-note,
+  .connector-details {
+    margin-inline-start: 46px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .extension-open {
+    transition: none;
+  }
+}
+
+/* Genex settings: fixed section header, independently scrolling content. */
+.settings-dialog {
+  max-width: 860px;
+}
+.settings-layout {
+  height: min(720px, calc(100dvh - 2rem - 2px));
+}
+@media (max-width: 639px) {
+  .settings-layout {
+    height: calc(100dvh - 2rem - 2px);
+  }
+}
+/* A provider's status in Model Providers: its dot and word on a soft plate of the tone's color.
+   The word mixes the tone toward the ink so it stays readable on its own tint in both themes. */
+.status-plate {
+  --plate-tone: var(--ink-3);
+  display: inline-flex;
+  height: 22px;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  padding-inline: 8px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--plate-tone) 14%, transparent);
+  color: color-mix(in oklab, var(--plate-tone) 72%, var(--ink));
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  white-space: nowrap;
+}
+.status-plate[data-tone="connected"] {
+  --plate-tone: var(--green);
+}
+.status-plate[data-tone="busy"] {
+  --plate-tone: var(--accent-ink);
+}
+.status-plate[data-tone="warning"] {
+  --plate-tone: var(--orange);
+}
+.status-plate[data-tone="danger"] {
+  --plate-tone: var(--red);
+}
+
+/* Keep the emulator mounted while hidden; only the selected terminal paints. */
+.terminal-dock:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+}
+.terminal-dock[hidden] {
+  display: none;
+}
+.terminal-dock .xterm {
+  height: 100%;
+}
+.terminal-dock .xterm-viewport {
+  background-color: var(--background);
+  overscroll-behavior: contain;
+}
+
+/* Only current work animates. History and disclosures mount without entrance choreography. */
+.chat-status-shimmer {
+  color: var(--ink-3);
+  background: linear-gradient(90deg, var(--ink-3) 35%, var(--ink) 50%, var(--ink-3) 65%);
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer-text 1.4s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-status-shimmer {
+    animation: none;
+    background: none;
+    -webkit-text-fill-color: currentColor;
+  }
+}
+:is([data-chat-transcript], [data-streaming-reply], [data-chat-question], [data-plan-review], [data-studio-intro])
+  .prose {
+  font-size: 15px;
+  line-height: 22px;
+  max-width: 72ch;
+  color: var(--ink);
+}
+:is([data-chat-transcript], [data-streaming-reply], [data-chat-question], [data-plan-review], [data-studio-intro])
+  .prose
+  :is(h1, h2, h3, h4) {
+  font-size: inherit;
+  line-height: inherit;
+  margin-block: 16px 8px;
+}
+:is([data-chat-transcript], [data-streaming-reply], [data-chat-question], [data-plan-review], [data-studio-intro])
+  .prose
+  :is(code, pre code, table, th) {
+  font-size: inherit;
+  line-height: inherit;
+}
+/* A command a reply offers to run reads one step under the reply's own 15px. */
+[data-chat-transcript] .prose .prose-command:has(.command-actions) > pre code {
+  font-size: 14px;
+  line-height: 20px;
+}
+.prose ul {
+  list-style-type: disc;
+}
+.prose ol {
+  list-style-type: decimal;
+  padding-inline-start: 1.75em;
+}
+.prose li > :last-child {
+  margin-bottom: 0;
+}
+.chat-disclosure {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 30px;
+  margin-inline: -6px;
+  padding: 4px 6px;
+  border-radius: 8px;
+  color: var(--ink-3);
+  font-family: var(--font-family-content);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 22px;
+  letter-spacing: -0.26px;
+  text-align: start;
+  transition:
+    color 100ms,
+    background-color 100ms;
+}
+.chat-disclosure:hover {
+  color: var(--ink);
+  background: var(--control-hover, var(--hover));
+}
+/* The status line without details to open: laid out as its disclosure is, so nothing moves when one comes. */
+.chat-status-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 30px;
+  padding-block: 4px;
+  color: var(--ink-3);
+}
+/* The status line's clock, after its words in their type, figures and resting ink. Its width is the
+   words' own (`--clock-width`, ui/LoadingState.tsx), so a change of width can glide. */
+.chat-clock {
+  flex: none;
+  overflow: hidden;
+  width: var(--clock-width, auto);
+  white-space: nowrap;
+}
+/* Waiting on the user has no clock; the line's gap before it goes too. */
+.chat-clock[aria-hidden="true"] {
+  width: 0;
+  margin-inline-start: -6px;
+  opacity: 0;
+}
+[data-chat-transcript] img {
+  outline: 1px solid rgb(255 255 255 / 0.1);
+  outline-offset: -1px;
+}
+.chat-trace {
+  margin-block-start: 8px;
+  margin-inline-start: 5px;
+  border-inline-start: 1px solid var(--line);
+  padding-inline-start: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.chat-tool-frame {
+  margin-block-start: 8px;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.chat-tool-frame > * + * {
+  border-block-start: 1px solid var(--line);
+}
+.chat-tool-detail {
+  padding: 10px;
+  font-size: 13px;
+  line-height: 20px;
+}
+.chat-tool-code {
+  margin: 0;
+  padding: 10px;
+  overflow: auto;
+  max-height: 320px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--composer);
+  font-family: var(--font-family-code);
+  font-size: 13px;
+  line-height: 20px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.chat-tool-output {
+  margin-block-start: 8px;
+  border: 0;
+  background: transparent;
+  padding: 8px 10px;
+}
+.chat-tool-code code {
+  font: inherit;
+}
+/* A tool row: its toggle stretches over the whole row, and a file the row names is a link above it. */
+.chat-tool-head {
+  position: relative;
+  display: flex;
+  min-height: 36px;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  transition: background-color 100ms;
+}
+.chat-tool-head:has(> .chat-tool-toggle:enabled:hover) {
+  background: var(--hover-2);
+}
+.chat-tool-head:has(> .chat-tool-toggle:focus-visible) {
+  background: var(--hover);
+}
+.chat-tool-toggle {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+.chat-tool-toggle::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+.chat-tool-toggle:disabled {
+  cursor: default;
+}
+/* The row's gap is wider than a word space; the path follows its "·" like the next word. The path
+ * gives up its folders before the verb, and its name never paints past the row. */
+.chat-tool-toggle:has(+ .chat-tool-file) {
+  flex-shrink: 0;
+  max-width: 60%;
+}
+.chat-tool-file.file-link {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  min-width: 0;
+  margin-inline-start: -4px;
+  overflow: hidden;
+}
+/* A file named in plain text or code: underlined words in their own font and colour. The colour is
+ * the text's (buttons inherit it), so a failed tool row's red class still reaches its path. */
+.file-link {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: inherit;
+  text-decoration-line: underline;
+  text-decoration-thickness: from-font;
+  text-underline-offset: 3px;
+  text-decoration-color: color-mix(in oklab, currentColor 40%, transparent);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  transition:
+    color var(--duration-quick),
+    text-decoration-color var(--duration-quick);
+}
+.file-link:hover {
+  color: var(--ink);
+  text-decoration-color: currentColor;
+}
+/* Studio has one reading size, one small size and a title; technical code keeps its family. */
+.studio-view {
+  font-family: var(--font-family-content);
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 400;
+}
+.studio-view :is(button, input, textarea, select, .font-mono):not(pre):not(code) {
+  font-family: var(--font-family-content);
+}
+.studio-view
+  :is(
+    .text-xs,
+    .text-sm,
+    .text-micro,
+    .text-body-sm,
+    .chat-tool-detail,
+    .chat-tool-code,
+    [data-chat-outcome],
+    [data-outcome-details]
+  ) {
+  font-size: 14px;
+  line-height: 20px;
+}
+.studio-view [class*="text-[1"] {
+  font-size: 14px;
+  line-height: 20px;
+}
+.studio-view :is(strong, b, .font-semibold, .font-bold) {
+  font-weight: 500;
+}
+.studio-view :is(h1, .text-title) {
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 500;
+}
+.studio-view [data-chat-header] [aria-label="Studio"] > span {
+  font-size: 18px;
+  line-height: 24px;
+}
+.studio-view .prose :is(h1, h2, h3, h4) {
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 500;
+}
+.studio-view .prose :is(pre, code) {
+  font-size: 14px;
+}
+.studio-view details > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 30px;
+  padding: 4px 6px;
+  margin-inline: -6px;
+  border-radius: 8px;
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 400;
+  color: var(--ink-3);
+  list-style: none;
+}
+.studio-view details > summary::-webkit-details-marker {
+  display: none;
+}
+.studio-view details > summary::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-inline-end: 1.5px solid currentColor;
+  border-block-end: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  margin-inline: 2px;
+}
+.studio-view details[open] > summary::after {
+  transform: rotate(45deg);
+}
+.studio-view details > summary:hover {
+  background: var(--control-hover, var(--hover));
+  color: var(--ink);
+}
+[data-chat-entry] > [data-work-log] {
+  margin-block: -3px;
+}
+/* Rows already supply reading space; do not double it before the live status. */
+.chat-conversation-stack > [data-chat-transcript] {
+  margin-block-end: -16px;
+}
+.chat-user-content[data-collapsed] {
+  max-height: 154px;
+  overflow: hidden;
+}
+.chat-user-content[data-collapsed][data-overflow] {
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent);
+}
+/* A region that scrolls on its own fades its last visible line the same way while more of it lies
+   below (`ui/scroll-fade.ts`), and shows that line whole at the end. */
+@property --scroll-fade {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+.scroll-fade {
+  mask-image: linear-gradient(to bottom, #000 calc(100% - var(--scroll-fade)), transparent);
+  transition: --scroll-fade var(--duration-quick);
+}
+.scroll-fade[data-more] {
+  --scroll-fade: 32px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .scroll-fade {
+    transition: none;
+  }
+}
+.chat-user-toggle {
+  display: block;
+  margin-block-start: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--ink-2);
+  text-align: start;
+}
+.chat-user-toggle:hover {
+  color: var(--ink);
+}
+/* Remove under a queued message: 24px like Rewind, under the icon button's usual control size
+   (a utility class loses to it; this rule is unlayered). */
+.chat-queued-remove {
+  width: 24px;
+  height: 24px;
+}
+/* Rewind sits beside a delivered bubble, shown while its row is hovered or holds focus. It is
+   24px, under the icon button's usual control size, so it centres on the bubble's last line. */
+.chat-user-action {
+  width: 24px;
+  height: 24px;
+  opacity: 0;
+  transition: opacity 150ms ease-out;
+}
+[data-chat-entry]:hover .chat-user-action,
+[data-chat-entry]:focus-within .chat-user-action {
+  opacity: 1;
+}
+@media (hover: none) {
+  .chat-user-action {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-user-action {
+    transition: none;
+  }
+}
+.hljs-comment,
+.hljs-quote {
+  color: var(--ink-3);
+}
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-built_in,
+.hljs-type {
+  color: var(--accent-ink);
+}
+.hljs-string,
+.hljs-regexp,
+.hljs-addition,
+.hljs-attribute {
+  color: var(--green);
+}
+.hljs-number,
+.hljs-literal,
+.hljs-symbol,
+.hljs-bullet {
+  color: var(--orange);
+}
+.hljs-title,
+.hljs-section,
+.hljs-attr,
+.hljs-selector-class,
+.hljs-selector-id {
+  color: var(--accent-ink);
+}
+.hljs-meta {
+  color: var(--ink-2);
+}
+.hljs-deletion {
+  color: var(--red);
+}
+.chat-plan {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  max-height: 45vh;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--composer);
+}
+.chat-plan-secondary {
+  display: flex;
+  min-height: 30px;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: var(--radius-control);
+  color: var(--ink-2);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 22px;
+}
+.chat-plan-secondary:enabled:hover {
+  background: var(--control-hover, var(--hover));
+  color: var(--ink);
+}
+.chat-plan-secondary:disabled {
+  color: var(--ink-3);
+  cursor: default;
+}
+/* The card's choices scroll inside it; its footer (Chat about this, Send answer) always shows. */
+.chat-question {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  max-height: 60vh;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--composer);
+}
+/* A choice's mark sits on its first line, beside the label, however long the description runs. */
+.chat-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-inline: -8px;
+  padding: 6px 8px;
+  border-radius: var(--radius-control);
+  transition: background-color 100ms;
+}
+.chat-choice:has(input:enabled):hover,
+.chat-choice:focus-within {
+  background: var(--control-hover, var(--hover));
+}
+.chat-choice-input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-family: var(--font-family-content);
+  font-size: 15px;
+  line-height: 22px;
+  letter-spacing: -0.26px;
+  outline: none;
+}
+.chat-choice-input::placeholder {
+  color: var(--ink-3);
+}
+.chat-choice-mark {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  margin-block-start: 3px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 50%;
+  cursor: inherit;
+}
+.chat-choice-mark:checked {
+  background: var(--ink);
+  border: 5px solid var(--ink);
+  box-shadow: inset 0 0 0 2px var(--surface);
+}
+.chat-choice-mark:checked + span > :first-child {
+  color: var(--ink);
+}
+.chat-question-submit {
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border-radius: var(--radius-control);
+  background: var(--ink);
+  color: var(--page);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 22px;
+}
+.chat-question-submit:disabled {
+  background: var(--field);
+  color: var(--ink-3);
+  cursor: default;
+}
+.chat-question-submit:enabled:hover {
+  opacity: 0.85;
+}
+.chat-question-secondary {
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-control);
+  background: var(--control-fill, var(--control-quiet));
+  color: var(--ink-2);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 22px;
+}
+.chat-question-secondary:hover {
+  background: var(--control-hover, var(--hover));
+  color: var(--ink);
+}
+
+/* Shared theme roles; custom accents always retain a readable action label. */
+:root {
+  /* The prompt bar's edge at rest, which its menus share: the palette's own, else the divider at 65%. */
+  --prompt-bar-edge: var(--prompt-edge, color-mix(in srgb, var(--border) 65%, transparent));
+  --font-family-controls: var(--font-family-mono);
+  --font-family-content: var(--font-family-sans);
+  --font-family-code: var(--font-family-mono);
+}
+[data-theme-switching] *,
+[data-theme-switching] *::before,
+[data-theme-switching] *::after {
+  transition: none !important;
+}
+[data-slot="button"] {
+  font-family: var(--font-family-controls);
+}
+.theme-primary {
+  background: var(--accent-fill);
+  color: var(--accent-foreground);
+}
+.theme-primary:is(:hover, :focus-visible):enabled {
+  background: var(--accent-hover);
+}
+.theme-destructive {
+  background: var(--danger-fill);
+  color: var(--danger-foreground);
+}
+.theme-destructive:is(:hover, :focus-visible):enabled {
+  background: var(--danger-hover);
+}
+/* Keyboard focus uses the same filled language as hover, without an outer ring. */
+:is(button, [role="button"], [role="tab"], summary):focus-visible:not(
+  .theme-primary,
+  .theme-destructive,
+  [data-slot="switch"]
+) {
+  outline: none;
+  background-color: var(--control-hover, var(--hover));
+  color: var(--control-text-hover, var(--ink));
+}
+a:focus-visible {
+  outline: none;
+  text-decoration: underline;
+}
+/* Studio's content font is for words; a file link inside code keeps the code's font. */
+.studio-view :is(pre, code) .file-link.file-link {
+  font-family: inherit;
+}
+/* The message bubble is already the field colour, so a focused link there takes the stronger fill. */
+[data-user-message] .file-link.file-link:focus-visible {
+  background-color: var(--line-strong);
+}
+:is(input, textarea, select):focus-visible {
+  outline: none;
+}
+[data-slot="input"]:focus-visible,
+[data-slot="textarea"]:focus-visible {
+  border-color: var(--focus-edge);
+  box-shadow: none;
+}
+/* An inset edge distinguishes keyboard focus from hover without growing control geometry. Text
+   fields draw none: a focused one always counts as keyboard focus, and its caret and its own edge
+   (or its panel's) already show where typing goes. */
+:root
+:is(
+  button,
+  a[href],
+  summary,
+  select,
+  input:is([type="checkbox"], [type="radio"], [type="range"], [type="color"]),
+  [tabindex]:not(input, textarea, [contenteditable="true"])
+):focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: -2px;
+}
+/* A layer or heading that script focuses so reading starts there is not a control: no edge, which on a
+   full-window layer (the welcome) would frame the whole window. */
+:root :is(h1, h2, h3, [role="dialog"])[tabindex="-1"]:focus-visible {
+  outline: none;
+}
+:root :is(.theme-primary, .theme-destructive, [role="tab"][aria-selected="true"]):focus-visible {
+  outline-color: currentColor;
+}
+:root [data-slot="switch"][data-state="checked"]:focus-visible {
+  outline-color: var(--background);
+}
+.text-chat,
+.text-chat-sub,
+.text-composer {
+  font-family: var(--font-family-content);
+}
+.prose pre,
+.prose code {
+  font-family: var(--font-family-code);
+}
+.file-code {
+  font-family: var(--font-family-code);
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--ink-2);
+  white-space: pre;
+  tab-size: 2;
+}
+
+/* Appearance: mode, palette, then the optional details. */
+.appearance-section {
+  font-family: var(--font-family-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  padding-block: 2px 4px;
+}
+.appearance-modes legend {
+  margin-block-end: 10px;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 500;
+}
+.appearance-mode-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.appearance-mode {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  position: relative;
+  color: var(--ink-3);
+}
+.appearance-mode input {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+.appearance-mode-art {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 86px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 3px;
+  overflow: hidden;
+  pointer-events: none;
+}
+.appearance-mode:has(:checked) {
+  color: var(--ink);
+}
+.appearance-mode:has(:checked) .appearance-mode-art {
+  border-color: var(--accent-primary);
+}
+.appearance-mode:has(:focus-visible) {
+  background: var(--control-hover, var(--hover));
+  border-radius: 12px;
+}
+.appearance-mode-half {
+  position: absolute;
+  inset: 3px;
+  clip-path: inset(0 0 0 50%);
+}
+.appearance-mini {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--preview-bg);
+}
+.mini-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 28%;
+  padding: 13px 5px;
+  background: var(--preview-side);
+  border-inline-end: 1px solid var(--preview-line);
+}
+.mini-sidebar i {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--preview-text);
+  opacity: 0.35;
+}
+.mini-sidebar i:first-child {
+  background: var(--preview-accent);
+  opacity: 1;
+}
+.mini-content {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 8px 8px;
+}
+.mini-content > i {
+  width: 75%;
+  height: 3px;
+  background: var(--preview-text);
+  opacity: 0.5;
+  border-radius: 2px;
+}
+.mini-content > i:nth-child(2) {
+  width: 52%;
+  opacity: 0.2;
+}
+.mini-composer {
+  margin-block-start: auto;
+  height: 19px;
+  border: 1px solid var(--preview-line);
+  background: var(--preview-surface);
+  border-radius: 5px;
+  padding: 4px;
+  display: flex;
+  justify-content: end;
+}
+.mini-composer i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--preview-accent);
+}
+.appearance-hint {
+  color: var(--ink-3);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.appearance-mode-hint {
+  margin-block: 12px 24px;
+}
+.appearance-theme {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  padding: 8px 16px 4px;
+  margin-block-end: 16px;
+}
+.appearance-theme-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  margin-block-end: 4px;
+}
+.appearance-section h3 {
+  font-weight: 500;
+  font-size: 16px;
+  color: var(--ink);
+}
+.appearance-active {
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.appearance-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+}
+.appearance-value {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 0;
+}
+.appearance-choice {
+  width: 200px;
+  max-width: 100%;
+  height: 36px;
+  font-size: 12px;
+}
+.appearance-menu {
+  max-height: min(380px, var(--radix-dropdown-menu-content-available-height));
+  overflow-y: auto;
+  min-width: 220px;
+  max-width: calc(100vw - 40px);
+}
+.theme-swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-size: 12px;
+  font-family: var(--font-family-mono);
+}
+.color-control-group {
+  display: flex;
+  flex-direction: column;
+  align-items: end;
+  gap: 3px;
+}
+.color-control {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 142px;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-control);
+  background: var(--field);
+  padding: 5px 9px;
+}
+.color-control:focus-within {
+  border-color: var(--focus-edge);
+}
+.color-control[data-invalid="true"] {
+  border-color: var(--red);
+}
+.color-control input[type="color"] {
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  cursor: pointer;
+}
+.color-control input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 2px;
+}
+.color-control input[type="color"]::-webkit-color-swatch {
+  border-radius: 50%;
+  border: 0;
+}
+.color-control input[type="text"],
+.color-control input:not([type]) {
+  width: 86px;
+  min-width: 0;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-family-mono);
+  font-size: 12px;
+}
+.appearance-details {
+  margin-block-start: 8px;
+}
+.appearance-details > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  border-radius: 8px;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.appearance-details > summary::-webkit-details-marker {
+  display: none;
+}
+.appearance-details > summary::before {
+  content: "›";
+  display: block;
+  font-size: 18px;
+  width: 8px;
+}
+.appearance-details[open] > summary::before {
+  transform: rotate(90deg);
+}
+.appearance-customize {
+  margin-block: 4px 12px;
+}
+/* Home background (panels/HomeBackdropSection.tsx): a preview of home, then one setting per row. */
+.backdrop-settings {
+  margin-block: 20px 8px;
+}
+.backdrop-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  min-height: 44px;
+}
+.backdrop-row[data-top] {
+  align-items: start;
+  padding-block: 8px;
+}
+.backdrop-row[data-top] > .backdrop-label {
+  line-height: 40px;
+}
+.backdrop-label {
+  color: var(--ink);
+}
+.backdrop-control {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 0;
+}
+.backdrop-slider {
+  width: 200px;
+  accent-color: var(--accent-ink);
+  cursor: pointer;
+}
+/* A fixed column, right-aligned in even digits: the slider beside it never moves while it is dragged. */
+.backdrop-value {
+  width: 40px;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+}
+.backdrop-preview {
+  position: relative;
+  margin-block: 8px 12px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--page);
+}
+.backdrop-preview-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  color: var(--ink);
+  font-family: var(--font-family-mono);
+  opacity: var(--backdrop-strength);
+}
+/* Where home's composer sits, so the preview shows what the picture is behind. */
+.backdrop-preview-composer {
+  position: absolute;
+  inset-inline: 21%;
+  top: 43%;
+  height: 10%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.backdrop-pictures {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+.backdrop-picture {
+  position: relative;
+}
+.backdrop-picture-choice {
+  display: block;
+  width: 64px;
+  height: 40px;
+  overflow: hidden;
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1px var(--line);
+  cursor: pointer;
+}
+.backdrop-picture-choice[aria-pressed="true"] {
+  box-shadow:
+    0 0 0 2px var(--page),
+    0 0 0 4px var(--accent-ink);
+}
+.backdrop-picture-choice img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.backdrop-picture-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--popover);
+  color: var(--ink-2);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--duration-quick);
+}
+.backdrop-picture:hover .backdrop-picture-remove,
+.backdrop-picture-remove:focus-visible {
+  opacity: 1;
+}
+.backdrop-picture-add {
+  display: inline-flex;
+  height: 40px;
+  align-items: center;
+  gap: 6px;
+  padding-inline: 14px;
+  border: 1px dashed var(--input);
+  border-radius: 8px;
+  color: var(--ink-2);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-quick),
+    color var(--duration-quick);
+}
+.backdrop-picture-add:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+.backdrop-problem {
+  flex-basis: 100%;
+  text-align: end;
+}
+.backdrop-characters {
+  width: 160px;
+  font-family: var(--font-family-mono);
+}
+.backdrop-more > summary {
+  min-height: 44px;
+}
+.appearance-row input[type="range"] {
+  width: min(140px, 25vw);
+  accent-color: var(--accent-ink);
+  cursor: pointer;
+}
+.appearance-row output {
+  min-width: 24px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+}
+.appearance-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.appearance-actions > button {
+  font-size: 12px;
+}
+.appearance-share {
+  border-block-start: 1px solid var(--line);
+  margin-block-start: 6px;
+  padding-block: 6px;
+}
+.appearance-save {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-block-start: 8px;
+}
+.appearance-import {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-block: 8px 12px;
+}
+.appearance-import textarea {
+  resize: vertical;
+  min-height: 120px;
+  width: 100%;
+  background: var(--field);
+  border: 1px solid var(--input);
+  border-radius: var(--radius-control);
+  padding: 10px;
+  font: 12px / 1.5 var(--font-family-code);
+}
+.appearance-error {
+  margin-block: 8px;
+  color: var(--red);
+  overflow-wrap: anywhere;
+}
+.appearance-typography {
+  margin-block: 24px 16px;
+}
+/* A card of described rows (Settings → Harness): each row has room, with a hairline between rows. */
+.settings-rows {
+  padding-block: 4px;
+}
+.settings-rows > .appearance-row {
+  padding-block: 12px;
+}
+.settings-rows > .appearance-row + .appearance-row {
+  border-top: 1px solid var(--line);
+}
+.settings-rows > .appearance-row > :first-child {
+  gap: 2px;
+}
+.appearance-typography h3 {
+  margin-block-end: 8px;
+}
+@media (max-width: 639px) {
+  .appearance-theme {
+    padding-inline: 12px;
+  }
+  .appearance-row {
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    padding-block: 6px;
+  }
+  .appearance-choice {
+    width: 178px;
+  }
+  .appearance-mode-options {
+    gap: 8px;
+  }
+  .appearance-mode-art {
+    height: 76px;
+  }
+}
+
+/* The chat's build card: its title stretches over the card and opens the build on Builds. The card
+ * lights a step only for that, not while the pointer is on Play, which sits above the title. */
+/* Where a build card will be while its result loads: its picture's height and its padding. */
+.build-card-place {
+  min-height: calc(55px + 2 * 0.5rem);
+}
+.build-card {
+  position: relative;
+  box-shadow: 0 0 0 1px var(--line);
+  transition:
+    background-color var(--duration-quick),
+    box-shadow var(--duration-quick);
+}
+.build-card:has(.build-card-open:hover) {
+  background: var(--composer-panel);
+  box-shadow: 0 0 0 1px var(--line-strong);
+}
+.build-card:has(.build-card-open:focus-visible) {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.build-card-open {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  align-self: flex-start;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.build-card-open::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-card);
+}
+.build-card-open svg {
+  flex-shrink: 0;
+  color: var(--ink-3);
+  transition: color var(--duration-quick);
+}
+.build-card-open:is(:hover, :focus-visible) svg {
+  color: var(--ink);
+}
+/* On the composer-coloured card the quiet fill would vanish, so Play steps up a shade. */
+.build-card .result-button {
+  position: relative;
+  z-index: 1;
+  background: var(--hover);
+  color: var(--ink);
+}
+.build-card .result-button:enabled:hover {
+  background: var(--line-strong);
+}
+@media (prefers-reduced-motion: reduce) {
+  .build-card,
+  .build-card-open svg {
+    transition: none;
+  }
+}
+
+/* Delivered content shares one quiet action, and media reserves its space before loading. */
+.result-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 28px;
+  padding: 4px 9px;
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--ink-2);
+  font-family: var(--font-family-content);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+}
+.result-button:enabled:hover {
+  background: var(--control-hover, var(--hover));
+  color: var(--ink);
+}
+.asset-preview-action,
+.asset-viewer-controls {
+  opacity: 0;
+  transition: opacity 150ms ease-out;
+}
+.asset-tile:hover .asset-preview-action,
+.asset-tile:focus-within .asset-preview-action,
+.asset-row:hover .asset-preview-action,
+.asset-row:has(:focus-visible) .asset-preview-action,
+.asset-viewer-dialog:hover .asset-viewer-controls,
+.asset-viewer-dialog:focus-within .asset-viewer-controls {
+  opacity: 1;
+}
+.asset-preview-action {
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+}
+.asset-viewer-controls {
+  pointer-events: none;
+}
+.asset-viewer-controls button {
+  pointer-events: auto;
+}
+.asset-thumbnail {
+  animation: fade-in 150ms ease-out;
+}
+@media (hover: none) {
+  .asset-preview-action,
+  .asset-viewer-controls {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .asset-thumbnail {
+    animation: none;
+  }
+  .asset-preview-action,
+  .asset-viewer-controls {
+    transition: none;
+  }
+}
+
+/* ── Chat motion ──────────────────────────────────────────────────────────────
+ * What appears in the chat opens in place: its height grows from nothing while it fades in, so what
+ * follows it (or, while the chat follows its newest line, the conversation above) glides instead of
+ * jumping; what leaves closes the same way (ui/Presence.tsx). Only height and opacity move: one small
+ * layout of the chat's tail per frame, for a quarter of a second. History never enters, and Reduce
+ * Motion shows every change at once. `--entered` starts an opening part-way, where a placeholder that
+ * the arriving row replaces had got to (chat/transcript-motion.ts). */
+@keyframes chat-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+/* A transcript row: its spacing is its own bottom padding. */
+@keyframes chat-row-open {
+  from {
+    height: 0;
+    padding-block-end: 0;
+  }
+}
+/* A part in a flex stack: `--presence-gap` (the stack's gap) closes with it. */
+@keyframes presence-open {
+  from {
+    height: 0;
+    margin-block-end: calc(-1 * var(--presence-gap, 0px));
+  }
+}
+@keyframes presence-close {
+  to {
+    height: 0;
+    margin-block-end: calc(-1 * var(--presence-gap, 0px));
+    opacity: 0;
+  }
+}
+.chat-entry-arriving,
+.presence[data-presence="open"],
+.presence[data-presence="close"] {
+  interpolate-size: allow-keywords;
+  overflow-y: clip;
+}
+/* content-box: an opening to `auto` would otherwise end short of the row's own bottom padding. */
+.chat-entry-arriving {
+  box-sizing: content-box;
+  animation:
+    chat-row-open var(--duration-fast) var(--ease-smooth-out),
+    chat-fade-in 200ms ease-out 50ms backwards;
+  animation-delay: calc(0ms - var(--entered, 0ms)), calc(50ms - var(--entered, 0ms));
+}
+/* min-height: a flex item may not otherwise shrink below its content, so it could not open or close. */
+.presence {
+  --presence-gap: 0px;
+  display: flow-root;
+  min-height: 0;
+}
+.presence[data-presence="open"] {
+  animation:
+    presence-open var(--duration-fast) var(--ease-smooth-out),
+    chat-fade-in 200ms ease-out 50ms backwards;
+}
+.presence[data-presence="close"] {
+  pointer-events: none;
+  animation: presence-close var(--duration-quick) var(--ease-smooth-out) forwards;
+}
+/* Set on each part, not inherited: a part inside a part closes only its own height. */
+.chat-conversation-stack > .presence {
+  --presence-gap: 1rem;
+}
+[data-studio-intro] > .presence {
+  --presence-gap: 0.75rem;
+}
+/* Request details open and close in place, like the chat's own disclosures. */
+:is([data-chat-scroll], [data-pending-questions]) details {
+  interpolate-size: allow-keywords;
+}
+:is([data-chat-scroll], [data-pending-questions]) details::details-content {
+  block-size: 0;
+  overflow-y: clip;
+  transition:
+    block-size var(--duration-fast) var(--ease-smooth-out),
+    content-visibility var(--duration-fast) allow-discrete;
+}
+:is([data-chat-scroll], [data-pending-questions]) details[open]::details-content {
+  block-size: auto;
+}
+/* A card waiting above the composer fades in when it is shown, after the one before it is answered. */
+.chat-waiting-card:not([hidden]) {
+  animation: chat-fade-in 200ms ease-out;
+}
+.chat-jump {
+  animation: chat-fade-in var(--duration-quick) ease-out;
+}
+/* The running build's first picture slides in beside its words, which make room for it (gap-3). */
+@keyframes build-picture-in {
+  from {
+    width: 0;
+    margin-inline-end: -0.75rem;
+    opacity: 0;
+  }
+}
+.build-picture-in {
+  animation: build-picture-in var(--duration-fast) var(--ease-smooth-out);
+}
+.build-card-text {
+  transition: padding-inline-start var(--duration-fast) var(--ease-smooth-out);
+}
+/* A disclosure's chevron turns as it opens instead of swapping glyphs. The status line's fades in
+   when the work has details to open, and out as they go (ui/LoadingState.tsx). */
+.chat-chevron {
+  transition:
+    rotate var(--duration-quick) var(--ease-smooth-out),
+    opacity var(--duration-quick) ease-out;
+}
+[data-chat-status] .chat-chevron {
+  animation: chat-fade-in var(--duration-quick) ease-out;
+}
+.chat-chevron-leaving {
+  opacity: 0;
+}
+/* The status clock's width glides when it grows a digit or goes and comes back, the chevron with it. */
+.chat-clock {
+  transition:
+    width var(--duration-fast) var(--ease-smooth-out),
+    margin-inline-start var(--duration-fast) var(--ease-smooth-out),
+    opacity var(--duration-quick) ease-out;
+}
+/* The reply being written grows smoothly line by line; its height follows the text (ui/animate-height.tsx). */
+.chat-grow {
+  overflow-y: clip;
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-chevron,
+  .chat-clock,
+  .build-card-text,
+  :is([data-chat-scroll], [data-pending-questions]) details::details-content {
+    transition: none;
+  }
+  .chat-entry-arriving,
+  .presence[data-presence],
+  .chat-jump,
+  .chat-waiting-card,
+  .build-picture-in,
+  [data-chat-status] .chat-chevron {
+    animation: none;
+  }
+}
+
+/* Match the viewer's neutral backdrop through the thumbnail's letterbox. */
+.asset-tile[data-tile-kind="model"],
+.asset-tile[data-tile-kind="audio"] {
+  background: #202329;
+}
+
+.asset-tile[data-tile-kind="model"] > button,
+.asset-tile[data-tile-kind="audio"] > button {
+  color: #b6bdc9;
+}
+
+/* ── Prompt composer ──────────────────────────────────────────────────────────
+ * After the shared focus rule on purpose: filled controls keep their own focus fill. */
+.composer-model:enabled,
+.composer-model:enabled * {
+  cursor: pointer;
+}
+.composer-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  color: var(--control-text, var(--ink-2));
+  transition:
+    background-color var(--duration-quick),
+    color var(--duration-quick),
+    transform 120ms;
+}
+.composer-icon:enabled:hover,
+.composer-icon[aria-expanded="true"] {
+  background: var(--control-hover, var(--hover));
+  color: var(--control-text-hover, var(--ink));
+}
+.composer-icon:enabled:active {
+  transform: scale(0.94);
+}
+.composer-icon:disabled {
+  opacity: 0.45;
+}
+/* The hairline before Add's Plan mode bulb, which follows the pills (`PlanModeOff`). */
+.composer-divider {
+  flex: none;
+  width: 1px;
+  height: 16px;
+  margin-inline: 2px;
+  background: var(--line);
+}
+/* Add is filled so both ends of the bar read as controls; + turns into × while its panel is open. */
+.composer-icon.composer-add {
+  background: var(--control-fill, var(--hover));
+  color: var(--control-text, var(--ink-2));
+}
+.composer-icon.composer-add:is(:enabled:hover, [aria-expanded="true"], :focus-visible) {
+  background: var(--chip-hover, var(--line-strong));
+  color: var(--control-text-hover, var(--ink));
+}
+.composer-add svg {
+  transition: transform 240ms var(--ease-smooth-out);
+}
+.composer-add[aria-expanded="true"] svg {
+  transform: rotate(45deg);
+}
+.composer-icon.composer-ring {
+  border-radius: var(--radius-control);
+}
+.composer-ring svg circle {
+  fill: none;
+  stroke-width: 2;
+}
+.composer-ring-track {
+  stroke: color-mix(in oklab, var(--ink-3) 38%, transparent);
+}
+.composer-ring-value {
+  stroke: var(--ink-3);
+  stroke-linecap: round;
+  transition: stroke-dasharray 300ms var(--ease-smooth-out);
+}
+.composer-ring-value[data-full] {
+  stroke: var(--red);
+}
+.composer-text-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding-inline: 10px;
+  border-radius: var(--radius-control);
+  font-family: var(--font-family-content);
+  font-size: 15px;
+  line-height: 22px;
+  letter-spacing: -0.26px;
+  white-space: nowrap;
+  color: var(--ink);
+  transition: background-color var(--duration-quick);
+}
+.composer-text-button:enabled:hover,
+.composer-text-button[aria-expanded="true"] {
+  background: var(--control-hover, var(--hover));
+}
+/* No AI model yet: the model's place is one accent action. A send tried meanwhile fills it,
+   rings it and bumps it once (ConnectModelButton.tsx); two beats so each send replays the bump. */
+.composer-text-button.composer-connect-model {
+  background: var(--accent-tint);
+  color: var(--accent-ink);
+  font-weight: 500;
+  transition:
+    background-color var(--duration-quick),
+    color var(--duration-quick),
+    box-shadow 220ms var(--ease-smooth-out);
+}
+.composer-text-button.composer-connect-model:enabled:hover {
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+}
+.composer-text-button.composer-connect-model[data-nudge] {
+  background: var(--accent-fill);
+  color: var(--accent-foreground);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.composer-connect-model[data-nudge="a"] {
+  animation: composer-nudge-a 420ms var(--ease-smooth-out);
+}
+.composer-connect-model[data-nudge="b"] {
+  animation: composer-nudge-b 420ms var(--ease-smooth-out);
+}
+@keyframes composer-nudge-a {
+  35% {
+    scale: 1.07;
+  }
+  70% {
+    scale: 0.98;
+  }
+}
+@keyframes composer-nudge-b {
+  35% {
+    scale: 1.07;
+  }
+  70% {
+    scale: 0.98;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .composer-connect-model[data-nudge] {
+    animation: none;
+  }
+}
+/* Send and Stop are one filled circle the size of Add; only the glyph changes, so it never jumps. */
+.composer-send {
+  position: relative;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  margin-inline-start: 4px;
+  border-radius: 999px;
+  background: var(--control-fill, var(--hover));
+  color: var(--ink-3);
+  transition:
+    background-color 220ms var(--ease-smooth-out),
+    color 220ms,
+    transform 120ms;
+}
+.composer-send:is([data-state="ready"], [data-state="stop"]) {
+  background: var(--ink);
+  color: var(--composer);
+}
+.composer-send:is([data-state="ready"], [data-state="stop"]):is(:hover, :focus-visible) {
+  background: color-mix(in oklab, var(--ink) 86%, var(--composer));
+  color: var(--composer);
+}
+.composer-send:enabled:active {
+  transform: scale(0.92);
+}
+.composer-send-glyph {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  transition:
+    opacity 180ms var(--ease-smooth-out),
+    transform 260ms var(--ease-smooth-out);
+}
+.composer-send-glyph[data-glyph="stop"] {
+  opacity: 0;
+  transform: scale(0.3);
+}
+.composer-send[data-state="stop"] [data-glyph="send"] {
+  opacity: 0;
+  transform: translateY(-10px) scale(0.7);
+}
+.composer-send[data-state="stop"] [data-glyph="stop"] {
+  opacity: 1;
+  transform: none;
+}
+/* A settled operation must not leave its Stop glyph fading on screen. */
+.composer-send[data-state="idle"] .composer-send-glyph {
+  transition: none;
+}
+
+/* Composer panels: 6px inset, 32px rows (radius 11 + inset 6 = 17), 12px medium group labels. */
+.picker-panel {
+  /* Segments and steppers sit in a well a shade darker than the panel. */
+  --picker-well: var(--well, color-mix(in oklab, var(--canvas) 75%, var(--popover)));
+  /* A preset's own menu shadow replaces the popover's shadow-lg. */
+  --tw-shadow: var(--panel-shadow, 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1));
+  /* The prompt bar's own edge, and only it: the popover's hairline ring would draw a second line. */
+  border: 1px solid var(--prompt-bar-edge);
+  --tw-ring-shadow: 0 0 #0000;
+  border-radius: calc(var(--radius-control) + 6px);
+  font-family: var(--font-family-sans);
+  font-weight: 400;
+  overscroll-behavior: contain;
+}
+.picker-panel .text-chat {
+  font-size: 14px;
+  line-height: 20px;
+}
+.picker-panel .text-chat-sub {
+  font-size: 13px;
+  line-height: 18px;
+}
+.picker-row:enabled,
+.picker-row:enabled *,
+.picker-panel label,
+.picker-panel label * {
+  cursor: pointer;
+}
+.picker-row:disabled,
+.picker-row:disabled * {
+  cursor: default;
+}
+.picker-row,
+.picker-item {
+  transition: background-color 120ms;
+}
+.picker-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding-inline: 10px;
+  padding-bottom: 4px;
+  font-family: var(--font-family-content);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--ink-3);
+}
+.picker-label-end {
+  font-weight: 400;
+  letter-spacing: 0;
+}
+/* A model list's makers: muted like every picker label, a step smaller and lighter. */
+[data-model-list] .picker-label {
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 400;
+}
+.picker-desc {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-3);
+}
+.picker-pair {
+  display: flex;
+  gap: 4px;
+}
+.picker-pair > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.picker-pair > span[aria-hidden] {
+  flex: none;
+}
+.picker-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-inline-end: 6px;
+  border-radius: 50%;
+  background: var(--orange);
+  vertical-align: 1px;
+}
+.picker-sep {
+  height: 1px;
+  margin: 6px 10px;
+  background: var(--line-strong);
+}
+.picker-caption {
+  margin: 0;
+  padding: 6px 10px 2px;
+  font-family: var(--font-family-content);
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--ink-3);
+}
+/* Row actions (Connect, Set up, Turn on) are filled, so they read as buttons before hover. */
+/* The one thing a row needs done (Connect, Retry): the accent fill with its white label, like the app's primary buttons. */
+.picker-action {
+  flex: none;
+  height: 24px;
+  padding-inline: 10px;
+  border-radius: 8px;
+  background: var(--accent-fill);
+  color: var(--accent-foreground);
+  font-family: var(--font-family-mono);
+  font-size: 12px;
+  line-height: 24px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 120ms;
+}
+.picker-panel .picker-action:is(:enabled:hover, :focus-visible) {
+  background: var(--accent-hover);
+  color: var(--accent-foreground);
+}
+.picker-action:disabled {
+  opacity: 0.5;
+}
+/* Pills are always filled; › drills in, ⌄ expands in place. */
+.picker-pill {
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 168px;
+  height: 26px;
+  padding-inline: 10px 6px;
+  border-radius: var(--radius-chip);
+  background: var(--control-fill, var(--hover));
+  color: var(--control-text, var(--ink-2));
+  font-family: var(--font-family-content);
+  font-size: 13px;
+  letter-spacing: -0.2px;
+  white-space: nowrap;
+  transition:
+    background-color 120ms,
+    color 120ms;
+}
+.picker-panel .picker-pill:is(:hover, :focus-visible, [data-open]) {
+  background: var(--chip-hover, var(--line-strong));
+  color: var(--control-text-hover, var(--ink));
+}
+.picker-pill svg {
+  flex: none;
+  color: var(--ink-3);
+  transition: transform 200ms var(--ease-smooth-out);
+}
+.picker-pill[data-open] svg {
+  transform: rotate(180deg);
+}
+.picker-role-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 3px 4px 3px 10px;
+  font-family: var(--font-family-content);
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: -0.26px;
+  color: var(--ink);
+}
+.picker-role-effort {
+  padding: 2px 4px 6px 10px;
+}
+.picker-seg {
+  position: relative;
+  display: grid;
+  height: 32px;
+  padding: 2px;
+  border-radius: var(--radius-control);
+  background: var(--picker-well);
+}
+.picker-seg-thumb {
+  position: absolute;
+  inset-block: 2px;
+  left: 2px;
+  border-radius: calc(var(--radius-control) - 2px);
+  background: var(--thumb, var(--chip-hover, var(--line-strong)));
+  box-shadow: var(--thumb-shadow, 0 1px 2px #00000040);
+  transition: transform 240ms var(--ease-smooth-out);
+}
+.picker-seg-thumb[data-hidden] {
+  opacity: 0;
+}
+.picker-seg > button {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  border-radius: calc(var(--radius-control) - 2px);
+  font-family: var(--font-family-mono);
+  font-size: 12px;
+  white-space: nowrap;
+  color: var(--control-text, var(--ink-3));
+  transition: color 150ms;
+}
+/* Mono draws ∞ flat; the content face keeps it round. */
+.picker-seg-glyph {
+  font-family: var(--font-family-content);
+  font-size: 14px;
+}
+.picker-seg > button:hover {
+  color: var(--control-text-hover, var(--ink-2));
+}
+.picker-seg > button[aria-checked="true"] {
+  color: var(--control-text-hover, var(--ink));
+}
+.picker-stepper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  margin-top: 6px;
+  padding: 2px;
+  border-radius: var(--radius-control);
+  background: var(--picker-well);
+}
+.picker-stepper > button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: calc(var(--radius-control) - 2px);
+  color: var(--ink-2);
+  transition: background-color 120ms;
+}
+.picker-stepper > button:enabled:hover {
+  background: var(--control-hover, var(--hover));
+  color: var(--ink);
+}
+.picker-stepper > button:disabled {
+  opacity: 0.4;
+}
+.picker-stepper > input {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  border: 0;
+  border-radius: calc(var(--radius-control) - 2px);
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-family-mono);
+  font-size: 13px;
+  text-align: center;
+  outline: none;
+}
+.picker-stepper > input:focus {
+  background: var(--control-hover, var(--hover));
+}
+.picker-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  margin-bottom: 2px;
+  padding-inline: 2px 4px;
+  font-family: var(--font-family-content);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.26px;
+  color: var(--ink);
+}
+.picker-back {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-control);
+  color: var(--ink-2);
+  transition: background-color 120ms;
+}
+.picker-back:hover {
+  background: var(--control-hover, var(--hover));
+  color: var(--ink);
+}
+.picker-meter {
+  height: 4px;
+  margin-top: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--meter-track, var(--hover));
+}
+.picker-meter > i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--meter-fill, var(--ink-3));
+  transition: width 300ms var(--ease-smooth-out);
+}
+.picker-meter > i[data-full] {
+  background: var(--meter-full, var(--red));
+}
+.picker-meter > i[data-level="high"] {
+  background: var(--meter-high, var(--orange));
+}
+.picker-meter > i[data-level="full"] {
+  background: var(--meter-full, var(--red));
+}
+/* Model roles: the job, its model and a chevron. With Loop off the worker and judge rows stay
+   choosable but quiet. The row whose model list is open keeps its fill. */
+.picker-role {
+  gap: 6px;
+}
+.picker-role-name {
+  flex: none;
+}
+.picker-role-info {
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--ink-3);
+  transition: color 120ms;
+}
+.picker-role-info:hover {
+  color: var(--ink);
+}
+.picker-role-model {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: end;
+  color: var(--ink-3);
+}
+.picker-role[aria-expanded="true"] {
+  background: var(--control-hover, var(--hover));
+}
+.picker-role[aria-expanded="true"] .picker-role-model {
+  color: var(--ink-2);
+}
+.picker-role[data-quiet] .picker-role-name {
+  color: var(--ink-3);
+}
+/* Mode: room around the Loop control's caption. */
+.mode-panel .picker-caption {
+  padding: 8px 6px 2px;
+  line-height: 18px;
+}
+/* The Mode button's time limit, before the word Loop. */
+.composer-mode-time {
+  font-family: var(--font-family-mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  color: var(--ink-3);
+}
+/* Mode, permissions, model and effort are filled pills, so the bar's choices read as controls before
+   hover. The effort slider is stepped Faster–Smarter; the thumb's centre travels between stops inset
+   13px from each end of the track. */
+.composer-text-button:is(.composer-mode, .composer-permission, .composer-model, .composer-effort) {
+  padding-inline: 8px;
+  background: var(--control-fill, var(--hover));
+  color: var(--control-text, var(--ink-2));
+}
+.composer-text-button:is(.composer-mode, .composer-permission, .composer-model, .composer-effort):is(
+  :enabled:hover,
+  [aria-expanded="true"]
+) {
+  background: var(--chip-hover, var(--line-strong));
+  color: var(--control-text-hover, var(--ink));
+}
+/* Mode while the chat's build runs or is paused: it cannot open, and dims like the composer's
+   disabled icons (`.composer-icon:disabled`). Opacity reads the same in both themes. */
+.composer-text-button.composer-mode:disabled {
+  opacity: 0.45;
+}
+/* The toolbar never sizes the composer to its content. The model's name keeps its room
+   (`ui/toolbar-fit.ts`): the permissions pill's label gives way first, leaving the glyph (its
+   tooltip names the mode), then Mode's limit (its ∞ or time), then the context ring, then in the
+   narrowest chat the pill. Bypass keeps its warning glyph and tint throughout. */
+[data-composer-toolbar] {
+  container-type: inline-size;
+}
+[data-composer-toolbar][data-squeeze] .composer-permission {
+  flex-shrink: 0;
+}
+[data-composer-toolbar][data-squeeze] .composer-permission-label,
+[data-composer-toolbar]:is([data-squeeze="mode-limit"], [data-squeeze="ring"], [data-squeeze="permission"])
+  .composer-mode-limit,
+[data-composer-toolbar]:is([data-squeeze="ring"], [data-squeeze="permission"]) .composer-ring,
+[data-composer-toolbar][data-squeeze="permission"] .composer-permission:not([data-mode="bypassPermissions"]) {
+  display: none;
+}
+.composer-permission[data-mode="bypassPermissions"] svg {
+  color: var(--orange);
+}
+.effort-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  font-family: var(--font-family-content);
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--ink);
+}
+.effort-help {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin-inline-start: auto;
+  border-radius: 8px;
+  color: var(--ink-3);
+  transition:
+    background-color 120ms,
+    color 120ms;
+}
+.effort-help:is(:hover, :focus-visible) {
+  background: var(--control-hover, var(--hover));
+  color: var(--ink);
+}
+.effort-ends {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+  font-family: var(--font-family-content);
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--ink-3);
+}
+.effort-track {
+  position: relative;
+  height: 28px;
+  margin-top: 6px;
+  border-radius: var(--radius-control);
+  background: var(--field);
+  cursor: pointer;
+  touch-action: none;
+  outline: none;
+  transition: background-color 120ms;
+}
+.effort-track:focus-visible {
+  background: var(--control-hover, var(--hover));
+}
+.effort-track > * {
+  pointer-events: none;
+}
+.effort-fill {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  width: calc(22px + (100% - 26px) * var(--effort-at));
+  border-radius: inherit;
+  background: linear-gradient(90deg, color-mix(in oklab, var(--line-strong) 35%, transparent), var(--line-strong));
+  transition: width 180ms var(--ease-smooth-out);
+}
+.effort-stop {
+  position: absolute;
+  top: 50%;
+  left: calc(13px + (100% - 26px) * var(--effort-at));
+  width: 3px;
+  height: 3px;
+  margin: -1.5px 0 0 -1.5px;
+  border-radius: 50%;
+  background: var(--ink-3);
+  opacity: 0.7;
+}
+.effort-thumb {
+  position: absolute;
+  inset-block: 3px;
+  left: calc(13px + (100% - 26px) * var(--effort-at) - 9px);
+  width: 18px;
+  border-radius: 8px;
+  background: var(--ink);
+  box-shadow: 0 1px 2px #00000040;
+  transition: left 180ms var(--ease-smooth-out);
+}
+/* Plan limits under the context: one block per signed-in subscription. */
+/* The Genex block: this game's spend, then the balance every game shares. */
+.usage-credits {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 12px;
+  padding-block: 4px 8px;
+  font-size: 13px;
+}
+.usage-credits dd {
+  font-family: var(--font-family-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+.usage-plan,
+.usage-divider {
+  position: relative;
+  margin-top: 4px;
+  padding: 10px 10px 2px;
+}
+.usage-plan::before,
+.usage-divider::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  inset-inline: 10px;
+  height: 1px;
+  background: var(--line);
+}
+.usage-plan-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+  font-family: var(--font-family-content);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--ink-3);
+}
+.usage-plan-link {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  margin-inline: -6px;
+  padding: 4px 6px;
+  border-radius: 8px;
+  color: inherit;
+  transition:
+    background-color 120ms,
+    color 120ms;
+}
+.usage-plan-link:is(:hover, :focus-visible) {
+  background: var(--control-hover, var(--hover));
+  color: var(--ink-2);
+}
+.usage-plan-roles {
+  min-width: 0;
+  margin-inline-start: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 400;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+.usage-limit {
+  padding: 6px 0 4px;
+}
+.usage-limit-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-family: var(--font-family-content);
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--ink);
+}
+.usage-limit-value {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.usage-limit .picker-meter {
+  margin-top: 6px;
+}
+.usage-note {
+  margin: 0;
+  padding: 4px 0 2px;
+  font-family: var(--font-family-content);
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--ink-3);
+}
+p.usage-divider {
+  padding-bottom: 6px;
+}
+[data-mention-list] [data-highlighted] {
+  background: var(--control-hover, var(--hover));
+}
+@keyframes picker-view-forward {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+}
+@keyframes picker-view-back {
+  from {
+    opacity: 0;
+    transform: translateX(-14px);
+  }
+}
+@keyframes picker-expand {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+.picker-view[data-direction="forward"] {
+  animation: picker-view-forward 220ms var(--ease-smooth-out);
+}
+.picker-view[data-direction="back"] {
+  animation: picker-view-back 220ms var(--ease-smooth-out);
+}
+.picker-expand {
+  animation: picker-expand 200ms var(--ease-smooth-out);
+}
+@media (prefers-reduced-motion: reduce) {
+  .picker-view[data-direction],
+  .picker-expand {
+    animation: none;
+  }
+  .composer-send,
+  .composer-send-glyph,
+  .composer-add svg,
+  .picker-seg-thumb,
+  .picker-pill svg,
+  .composer-ring-value,
+  .picker-meter > i,
+  .effort-fill,
+  .effort-thumb {
+    transition: none;
+  }
+}
+
+/* The window's first screen (index.html's #app-loader): the Genex G at a tenth of the ink, and now
+ * and then a light passing over it. It fades in after a beat, so a faster start sees only the page. */
+.app-loader {
+  --app-loader-mark: 34px;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  background: var(--base);
+  -webkit-app-region: drag;
+  transition: opacity 200ms var(--ease-smooth-out, ease-out);
+}
+.app-loader[data-leaving] {
+  opacity: 0;
+  pointer-events: none;
+}
+.app-loader-mark {
+  width: var(--app-loader-mark);
+  height: auto;
+  color: var(--ink);
+  opacity: 0;
+  animation: app-loader-in 320ms 120ms var(--ease-smooth-out, ease-out) forwards;
+}
+.app-loader-ground {
+  opacity: 0.1;
+}
+/* The light crosses the G in the first part of each turn and waits off it for the rest. */
+.app-loader-shine {
+  opacity: 0.28;
+  animation: app-loader-shine 3.2s 0.6s ease-in-out infinite;
+}
+@keyframes app-loader-in {
+  to {
+    opacity: 1;
+  }
+}
+@keyframes app-loader-shine {
+  0% {
+    transform: translateX(0);
+  }
+  40%,
+  100% {
+    transform: translateX(1523px);
+  }
+}
+/* Reduced motion: the G shows at once and holds still. */
+@media (prefers-reduced-motion: reduce) {
+  .app-loader {
+    transition: none;
+  }
+  .app-loader-mark {
+    opacity: 1;
+    animation: none;
+  }
+  .app-loader-shine {
+    animation: none;
+  }
+}

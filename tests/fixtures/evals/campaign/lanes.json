@@ -1,0 +1,65 @@
+{
+  "schema": "genex-evals/lanes/1",
+  "lanes": [
+    {
+      "id": "genex-claude",
+      "agent": "genex-app",
+      "engine": "claude-code",
+      "model": "claude-opus-5-5",
+      "effort": "high",
+      "mode": "product-default",
+      "network": "contractor-off",
+      "browser": "studio",
+      "containment": "app",
+      "instructionSet": "genex",
+      "flagsDigest": "3bf972959d9e",
+      "status": "primary",
+      "fixture": false
+    },
+    {
+      "id": "raw-claude",
+      "agent": "claude-cli",
+      "engine": "claude-code",
+      "model": "claude-opus-5-5",
+      "effort": "high",
+      "mode": "raw-cli",
+      "network": "auto-classifier",
+      "browser": "look-at-page",
+      "containment": "main-agent",
+      "instructionSet": "raw",
+      "flagsDigest": "cc60cbc1264a",
+      "status": "primary",
+      "fixture": false
+    },
+    {
+      "id": "raw-codex",
+      "agent": "codex-cli",
+      "engine": "codex",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "mode": "raw-cli",
+      "network": "on",
+      "browser": "look-at-page",
+      "containment": "main-agent",
+      "instructionSet": "raw",
+      "flagsDigest": "a65fea2c9201",
+      "status": "primary",
+      "fixture": false
+    },
+    {
+      "id": "later-lane",
+      "agent": "claude-cli",
+      "engine": "claude-code",
+      "model": "claude-opus-5-5",
+      "effort": "high",
+      "mode": "raw-cli",
+      "network": "off",
+      "browser": "none",
+      "containment": "main-agent",
+      "instructionSet": "raw",
+      "flagsDigest": "unpinned",
+      "status": "future",
+      "fixture": false
+    }
+  ]
+}

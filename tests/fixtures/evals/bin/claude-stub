@@ -1,0 +1,38 @@
+#!/usr/bin/env node
+/**
+ * Stands in for the Claude Code CLI in a raw fixture lane (B): `--version`, or print mode, which
+ * replays the recorded stream-json build with its timing, writes the recorded game into the
+ * working folder and keeps the session's transcript under `$CLAUDE_CONFIG_DIR/projects` (only when
+ * that variable names a home: the stub never writes into the operator's own). No network, no model.
+ */
+import { randomUUID } from "node:crypto";
+import { appendFile, mkdir } from "node:fs/promises";
+import path from "node:path";
+import { exitOnTerm, nowIso, recording, replay } from "./replay.mjs";
+
+const VERSION = "2.1.284-fixture";
+const args = process.argv.slice(2);
+if (args.includes("--version")) {
+  process.stdout.write(`${VERSION} (Claude Code)\n`);
+  process.exit(0);
+}
+exitOnTerm();
+const cwd = process.cwd();
+const sessionId = randomUUID();
+const home = process.env.CLAUDE_CONFIG_DIR;
+const transcript = home
+  ? path.join(home, "projects", cwd.replace(/[^A-Za-z0-9]/g, "-"), `${sessionId}.jsonl`)
+  : null;
+const keep = async (line) => {
+  if (!transcript) return;
+  await mkdir(path.dirname(transcript), { recursive: true });
+  await appendFile(transcript, `${JSON.stringify({ ...line, sessionId, cwd, timestamp: nowIso(), isSidechain: false })}\n`);
+};
+await keep({ type: "user", message: { role: "user", content: "[redacted: the lane's prompt]" } });
+const lines = await recording("claude-stream.jsonl", { CWD: cwd, SESSION_ID: sessionId, VERSION });
+await replay(lines, {
+  cwd,
+  onEvent: async (event) => {
+    if (event.type === "assistant") await keep({ type: "assistant", message: event.message });
+  },
+});

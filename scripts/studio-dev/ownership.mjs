@@ -1,0 +1,135 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { randomUUID } from "node:crypto";
+import { safeChild, readVersion, writeJson } from "./files.mjs";
+export function slug(value) {
+  if (!/^[a-z0-9][a-z0-9-]{0,47}$/.test(value ?? ""))
+    throw new Error("profile/build ID must be a lowercase slug (1–48 characters)");
+  return value;
+}
+export function devRoot(checkout) {
+  const root = safeChild(checkout, ".studio-dev");
+  fs.mkdirSync(root, { recursive: true, mode: 0o700 });
+  for (const d of ["profiles", "builds", "owners", "evidence"])
+    fs.mkdirSync(safeChild(root, d), { recursive: true, mode: 0o700 });
+  return root;
+}
+export function profilePath(checkout, id) {
+  return safeChild(devRoot(checkout), `profiles/${slug(id)}`);
+}
+export function validateProfile(checkout, id) {
+  const root = devRoot(checkout),
+    dir = profilePath(checkout, id),
+    owner = readVersion(safeChild(dir, "owner.json"));
+  const registry = readVersion(safeChild(root, `owners/${id}.json`));
+  if (
+    owner.ownerId !== registry.ownerId ||
+    owner.checkout !== fs.realpathSync(checkout) ||
+    owner.profileId !== id ||
+    owner.root !== dir ||
+    registry.root !== dir
+  )
+    throw new Error("unrecognized or copied profile ownership");
+  for (const [k, rel] of Object.entries(ownedRoots(owner)))
+    if (owner[k] !== safeChild(dir, rel)) throw new Error(`invalid owned ${k} root`);
+  const freshMachine = owner.freshMachine === true;
+  if (freshMachine && owner.home !== freshMachineHome(owner.ownerId)) throw new Error("invalid owned home root");
+  const validFresh = owner.freshMachine === undefined || (freshMachine && owner.providers === "live");
+  if (
+    !["fixture", "live"].includes(owner.providers) ||
+    !validFresh ||
+    owner.retention !== retentionOf(owner.providers, freshMachine)
+  )
+    throw new Error("invalid provider/retention identity");
+  return owner;
+}
+/**
+ * The folders inside a profile it owns, by owner field. A fresh-machine profile also owns the
+ * folder Claude Code's Keychain item is named after; the owner id in that name makes a recreated
+ * profile a new account to the Keychain too.
+ */
+function ownedRoots(owner) {
+  const roots = { electron: "electron", session: "session", core: "core", games: "games" };
+  if (owner.freshMachine !== true) return roots;
+  return { ...roots, secureStorage: `secure-storage-${owner.ownerId}` };
+}
+/**
+ * A fresh-machine profile's home: in the temporary folder, outside the checkout, because the app
+ * never takes a coding CLI from inside its own checkout and the CLIs install into this home.
+ */
+export function freshMachineHome(ownerId) {
+  if (!/^[0-9a-f-]{36}$/.test(ownerId ?? "")) throw new Error("invalid owner id");
+  return path.join(fs.realpathSync(os.tmpdir()), "genex-fresh-machine", ownerId);
+}
+/** Remove a stopped profile and a fresh-machine home; links inside are removed, never followed. */
+export function removeProfile(owner) {
+  if (owner.freshMachine === true) fs.rmSync(freshMachineHome(owner.ownerId), { recursive: true, force: true });
+  fs.rmSync(owner.root, { recursive: true });
+}
+/** Live profiles hold real sign-ins and are kept; fixture and fresh-machine profiles are thrown away. */
+function retentionOf(providers, freshMachine) {
+  return providers === "live" && !freshMachine ? "retained" : "disposable";
+}
+export function allocateProfile(checkout, id, providers, fixture, reuse = false, freshMachine = false) {
+  if (!["fixture", "live"].includes(providers)) throw new Error("providers must be fixture or live");
+  if (freshMachine && providers !== "live") throw new Error("a fresh-machine profile needs --providers live");
+  const root = devRoot(checkout),
+    dir = profilePath(checkout, id);
+  if (fs.existsSync(dir)) {
+    if (!reuse) throw new Error("profile already exists; inspect status and explicitly --reuse");
+    const owner = validateProfile(checkout, id);
+    const sameMode = owner.providers === providers && owner.fixture === fixture;
+    if (!sameMode || (owner.freshMachine === true) !== freshMachine)
+      throw new Error("reuse cannot change provider mode, fixture or fresh machine");
+    return owner;
+  }
+  fs.mkdirSync(dir, { mode: 0o700 });
+  const owner = {
+    version: 1,
+    ownerId: randomUUID(),
+    checkout: fs.realpathSync(checkout),
+    profileId: id,
+    root: dir,
+    createdAt: new Date().toISOString(),
+    providers,
+    fixture,
+    ...(freshMachine ? { freshMachine: true } : {}),
+    retention: retentionOf(providers, freshMachine),
+  };
+  for (const [k, rel] of Object.entries(ownedRoots(owner))) {
+    fs.mkdirSync(safeChild(dir, rel), { mode: 0o700 });
+    owner[k] = path.join(dir, rel);
+  }
+  if (freshMachine) {
+    owner.home = freshMachineHome(owner.ownerId);
+    fs.mkdirSync(owner.home, { recursive: true, mode: 0o700 });
+  }
+  fs.writeFileSync(safeChild(root, `owners/${id}.json`), JSON.stringify(owner), { flag: "wx", mode: 0o600 });
+  writeJson(path.join(dir, "owner.json"), owner);
+  return owner;
+}
+export function pidExists(pid) {
+  if (!Number.isSafeInteger(pid) || pid <= 1) return true;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    return e.code !== "ESRCH";
+  }
+}
+export function assertStopped(owner) {
+  const lease = safeChild(owner.root, "lease.json");
+  const attemptFile = safeChild(owner.root, "attempt.json");
+  if (!fs.existsSync(lease) && fs.existsSync(attemptFile)) {
+    const attempt = readVersion(attemptFile);
+    if (attempt.pid && pidExists(attempt.pid))
+      throw new Error("partial startup may still be running; ownership is uncertain");
+  }
+  if (fs.existsSync(lease)) {
+    const l = readVersion(lease);
+    if (l.ownerId !== owner.ownerId || pidExists(l.pid))
+      throw new Error("profile is running or ownership is uncertain; use authenticated status/stop");
+    fs.unlinkSync(lease);
+  }
+}

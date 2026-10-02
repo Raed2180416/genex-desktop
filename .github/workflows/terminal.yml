@@ -1,0 +1,68 @@
+name: Embedded terminal
+# The real terminal on macOS and Linux, on PRs into main (dev -> main is opened by hand) and on
+# demand; PRs into dev skip the billed macOS minutes.
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: terminal-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  terminal:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-26, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Linux desktop and sandbox prerequisites
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2 bubblewrap socat ripgrep
+      # Linux node-pty has no spawn-helper until rebuilt; the root postinstall checks it (package.yml).
+      - name: Install Linux dependencies before rebuilding the terminal
+        if: runner.os == 'Linux'
+        run: npm ci --ignore-scripts
+      - if: runner.os != 'Linux'
+        run: npm ci
+      - name: Install the pinned Linux Electron runtime
+        if: runner.os == 'Linux'
+        run: node node_modules/electron/install.js
+      - run: npm run rebuild:terminal
+      - name: Check the Linux runtime after rebuilding the terminal
+        if: runner.os == 'Linux'
+        run: npm run runtime:check
+      - run: npm run typecheck
+      - run: npm test -- tests/conformance/terminal.test.ts tests/conformance/claude-cli.test.ts tests/conformance/engines.test.ts tests/conformance/codex-login.test.ts tests/conformance/sandbox.test.ts tests/conformance/sandbox-prepare.test.ts
+      - name: Real terminal UI
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then xvfb-run -a npm run test:terminal; else npm run test:terminal; fi
+      # The packaged terminal runs in package.yml, against the same package the smoke checks.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: terminal-${{ runner.os }}
+          path: .studio-dev/evidence
+  catalog-acceptance:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+      - name: Anonymous official package install and real read-only backend call
+        run: node tests/e2e/run-public-catalog.mjs --live

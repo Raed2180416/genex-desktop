@@ -1,0 +1,99 @@
+/* One empty state: 3D wireframe art on a fading floor, a one-line title, a one-line subtitle and a button slot. */
+/* Fixed heights (art 92, words 62, slot 48) keep the art still when the state changes. */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 360px;
+  margin-inline: auto;
+  text-align: center;
+}
+.empty-state-art {
+  position: relative;
+  flex: none;
+  width: 128px;
+  height: 92px;
+}
+.empty-state-floor {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 128px;
+  height: 44px;
+  mask-image: radial-gradient(ellipse 58% 100% at 50% 18%, #000 30%, transparent 78%);
+}
+.empty-state-floor path {
+  fill: none;
+  stroke: var(--ink-3);
+  stroke-opacity: 0.34;
+  stroke-width: 0.75;
+}
+.empty-state-glow {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  width: 56px;
+  height: 12px;
+  margin-left: -28px;
+  border-radius: 50%;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in oklab, var(--wire-art, var(--accent-primary)) 36%, transparent),
+    transparent
+  );
+}
+.empty-state-art-fading {
+  position: absolute;
+  inset: 0;
+}
+/* The canvas reads its line colours back from these: accent, ink (the moving part), muted ink and the cube's fill. */
+.wire-art {
+  position: absolute;
+  left: -16px;
+  top: -12px;
+  width: 160px;
+  height: 116px;
+  pointer-events: none;
+  color: var(--wire-art, var(--accent-ink));
+  border-style: none;
+  border-left-color: var(--ink);
+  border-right-color: var(--ink-3);
+  outline-color: var(--wire-art, var(--accent-primary));
+}
+.empty-state-copy {
+  position: relative;
+  flex: none;
+  width: 100%;
+  height: 62px;
+}
+.empty-state-words {
+  position: absolute;
+  inset: 0;
+}
+.empty-state-title,
+.empty-state-subtitle {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.empty-state-title {
+  margin: 18px 0 0;
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.empty-state-subtitle {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ink-3);
+}
+.empty-state-slot {
+  display: flex;
+  flex: none;
+  align-items: flex-end;
+  justify-content: center;
+  height: 48px;
+}

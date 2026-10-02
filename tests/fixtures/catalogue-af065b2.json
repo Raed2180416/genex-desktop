@@ -1,0 +1,463 @@
+{
+  "version": 1,
+  "checks": {
+    "camera-player-eye": {
+      "kind": "scene",
+      "js": "(() => { const c = objects('player-eye').find(o => o.isCamera); if (!c) return false; c.updateMatrixWorld(true); const e = c.matrixWorld.elements; const pitch = Math.asin(Math.max(-1, Math.min(1, e[9]))) * 180 / Math.PI; return pitch >= 22 && pitch <= 35; })()",
+      "weight": "identity",
+      "note": "A camera tagged player-eye exists in the graph and is pitched 25-30 deg downward (accepted 22-35) so the frame contains the ground the player stands on.",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "character-parts": {
+      "kind": "scene",
+      "pack": "characters",
+      "weight": "normal",
+      "js": "objects('enemy').length > 0 && objects('enemy').every(o => { if (o.userData && o.userData.asset) return true; let n = 0; o.traverse(c => { if (c.isMesh) n++; }); return n >= 5; })",
+      "note": "Each enemy is at least 5 meshes (head, torso, two arms, two legs…) — a single capsule is a placeholder. A modelled asset (userData.asset from src/assets.js) counts as built from parts.",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "crosshair-hides-in-ads": {
+      "kind": "demo",
+      "pack": "fps",
+      "weight": "normal",
+      "name": "ads",
+      "expr": "result.crosshairVisible == false",
+      "note": "The same ads demo returns crosshairVisible from __studio.hud.get('crosshair') — the crosshair is hidden while aiming down sights.",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "demo-walk": {
+      "kind": "demo",
+      "name": "walk",
+      "weight": "identity",
+      "note": "The named config.demos entry \"walk\" (a short deterministic control script) runs to its end state without a console error; pair with player-moved for the probe side.",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "drawcalls-ceiling": {
+      "kind": "probe",
+      "expr": "drawCalls > 0 && drawCalls <= 1000 && triangles <= 400000",
+      "weight": "normal",
+      "note": "state() reports draw calls captured after the world render (not the post-pass quad) under a seed ceiling of 1000 calls / 400k triangles (skills: low hundreds of thousands; fix fps < ~50 first).",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "facade-recess-seams": {
+      "kind": "scene",
+      "js": "objects('window').length >= 2 && objects('window').every(w => (w.userData.recess || 0) >= 0.1) && count('seam') >= 4 && (objects('facade').length < 3 || new Set(objects('facade').map(f => f.userData.variant)).size >= 3)",
+      "weight": "identity",
+      "note": "Windows recessed >= 0.1 m (userData.recess), >= 4 panel seam lines break the slab, >= 3 facade variants once 3+ facades exist; flat repeated boxes score generic every time.",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "fire-registers": {
+      "kind": "probe",
+      "pack": "fps",
+      "weight": "identity",
+      "expr": "delta('shotsFired') >= 1",
+      "note": "probes() reports shotsFired; the scripted controls hold Mouse1 for 0.3 s, so at least one shot must register through ctx.keys.has('Mouse1').",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "fog-band-not-bath": {
+      "kind": "scene",
+      "js": "(!scene.fog || !('density' in scene.fog) || scene.fog.density <= 0.008) && count('mist') > 0 && bbox('mist').max.y <= 1.3 && materials('mist').every(m => m.transparent && m.opacity <= 0.3)",
+      "weight": "identity",
+      "note": "Global FogExp2 density <= 0.008 (winter exterior) and knee mist exists as a separate tagged layer no taller than ~1.2 m with opacity <= 0.3 - a band, not a bath.",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "grade-band": {
+      "kind": "pixel",
+      "camera": "default",
+      "expr": "meanLuma in [0.32,0.45] && fractionAbove(0.9) <= 0.02",
+      "weight": "identity",
+      "note": "Default frame sits in the mid-tone band (mean luma 0.32-0.45) with at most 2% of pixels above 0.9 luma; washed-out / high-key is a measurable fail, not taste.",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "grade-black-point": {
+      "kind": "pixel",
+      "camera": "default",
+      "expr": "fractionBelow(0.06) >= 0.05",
+      "weight": "normal",
+      "note": "A black point was set: the darkest 5% of the default frame falls below 0.06 luma; a missing black point is what reads as low-contrast.",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "grounded": {
+      "kind": "scene",
+      "pack": "characters",
+      "weight": "identity",
+      "js": "(() => { const g = bbox('ground'); const floor = g ? g.max[1] : 0; const list = objects('enemy').concat(objects('npc')); return list.length > 0 && list.every(o => { const b = bboxOf(o); return b && b.min[1] >= floor - 0.05 && b.min[1] <= floor + 0.12; }); })()",
+      "note": "Every object tagged enemy or npc stands on the ground: its world bbox bottom is within 5 cm below / 12 cm above the top of the ground mesh (tag the walkable floor ground).",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "grounded-high-contrast": {
+      "kind": "pixel",
+      "pack": "arena",
+      "camera": "eye:spawn",
+      "weight": "identity",
+      "expr": "meanLuma in [0.18,0.30] && litFraction <= 0.6 && fractionBelow(0.06) >= 0.12",
+      "note": "Eye-height frame at spawn sits in a grounded, contrasty band: mean luma 0.18-0.30, at most 60% of pixels lit, at least 12% near black — measured where the player looks, not on a wide default camera (which the mid-key grade-band satisfied while the eye frames were washed).",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "hands-present": {
+      "kind": "scene",
+      "pack": "fps",
+      "weight": "identity",
+      "js": "count('hands') >= 1 && bbox('hands') !== null && bbox('hands').size[1] > 0.02",
+      "note": "First-person: an object tagged hands (or a group holding the arms) exists with real geometry; a gun floating without hands is the first thing a player sees.",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "instance-variance": {
+      "kind": "scene",
+      "js": "(() => { const ms = meshes('block'); if (!ms.length) return false; const inst = ms.filter(m => m.isInstancedMesh); if (inst.length) return inst.every(m => m.count >= 40 && !!m.instanceColor); if (ms.length < 40) return false; const sig = m => m.scale.x.toFixed(2) + ',' + m.scale.y.toFixed(2) + ',' + m.rotation.y.toFixed(2); return new Set(ms.map(sig)).size >= ms.length * 0.8; })()",
+      "weight": "normal",
+      "note": "Masonry/props tagged block are >= 40 instances with per-instance colour (instanceColor) or >= 80% unique scale/rotation signatures; tiled repeating masonry and identical props are standing rejections.",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "lamp-warm-pool": {
+      "kind": "scene",
+      "js": "objects('lamp').some(o => o.isLight) && objects('lamp').filter(o => o.isLight).every(l => l.color.r > 1.5 * l.color.b && l.intensity >= 3 && l.intensity <= 8 && l.distance >= 20 && l.distance <= 40)",
+      "weight": "identity",
+      "note": "Every light tagged lamp is warm amber (0xff8833-class: red > 1.5x blue), intensity 3-8, distance 20-40 - a cold-blue pool under a sodium lamp is an immediate rejection.",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "lit-fraction-floor": {
+      "kind": "pixel",
+      "camera": "default",
+      "expr": "litFraction >= 0.2",
+      "weight": "identity",
+      "note": "Exterior/arena default frame is not under-lit: >= 20% of pixels read as lit (seed floor; the skills only name under-lit / flat void as a loss). Dark interiors are exempt (near-black target).",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "masonry-reads-weathered": {
+      "kind": "vision",
+      "pack": "materials",
+      "weight": "normal",
+      "camera": "eye:spawn",
+      "ask": "Do the nearest walls read as weathered stone or plaster with visible surface texture (courses, grime, wear), rather than flat painted colour?",
+      "note": "The material read the taste judge kept naming as [primitive] / [noise-as-texture].",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "materials-mapped-identity": {
+      "kind": "scene",
+      "pack": "materials",
+      "weight": "identity",
+      "js": "(() => { const ids = (typeof identityTags !== 'undefined' ? identityTags : tags()).filter(t => t !== 'hud'); return ids.length > 0 && ids.every(t => materials(t).length > 0 && materials(t).every(m => m.map || m.userData?.triplanar || m.userData?.asset)); })()",
+      "note": "Every material on the facet's identity tags has a map (baked via src/materials.js), a triplanar projection, or belongs to a modelled asset (userData.asset, stamped by src/assets.js — loadAsset bakes a map onto any asset material that has none) — a flat MeshStandardMaterial is an untextured box. Replace tags() with the facet's identity tag list in the js.",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "materials-no-flat-buildings": {
+      "kind": "scene",
+      "pack": "materials",
+      "weight": "normal",
+      "js": "meshes('building').length > 0 && materials('building').every(m => m.map)",
+      "note": "Buildings carry baked masonry/plaster/wood maps from src/materials.js, never flat colour.",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "materials-roughness-varies": {
+      "kind": "scene",
+      "pack": "materials",
+      "weight": "normal",
+      "js": "materials().filter(m => m.isMeshStandardMaterial).some(m => m.roughnessMap) && materials().filter(m => m.isMeshStandardMaterial).some(m => m.bumpMap || m.normalMap)",
+      "note": "At least one standard material in the scene has a roughness map and one has bump/normal detail — surfaces read as materials, not paint.",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "mirror-rt": {
+      "kind": "scene",
+      "js": "renderTargets().some(rt => rt.width >= 1024 && rt.height >= 1024)",
+      "weight": "identity",
+      "note": "A planar-mirror render target of at least 1024x1024 exists; 512 and below is what reads as blocky/stepped, 256 never passes.",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "muzzle-on-weapon": {
+      "kind": "scene",
+      "pack": "fps",
+      "weight": "normal",
+      "js": "count('muzzle') === 1 && (() => { let p = objects('muzzle')[0].parent, ok = false; while (p) { if (p.userData && p.userData.tag === 'weapon') ok = true; p = p.parent; } return ok; })()",
+      "note": "Exactly one object tagged muzzle (the flash/emitter) and it is parented under the weapon, so it moves with the barrel instead of floating in the frame.",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "no-blown-pools": {
+      "kind": "pixel",
+      "pack": "arena",
+      "camera": "eye:spawn",
+      "weight": "normal",
+      "expr": "fractionAbove(0.9) <= 0.02",
+      "note": "At most 2% of the eye-height frame is clipped to white — lamp pools and bloom stay below clipping.",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "no-haze-planes": {
+      "kind": "scene",
+      "pack": "arena",
+      "weight": "identity",
+      "js": "objects().filter(o => o.isMesh && o.material && (o.material.transparent || o.material.blending === 2) && o.geometry && o.geometry.type === 'PlaneGeometry' && Math.abs(Math.abs(o.rotation.x) - Math.PI / 2) < 0.01).every(o => { const b = bboxOf(o); return !b || b.min[1] <= 0.05; })",
+      "note": "No translucent or additive horizontal plane sits above the floor: a haze plane at 0.3-0.8 m cuts through every crate and reads as 'filled with water'. Ground fog is a vertical-gradient fog term or a floor-hugging texture at y<=0.05.",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "no-light-cones": {
+      "kind": "scene",
+      "pack": "arena",
+      "weight": "normal",
+      "js": "objects().filter(o => o.isMesh && o.geometry && o.geometry.type === 'ConeGeometry' && o.material && (o.material.transparent || o.material.blending === 2)).length === 0",
+      "note": "No translucent cone meshes stand in for light shafts — they read as pale pyramids ('huts') from every wide camera. Use bloom on the emitter or a soft sprite instead.",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "no-moire": {
+      "kind": "pixel",
+      "pack": "arena",
+      "camera": "eye:here",
+      "weight": "normal",
+      "expr": "edgeDensity <= 0.08",
+      "note": "Mean neighbour luma step (edgeDensity, 0-1) stays low: fine repeating stripes on ceilings and skies push it up. Seed guess; calibrate on the first run that carries it.",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "player-moved": {
+      "kind": "probe",
+      "expr": "delta(\"player.x\") != 0 || delta(\"player.z\") != 0",
+      "weight": "identity",
+      "note": "After the harness drives WASD via press_keys / a demo script, state().player.x or .z changed; identical before/after means \"the controls do not work\".",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "precip-three-layers": {
+      "kind": "scene",
+      "js": "[['precip-near', 40], ['precip-mid', 150], ['precip-far', 400]].every(([t, min]) => objects(t).reduce((n, o) => n + (o.isInstancedMesh ? o.count : (o.geometry && o.geometry.attributes.position ? o.geometry.attributes.position.count : 1)), 0) >= min)",
+      "weight": "identity",
+      "note": "Rain/snow has three separately tagged depth emitters with rising counts (near >= 40, mid >= 150, far >= 400; craft numbers 200/600/1500); one system reads as sparse short dashes at any density.",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "puff-coverage": {
+      "kind": "pixel",
+      "camera": "default",
+      "expr": "fractionAbove(0.85) <= 0.10",
+      "weight": "normal",
+      "note": "Captured during the breath/smoke effect from the first-person default camera: bright puff pixels cover at most ~10% of the frame, else it is a blob, not breath.",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "puff-sprites": {
+      "kind": "scene",
+      "js": "count('breath-emitter') > 0 && objects('breath').every(s => Math.max(s.scale.x, s.scale.y) <= 0.08 && s.material.opacity <= 0.35)",
+      "weight": "identity",
+      "note": "First-person breath/smoke sprites are 0.02-0.08 world units and opacity <= 0.35 (an emitter must be tagged); a world-sized sprite in front of the lens is one enormous white blob.",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "roof-strips-layered": {
+      "kind": "scene",
+      "js": "count('roof') > 0 && count('roof-strip') >= 10 * count('roof') && count('ridge') >= count('roof')",
+      "weight": "normal",
+      "note": "Every tagged roof is built from >= 5 overlapping strips per slope (>= 10 per pitched roof) plus a ridge object; a single roof plane reads as plank-like and a flat top as a grey box.",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "sight-aligns-in-ads": {
+      "kind": "demo",
+      "pack": "fps",
+      "weight": "identity",
+      "name": "ads",
+      "expr": "abs(result.sightNdc.x) < 0.03 && abs(result.sightNdc.y) < 0.03",
+      "note": "A demo named ads enters aim-down-sights and returns { sightNdc: {x, y} } — the tagged sight projected into NDC (sight.getWorldPosition(v); v.project(camera)); within 3% of screen centre.",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "silhouette-varies": {
+      "kind": "scene",
+      "pack": "characters",
+      "weight": "normal",
+      "js": "(() => { const list = objects('enemy'); if (list.length < 3) return false; const sig = o => { const b = bboxOf(o); return b ? b.size.map(v => v.toFixed(1)).join(',') : ''; }; return new Set(list.map(sig)).size >= Math.min(3, Math.ceil(list.length / 3)); })()",
+      "note": "With 3+ enemies, their bounding sizes are not all identical (at least 3 distinct silhouettes, or a third of the count) — identical capsules read as blobs.",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "sky-no-starfield": {
+      "kind": "scene",
+      "js": "count('sky') > 0 && count('star') + count('starfield') === 0",
+      "weight": "identity",
+      "note": "A tagged gradient sky dome exists and nothing tagged star/starfield does; a sky sprinkled with stars to the zenith lost a whole 20-iteration facet.",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "terrain-opaque": {
+      "kind": "scene",
+      "js": "meshes('terrain').length > 0 && meshes('terrain').every(m => !m.material.transparent && m.material.opacity >= 1 && m.material.depthWrite)",
+      "weight": "identity",
+      "note": "The walkable ground is opaque (transparent false, opacity 1, depthWrite true); a milky semi-transparent floor at the player feet hides from vista cameras and shows within two seconds of walking.",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "tree-snow-ridges": {
+      "kind": "scene",
+      "js": "count('snow-ridge') > 0 && objects('snow-ridge').every(s => (s.userData.branchRadius || 0) >= 0.04) && objects('trunk').length > 0 && objects('trunk').every(t => (t.userData.radius || 0) >= 0.12)",
+      "weight": "normal",
+      "note": "Snow ridges sit only on branches of radius >= 0.04 world units (twigs bare) and trunks are >= 0.12 at the base; white coating on the finest twigs is read as spray, thin trunks as pale sticks.",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "water-dark-albedo": {
+      "kind": "scene",
+      "js": "materials('water').length > 0 && materials('water').every(m => { const c = m.color || (m.uniforms && m.uniforms.uBase && m.uniforms.uBase.value); return !!c && c.getHSL({ h: 0, s: 0, l: 0 }, 'srgb').l <= 0.22 && (m.roughness === undefined || m.roughness >= 0.3); })",
+      "weight": "identity",
+      "note": "Tagged water carries a dark depth-tinted base (sRGB lightness <= 0.22, e.g. #2b3324) and roughness >= 0.3; a pale mirror-grey plane is an automatic fail.",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "weapon-silhouette": {
+      "kind": "scene",
+      "pack": "fps",
+      "weight": "identity",
+      "js": "meshes('weapon').some(m => m.userData && m.userData.asset) || (meshes('weapon').length >= 4 && new Set(meshes('weapon').map(m => m.geometry && m.geometry.type)).size >= 2)",
+      "note": "The weapon is built from at least 4 meshes of at least 2 geometry types (body, barrel, grip, sight…) — one box is a primitive, not a gun. A modelled asset (userData.asset from src/assets.js) counts as built from parts.",
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed"
+    },
+    "no-bare-ground": {
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed",
+      "kind": "scene",
+      "pack": "liveness",
+      "weight": "normal",
+      "js": "(() => { const skip = /terrain|ground|sky|mist|fog|haze|light|lamp-pool|hud|player|sun|dome|water-plane/i; const all = tags().filter(t => !skip.test(t)).flatMap(t => objects(t)); const pts = all.map(o => o.getWorldPosition(o.position.clone())); const px = player?.x ?? state?.player?.x ?? 0, pz = player?.z ?? state?.player?.z ?? 0; let hit = 0; for (let i = 0; i < 60; i++) { const a = i * 2.399963, r = 4 + 21 * ((i * 0.618034) % 1); const x = px + Math.cos(a) * r, z = pz + Math.sin(a) * r; if (pts.some(p => (p.x - x) * (p.x - x) + (p.z - z) * (p.z - z) <= 9)) hit++; } return hit / 60 >= 0.6; })()",
+      "detail": "(() => { const skip = /terrain|ground|sky|mist|fog|haze|light|lamp-pool|hud|player|sun|dome|water-plane/i; const all = tags().filter(t => !skip.test(t)).flatMap(t => objects(t)); const pts = all.map(o => o.getWorldPosition(o.position.clone())); const px = player?.x ?? 0, pz = player?.z ?? 0; let hit = 0; for (let i = 0; i < 60; i++) { const a = i * 2.399963, r = 4 + 21 * ((i * 0.618034) % 1); const x = px + Math.cos(a) * r, z = pz + Math.sin(a) * r; if (pts.some(p => (p.x - x) * (p.x - x) + (p.z - z) * (p.z - z) <= 9)) hit++; } return 'sample points within 25 m of the player that have a tagged object within 3 m: ' + hit + '/60 (need 36)'; })()",
+      "note": "Extent: of 60 points sampled in a 25 m disc around the player, at least 60% have some tagged object (not terrain/sky/fog/lights) within 3 m. Bare ground between the buildings is what makes a village read as a stage set."
+    },
+    "three-scales": {
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed",
+      "kind": "scene",
+      "pack": "liveness",
+      "weight": "normal",
+      "js": "(() => { const skip = /terrain|ground|sky|mist|fog|haze|light|lamp-pool|hud|player|sun|dome/i; const sizes = tags().filter(t => !skip.test(t)).flatMap(t => objects(t)).map(o => bboxOf(o)).filter(Boolean).map(b => Math.max(b.size[0], b.size[1], b.size[2])); const large = sizes.filter(s => s > 4).length, medium = sizes.filter(s => s > 1 && s <= 4).length, small = sizes.filter(s => s > 0.05 && s <= 1).length; return large >= 3 && medium >= 10 && small >= 30; })()",
+      "detail": "(() => { const skip = /terrain|ground|sky|mist|fog|haze|light|lamp-pool|hud|player|sun|dome/i; const sizes = tags().filter(t => !skip.test(t)).flatMap(t => objects(t)).map(o => bboxOf(o)).filter(Boolean).map(b => Math.max(b.size[0], b.size[1], b.size[2])); return 'large(>4m) ' + sizes.filter(s => s > 4).length + '/3, medium(1-4m) ' + sizes.filter(s => s > 1 && s <= 4).length + '/10, small(<1m) ' + sizes.filter(s => s > 0.05 && s <= 1).length + '/30'; })()",
+      "note": "Scales: at least 3 large (>4 m), 10 medium (1–4 m) and 30 small (<1 m) tagged objects exist. A frame with only buildings and mud is missing two of the three scales a real place has."
+    },
+    "life-tagged": {
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed",
+      "kind": "scene",
+      "pack": "liveness",
+      "weight": "normal",
+      "js": "tags().filter(t => /villager|npc|person|animal|bird|chicken|goat|dog|horse|smoke|cloth|laundry|flag|banner|fire|flame|water|leaf|foliage|wind/i.test(t)).reduce((n, t) => n + count(t), 0) >= 3",
+      "detail": "'moving-kind objects (people, animals, smoke, cloth, fire, water, foliage): ' + tags().filter(t => /villager|npc|person|animal|bird|chicken|goat|dog|horse|smoke|cloth|laundry|flag|banner|fire|flame|water|leaf|foliage|wind/i.test(t)).reduce((n, t) => n + count(t), 0)",
+      "note": "Life: at least three objects of a kind that moves (people, animals, smoke, laundry, fire, water, foliage) exist and are tagged as such. A floor, not a proof of motion — the liveness critic judges whether they actually move."
+    },
+    "world-continues": {
+      "uses": 0,
+      "passes": 0,
+      "origin": "seed",
+      "kind": "vision",
+      "pack": "liveness",
+      "weight": "normal",
+      "camera": "eye:spawn",
+      "ask": "Beyond the nearest buildings or objects, does the world visibly continue (a path leaving, fields, trees, hills, more buildings) rather than ending in bare ground or an empty horizon?",
+      "note": "Extent, from the player's eye at spawn: the place must read as part of a larger world."
+    },
+    "foliage-is-cards": {
+      "kind": "scene",
+      "pack": "flora",
+      "weight": "normal",
+      "origin": "seed",
+      "uses": 0,
+      "passes": 0,
+      "js": "(() => { const trees = [...objects('tree'), ...objects('bush')]; if (!trees.length) return false; return trees.every(t => { if (t.userData && t.userData.asset) return true; let cards = 0, solids = 0; t.traverse(o => { if (!o.isMesh) return; const m = Array.isArray(o.material) ? o.material[0] : o.material; if (m && (m.alphaTest > 0 || m.transparent)) cards++; else if (/Sphere|Icosahedron|Dodecahedron|Octahedron|Tetrahedron|Capsule/.test(o.geometry?.type ?? '')) solids++; }); return cards >= 6 && solids === 0; }); })()",
+      "detail": "(() => { const trees = [...objects('tree'), ...objects('bush')]; let cards = 0, solids = 0, modelled = 0; for (const t of trees) { if (t.userData && t.userData.asset) { modelled++; continue; } t.traverse(o => { if (!o.isMesh) return; const m = Array.isArray(o.material) ? o.material[0] : o.material; if (m && (m.alphaTest > 0 || m.transparent)) cards++; else if (/Sphere|Icosahedron|Dodecahedron|Octahedron|Tetrahedron|Capsule/.test(o.geometry?.type ?? '')) solids++; }); } return 'trees+bushes: ' + trees.length + ', alpha-tested leaf cards: ' + cards + ', solid canopy primitives: ' + solids + ', modelled in Blender: ' + modelled + ' (need >= 6 cards per tree, 0 solids)'; })()",
+      "note": "Every object tagged tree or bush is built from alpha-tested leaf cards (≥ 6 meshes with alphaTest/transparent) and carries no sphere/icosahedron/capsule canopy. A solid crown reads as a boulder from every camera — foliage.js makeTree/makeBush is the recipe. A modelled asset (userData.asset from src/assets.js) counts as built from parts."
+    },
+    "organic-not-solid": {
+      "kind": "scene",
+      "pack": "flora",
+      "weight": "normal",
+      "origin": "seed",
+      "uses": 0,
+      "passes": 0,
+      "js": "(() => { const organic = tags().filter(t => /tree|bush|canopy|crown|hedge|shrub|hay|straw|chicken|hen|dog|goat|sheep|cow|pig|horse|cat|bird|villager|npc|smoke/i.test(t)); let bad = 0; for (const tag of organic) for (const o of objects(tag)) o.traverse(m => { if (m.isMesh && /Sphere|Icosahedron|Dodecahedron|Octahedron|Tetrahedron|Capsule/.test(m.geometry?.type ?? '') && m.material?.flatShading === true) bad++; }); return bad === 0; })()",
+      "detail": "(() => { const organic = tags().filter(t => /tree|bush|canopy|crown|hedge|shrub|hay|straw|chicken|hen|dog|goat|sheep|cow|pig|horse|cat|bird|villager|npc|smoke/i.test(t)); const hits = []; for (const tag of organic) for (const o of objects(tag)) o.traverse(m => { if (m.isMesh && /Sphere|Icosahedron|Dodecahedron|Octahedron|Tetrahedron|Capsule/.test(m.geometry?.type ?? '') && m.material?.flatShading === true) hits.push(tag + ':' + m.geometry.type); }); return 'flat-shaded sphere-like meshes under organic tags: ' + hits.length + (hits.length ? ' (' + hits.slice(0, 6).join(', ') + ')' : ''); })()",
+      "note": "Nothing organic (trees, bushes, hay, animals, people, smoke) is a flat-shaded sphere/icosahedron/capsule. Faceted balls read as rocks; organic things are cards, parts, or smooth shapes with a material."
+    },
+    "trees-read-as-trees": {
+      "kind": "vision",
+      "pack": "flora",
+      "weight": "normal",
+      "origin": "seed",
+      "uses": 0,
+      "passes": 0,
+      "camera": "default",
+      "ask": "Do the trees in this frame read as trees — a leafy, broken crown silhouette with gaps and a visible trunk or branches — rather than smooth or faceted balls, boulders or lumps sitting on posts?",
+      "note": "Flora, from the primary camera: the crown must have a leaf silhouette and air in it. Pair with foliage-is-cards; the scene check proves the construction, this one proves the read."
+    },
+    "logs-are-cylinders": {
+      "kind": "scene",
+      "pack": "flora",
+      "weight": "normal",
+      "origin": "seed",
+      "uses": 0,
+      "passes": 0,
+      "js": "(() => { const logs = [...objects('log'), ...objects('log-pile'), ...objects('firewood')]; if (!logs.length) return true; let bad = 0; for (const l of logs) l.traverse(m => { if (m.isMesh && /Sphere|Icosahedron|Dodecahedron|Octahedron/.test(m.geometry?.type ?? '')) bad++; }); return bad === 0; })()",
+      "detail": "(() => { const logs = [...objects('log'), ...objects('log-pile'), ...objects('firewood')]; let bad = 0; for (const l of logs) l.traverse(m => { if (m.isMesh && /Sphere|Icosahedron|Dodecahedron|Octahedron/.test(m.geometry?.type ?? '')) bad++; }); return 'logs: ' + logs.length + ', sphere-built log meshes: ' + bad; })()",
+      "note": "A log is a cylinder with cut ends, never a row of spheres (the village run shipped a \"felled log\" that was six ovoids). foliage.js makeLog/makeLogPile."
+    }
+  }
+}

@@ -1,0 +1,3 @@
+{
+  "extends": "./src/harness-seed/tsconfig.json"
+}

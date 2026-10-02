@@ -1,0 +1,32 @@
+/**
+ * A panel runs in a sandboxed frame whose CSP allows inline scripts only, so the panel bridge
+ * (`panel.js`) and its UI primitives (`ui.js`) are pasted into the panel at build time where it
+ * says `<!-- STUDIO_PANEL_SDK -->`. One copy of the bridge, never a hand-kept one that drifts.
+ * Plain Node, no Studio imports: `node inline-panel-sdk.mjs panel.html` works in any plugin folder
+ * that carries this SDK folder.
+ */
+import { readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+export const PANEL_SDK_MARKER = "<!-- STUDIO_PANEL_SDK -->";
+const here = path.dirname(fileURLToPath(import.meta.url));
+
+/**
+ * `html` with the marker replaced by the SDK scripts; unchanged when it has no marker.
+ * @param {string} html
+ * @param {string} [sdkDir] the folder holding panel.js and ui.js (this one by default)
+ * @returns {Promise<string>}
+ */
+export async function inlinePanelSdk(html, sdkDir = here) {
+  if (!html.includes(PANEL_SDK_MARKER)) return html;
+  const [bridge, ui] = await Promise.all(
+    ["panel.js", "ui.js"].map((file) => readFile(path.join(sdkDir, file), "utf8")),
+  );
+  // A function, so `$&` and friends inside the SDK source are never read as replacement patterns.
+  return html.replace(PANEL_SDK_MARKER, () => `<script>${bridge}\n${ui}</script>`);
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  for (const file of process.argv.slice(2)) await writeFile(file, await inlinePanelSdk(await readFile(file, "utf8")));
+}

@@ -1,0 +1,624 @@
+/* Genex Tools: the plugin's own page (account card, what it makes, this game) and the promo card. */
+
+/* ── the Genex page ─────────────────────────────────────────────────────────────── */
+.extensions-title-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 12px;
+}
+.extensions-detail-actions:empty {
+  display: none;
+}
+.genex-account {
+  margin-block-start: 28px;
+  padding: 20px 24px;
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+.genex-account-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px 24px;
+}
+.genex-account-copy {
+  display: flex;
+  flex: 1 1 320px;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+.genex-account-copy h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 22px;
+}
+.genex-account-copy p {
+  color: var(--ink-3);
+  font-size: 14px;
+  line-height: 20px;
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+.genex-account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.genex-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--green);
+  box-shadow: 0 0 0 3px var(--green-tint);
+}
+.genex-code {
+  display: inline-block;
+  margin-inline-start: 4px;
+  padding: 1px 8px;
+  border-radius: var(--radius-chip);
+  background: var(--soft);
+  color: var(--ink);
+  font: 13px / 20px var(--font-family-mono);
+  letter-spacing: 0.08em;
+}
+.genex-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 48px;
+  margin-block-start: 20px;
+  padding-block-start: 16px;
+  border-block-start: 1px solid var(--line);
+}
+.genex-stat {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 2px;
+}
+.genex-stat dd {
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 30px;
+  letter-spacing: -0.02em;
+}
+.genex-stat[data-warn] dd {
+  color: var(--orange);
+}
+.genex-stat dt {
+  color: var(--ink-3);
+  font-size: 13px;
+  line-height: 18px;
+}
+.genex-note[data-quiet] {
+  color: var(--ink-3);
+}
+.genex-note {
+  margin-block-start: 12px;
+  color: var(--orange);
+  font-size: 13px;
+  line-height: 18px;
+  text-wrap: pretty;
+}
+.genex-error {
+  margin-block-start: 12px;
+  color: var(--red);
+  font-size: 13px;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+}
+.genex-checking {
+  font-size: 14px;
+  line-height: 22px;
+}
+.genex-off {
+  margin-block-start: 28px;
+  color: var(--ink-3);
+  font-size: 14px;
+  line-height: 20px;
+}
+.genex-section-intro {
+  color: var(--ink-3);
+  font-size: 13px;
+  line-height: 18px;
+  margin-block: 4px 16px;
+  max-width: 68ch;
+  text-wrap: pretty;
+}
+.genex-makes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 40px;
+}
+.genex-makes li {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  min-width: 0;
+}
+.genex-make-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--soft);
+  color: var(--color-icon);
+}
+.genex-make-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+  padding-block-start: 1px;
+}
+.genex-make-title {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+.genex-make-text {
+  color: var(--ink-3);
+  font-size: 13px;
+  line-height: 18px;
+  text-wrap: pretty;
+}
+.genex-jobs {
+  display: flex;
+  flex-direction: column;
+}
+.genex-job {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto 72px;
+  align-items: center;
+  column-gap: 12px;
+  min-height: 48px;
+  padding-block: 8px;
+}
+.genex-job + .genex-job {
+  border-block-start: 1px solid var(--line);
+}
+.genex-job-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--soft);
+  color: var(--ink-2);
+}
+.genex-job-copy {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 8px;
+}
+.genex-job-title {
+  flex-shrink: 0;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+.genex-job-file {
+  overflow: hidden;
+  color: var(--ink-3);
+  font-size: 13px;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.genex-job-state {
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 20px;
+  white-space: nowrap;
+}
+.genex-job-state[data-state="working"] {
+  color: var(--accent-ink);
+}
+.genex-job-state:is([data-state="review"], [data-state="unsure"]) {
+  color: var(--orange);
+}
+.genex-job-state[data-state="in-game"] {
+  color: var(--green);
+}
+.genex-job-state[data-state="failed"] {
+  color: var(--red);
+}
+.genex-job-state[data-state="stopped"] {
+  color: var(--ink-3);
+}
+.genex-job-credits {
+  color: var(--ink-3);
+  font-size: 13px;
+  line-height: 20px;
+  text-align: end;
+  white-space: nowrap;
+}
+.genex-job-error,
+.genex-job-actions {
+  grid-column: 2 / -1;
+}
+.genex-job-error {
+  color: var(--red);
+  font-size: 13px;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+}
+.genex-job-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-block: 6px 2px;
+}
+.genex-advanced {
+  margin-block-start: 36px;
+  padding-block-end: 4px;
+  border-block-end: 1px solid var(--line);
+}
+.genex-advanced summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  min-height: 36px;
+  padding-block-end: 12px;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.4;
+  cursor: pointer;
+  list-style: none;
+}
+.genex-advanced summary::-webkit-details-marker {
+  display: none;
+}
+.genex-advanced-chevron {
+  color: var(--ink-3);
+  transition: rotate var(--dur) var(--ease);
+  rotate: -90deg;
+}
+.genex-advanced[open] .genex-advanced-chevron {
+  rotate: 0deg;
+}
+.genex-advanced .extension-setting input:not([type="checkbox"]) {
+  flex: 1 1 280px;
+  max-width: 360px;
+  font-family: var(--font-family-mono);
+}
+@container (max-width: 680px) {
+  .genex-account {
+    padding: 16px;
+  }
+  .genex-makes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .genex-job {
+    grid-template-columns: 32px minmax(0, 1fr) auto;
+  }
+  .genex-job-credits {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .genex-advanced-chevron {
+    transition: none;
+  }
+}
+
+/* ── the promo card after the welcome ──────────────────────────────────────────── */
+/* Above the workspace, beneath dialogs (z 210) and toasts (z 300). */
+/* Floats over everything beneath it and moves nothing: bottom-right over a game's stage, and
+   bottom-left over home, where the right corner would cover home's composer on a laptop window. */
+.genex-promo {
+  position: fixed;
+  inset-inline-end: 16px;
+  inset-block-end: 16px;
+  z-index: 200;
+  width: min(360px, calc(100vw - 32px));
+  overflow: hidden;
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: var(--shadow-overlay);
+  color: var(--ink);
+  /* Hidden until its film has a first frame, then it rises whole on its own compositor layer. */
+  visibility: hidden;
+  will-change: opacity, translate, scale;
+  transition-property: opacity, translate;
+  transition-duration: 180ms;
+  transition-timing-function: ease-out;
+}
+.genex-promo[data-at-home] {
+  inset-inline: 16px auto;
+}
+.genex-promo[data-ready] {
+  visibility: visible;
+  animation: genex-promo-in 480ms var(--ease-smooth-out) both;
+}
+.genex-promo[data-leaving] {
+  opacity: 0;
+  translate: 0 6px;
+  pointer-events: none;
+}
+@keyframes genex-promo-in {
+  from {
+    opacity: 0;
+    translate: 0 16px;
+    scale: 0.98;
+  }
+}
+.genex-promo-media {
+  position: relative;
+  aspect-ratio: 19 / 10;
+  background: linear-gradient(135deg, #131f55, #4674d6);
+}
+.genex-promo-media :is(video, img) {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.genex-promo-close {
+  position: absolute;
+  inset-block-start: 10px;
+  inset-inline-end: 10px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.38);
+  color: #fff;
+  backdrop-filter: blur(8px);
+  cursor: pointer;
+  transition: background-color var(--dur) ease-out;
+}
+.genex-promo-close:is(:hover, :focus-visible) {
+  background: rgb(0 0 0 / 0.6);
+  outline: none;
+}
+.genex-promo-body {
+  padding: 14px 12px 0;
+}
+.genex-promo-eyebrow {
+  color: var(--ink-3);
+  font-size: 13px;
+  line-height: 18px;
+}
+.genex-promo-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-block-start: 2px;
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 24px;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+.genex-promo-text {
+  margin-block-start: 6px;
+  color: var(--ink-3);
+  font-size: 14px;
+  line-height: 20px;
+  text-wrap: pretty;
+}
+.genex-promo-features {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-block-start: 16px;
+}
+.genex-promo-features li {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 12px;
+}
+.genex-promo-feature-icon {
+  margin-block-start: 1px;
+  color: var(--accent-ink);
+}
+.genex-promo-features li > span {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.genex-promo-feature-title {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+.genex-promo-feature-text {
+  color: var(--ink-3);
+  font-size: 13px;
+  line-height: 18px;
+  text-wrap: pretty;
+}
+.genex-promo-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 12px 11px;
+}
+.genex-promo-status {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink-2);
+  font-size: 14px;
+  line-height: 20px;
+}
+/* A quiet button the primary's size: an outline on hover, nothing more on press. */
+.genex-promo-link {
+  display: inline-flex;
+  height: 32px;
+  align-items: center;
+  gap: 4px;
+  padding-inline: 10px;
+  border-radius: var(--radius-button);
+  box-shadow: inset 0 0 0 1px transparent;
+  color: var(--ink-2);
+  font-size: 14px;
+  line-height: 20px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color var(--dur) ease-out,
+    box-shadow var(--dur) ease-out;
+}
+/* Keyboard focus wears the hover's outline, as elsewhere in the app. */
+.genex-promo-link:is(:hover, :focus-visible) {
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 24%, transparent);
+  outline: none;
+}
+/* A short window keeps the card's words and buttons; the film goes first. */
+@media (max-height: 640px) {
+  .genex-promo-media {
+    display: none;
+  }
+  .genex-promo-close {
+    background: var(--hover);
+    color: var(--ink-2);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .genex-promo,
+  .genex-promo[data-ready] {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* Publish to the web, drawn by Studio over the stage. */
+.genex-publish-progress {
+  display: grid;
+  gap: 8px;
+}
+.genex-publish-phase {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+.genex-publish-elapsed {
+  color: var(--ink-3);
+  font: 12px var(--font-family-mono);
+  font-variant-numeric: tabular-nums;
+}
+.genex-publish-bar {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: 4px;
+}
+.genex-publish-bar span {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line-strong);
+}
+.genex-publish-bar span[data-state="done"] {
+  background: var(--ink);
+}
+.genex-publish-bar span[data-state="current"] {
+  background: var(--ink-3);
+}
+.genex-publish-steps {
+  color: var(--ink-3);
+  font-size: 12px;
+}
+.genex-publish-pages {
+  display: grid;
+  grid-template-columns: 124px minmax(0, 1fr);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.genex-publish-pages dt,
+.genex-publish-pages dd {
+  padding-block: 10px;
+  border-block-start: 1px solid var(--line);
+}
+.genex-publish-pages dt:last-of-type,
+.genex-publish-pages dd:last-of-type {
+  border-block-end: 1px solid var(--line);
+}
+.genex-publish-pages dt {
+  color: var(--ink-3);
+}
+.genex-publish-pages dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.genex-publish-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ink);
+  cursor: pointer;
+}
+.genex-publish-link:hover {
+  text-decoration: underline;
+}
+.genex-publish-ask,
+.genex-publish-problem,
+.genex-publish-note {
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.genex-publish-problem {
+  color: var(--red);
+}
+.genex-publish-note {
+  color: var(--ink-3);
+}
+/* What publishing still needs (Genex on, an account): said plainly, its press below it. */
+.genex-publish-ask {
+  color: var(--ink);
+}
+.genex-publish-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+/* What publishing goes through, while it is off or missing: one tinted line naming the plugin. */
+.genex-publish-setup {
+  padding: 12px 16px;
+  border-radius: var(--radius-card);
+  background: var(--accent-tint);
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 24px;
+}
+/* The plugin's name, a link to its page: a blue chip with an arrow. */
+.genex-publish-plugin {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-inline-start: 2px;
+  padding: 1px 8px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent-primary) 34%, transparent);
+  color: var(--ink);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--duration-quick);
+}
+.genex-publish-plugin:hover {
+  background: color-mix(in srgb, var(--accent-primary) 50%, transparent);
+}
+.genex-publish-plugin svg {
+  color: var(--ink-2);
+}

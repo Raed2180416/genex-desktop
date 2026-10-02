@@ -1,0 +1,800 @@
+/**
+ * Per-game chat threads and context management — the "chat management" design of 20 Aug.
+ *
+ * The properties that matter:
+ *  1. a message sent to a game's thread lands there, and the delegated build trace follows it —
+ *     each game's chat holds its own history, not a shared pile;
+ *  2. a draft "new game" thread becomes the project's thread the moment the first brief
+ *     scaffolds a folder;
+ *  3. the Studio thread never builds;
+ *  4. the prompt window is measured in tokens against the model's real context, oversized tool
+ *     dumps are clamped, and a `compacted` event replaces exactly what it summarised;
+ *  5. the engine's exact prompt size is logged (`context_usage`) so the UI meter never guesses.
+ */
+import assert from "node:assert/strict";
+import { afterEach, describe, it } from "node:test";
+import type { Engine } from "../../src/substrate/engines/types.ts";
+import { StudioCore } from "../../src/main/studio-core.ts";
+import { customEvents, makeResources, startRig, waitForLog, type Rig } from "../helpers/studio-rig.ts";
+import {
+  eventsToMessages,
+  windowMessagesToBudget,
+  estimateMessagesTokens,
+  estimateTokens,
+  materializePrompt,
+} from "../../src/harness-seed/loop/prompt.ts";
+import { compactThread } from "../../src/harness-seed/loop/compact.ts";
+import { isContinueAsk } from "../../src/harness-seed/loop/turn-loop.ts";
+
+const rigs: Rig[] = [];
+afterEach(async () => {
+  await Promise.all(rigs.splice(0).map((rig) => rig.stop().catch(() => {})));
+});
+
+function vendorEngine(
+  briefs: Array<{ cwd: string; resume?: string; prompt?: string }>,
+  result: Record<string, unknown> = {},
+): Engine {
+  return {
+    id: "vendor",
+    label: "Vendor",
+    kind: "delegated",
+    status: async () => ({ code: "ready", detail: "signed in" }),
+    models: async () => [],
+    delegate: async (request) => {
+      briefs.push({
+        cwd: request.cwd,
+        prompt: request.prompt,
+        ...(request.resume ? { resume: request.resume } : {}),
+      });
+      request.onEvent?.({ type: "system", payload: { subtype: "init", model: "vendor-1" } });
+      return {
+        ok: true,
+        engine: "vendor",
+        summary: "done",
+        turns: 1,
+        usage: { input_tokens: 0, output_tokens: 0 },
+        sessionId: "ses_ok",
+        ...result,
+      } as never;
+    },
+  };
+}
+
+describe("per-game threads", () => {
+  it("a game thread keeps its own messages and its own build trace", async () => {
+    const rig = await startRig({ replies: [] });
+    rigs.push(rig);
+    const briefs: Array<{ cwd: string }> = [];
+    rig.core.engines.register(vendorEngine(briefs));
+    await rig.core.games.scaffold("arena", { title: "arena" });
+    const threadId = await rig.core.threadForGame("arena");
+
+    await rig.core.sendUserMessage("Add a boss fight", { engine: "vendor", thread: threadId });
+    const deadline = Date.now() + 30_000;
+    let threadEvents = await rig.core.store.listEvents(threadId);
+    while (Date.now() < deadline && !threadEvents.some((e) => e.data.type === "turn_ended")) {
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      threadEvents = await rig.core.store.listEvents(threadId);
+    }
+
+    assert.ok(briefs[0]!.cwd.endsWith("arena"), "the thread's project got the brief");
+    assert.ok(
+      threadEvents.some((e) => e.data.type === "messages" && e.data.messages.some((m) => m.role === "user")),
+      "the user message is in the game's thread",
+    );
+    assert.ok(
+      threadEvents.some((e) => e.data.type === "custom" && e.data.event_type === "delegated.vendor"),
+      "the contractor's mirrored trace follows the game's thread",
+    );
+    const mainEvents = await rig.core.store.listEvents(rig.core.mainThread);
+    assert.ok(
+      !mainEvents.some((e) => e.data.type === "messages" && e.data.messages.some((m) => m.role === "user")),
+      "nothing about this build leaked into the Studio thread",
+    );
+    // The merged view still sees everything, in one global order.
+    const all = await rig.core.listAllEvents();
+    assert.ok(all.some((e) => e.thread_id === threadId && e.data.type === "turn_ended"));
+  });
+
+  it("a draft thread is bound to the project its first brief scaffolds", async () => {
+    const rig = await startRig({ replies: [] });
+    rigs.push(rig);
+    const briefs: Array<{ cwd: string }> = [];
+    rig.core.engines.register(vendorEngine(briefs));
+
+    const threadId = await rig.core.createGameThread();
+    // Asking again before the first message reuses the same draft instead of piling them up.
+    assert.equal(await rig.core.createGameThread(), threadId);
+
+    await rig.core.sendUserMessage("Build a chess puzzle game", { engine: "vendor", thread: threadId });
+    // Project binding precedes asynchronous delegation. Wait for the actual first turn,
+    // not the intermediate metadata write, before inspecting the contractor's brief.
+    await waitForLog(
+      rig.core,
+      (log) => log.some((e) => e.thread_id === threadId && e.data.type === "turn_ended"),
+      30_000,
+      "draft first turn ended",
+    );
+    const record = await rig.core.store.getRecord(threadId);
+    assert.equal((record.metadata as { project?: string }).project, "chess-puzzle");
+    assert.equal(record.title, "Build a chess puzzle game");
+    assert.ok(briefs[0]!.cwd.endsWith("chess-puzzle"));
+  });
+
+  it("＋ opens a fresh chat once the draft holds a conversation", async () => {
+    const rig = await startRig({ replies: [{ text: "Sure — what should it look like?" }] });
+    rigs.push(rig);
+
+    const first = await rig.core.createGameThread();
+    assert.equal(await rig.core.createGameThread(), first, "an untouched draft is reused");
+
+    await rig.core.sendUserMessage("what kind of games can you build", { thread: first });
+    await waitForLog(rig.core, (log) => log.some((e) => e.data.type === "turn_ended"), 30_000, "turn_ended");
+
+    // The draft now holds a conversation, so it is no longer a fresh chat to hand back. ＋ used
+    // to return it forever — every new game landed in the middle of the last one's history.
+    const second = await rig.core.createGameThread();
+    assert.notEqual(second, first, "＋ opened a new chat instead of reopening the old one");
+    assert.equal(await rig.core.createGameThread(), second, "the new, still-empty draft is reused");
+  });
+
+  it("a local model's own new_game names the chat it was asked in", async () => {
+    const rig = await startRig({
+      replies: [
+        { toolCalls: [{ id: "c1", name: "new_game", arguments: { name: "arena", title: "Arena" } }] },
+        { text: "Scaffolded the arena." },
+      ],
+    });
+    rigs.push(rig);
+
+    const threadId = await rig.core.createGameThread();
+    await rig.core.sendUserMessage("make a top-down arena shooter", { thread: threadId });
+    await waitForLog(rig.core, (log) => log.some((e) => e.data.type === "turn_ended"), 30_000, "turn_ended");
+
+    // Only the delegated path used to pass the thread along, so a local model building a game
+    // left its chat unbound — and an unbound chat is the one ＋ hands back.
+    const record = await rig.core.store.getRecord(threadId);
+    assert.equal((record.metadata as { project?: string }).project, "arena");
+    assert.equal(record.title, "make a top-down arena shooter");
+    assert.notEqual(await rig.core.createGameThread(), threadId, "＋ opens a new chat, not the arena's");
+  });
+
+  it("adopts a chat that built a game but was never named after it", async () => {
+    const rig = await startRig({ replies: [] });
+    rigs.push(rig);
+
+    // Exactly the state the binding gap left on disk: the real conversation in an unbound chat…
+    await rig.core.games.scaffold("orphan", { title: "orphan" });
+    const orphaned = await rig.core.createGameThread();
+    await rig.core.store.appendEvents(orphaned, [
+      { type: "messages", messages: [{ role: "user", content: "make orphan" }] },
+      { type: "tool_requested", tool_call_id: "c1", request: { name: "new_game", arguments: { name: "orphan" } } },
+    ]);
+    // …and an empty stand-in chat wearing the game's name, made by clicking the game in the sidebar.
+    const standIn = await rig.core.threadForGame("orphan");
+    assert.notEqual(standIn, orphaned);
+
+    await rig.core.stop();
+    const revived = new StudioCore({
+      paths: { userData: rig.userData, resources: await makeResources() },
+      execPath: process.execPath,
+      engines: [rig.core.engines.get("ollama")],
+      ollamaHost: rig.server.host,
+    });
+    await revived.init();
+    await revived.start();
+    try {
+      const adopted = await revived.store.getRecord(orphaned);
+      assert.equal((adopted.metadata as { project?: string }).project, "orphan", "the history found its game");
+      assert.equal(
+        ((await revived.store.getRecord(standIn)).metadata as { archived?: boolean }).archived,
+        true,
+        "the empty stand-in stepped aside",
+      );
+      assert.equal(await revived.threadForGame("orphan"), orphaned, "the game opens its real chat");
+      assert.notEqual(await revived.createGameThread(), orphaned, "＋ is unstuck");
+    } finally {
+      await revived.stop();
+    }
+  });
+
+  it("the Studio thread calls the model without building and keeps its answer", async () => {
+    const rig = await startRig({ replies: [] });
+    rigs.push(rig);
+    const briefs: Array<{ cwd: string }> = [];
+    const requests: import("../../src/substrate/engines/types.ts").CompleteRequest[] = [];
+    rig.core.engines.register({
+      ...vendorEngine(briefs),
+      complete: async (request) => {
+        requests.push(request);
+        return {
+          engine: "vendor",
+          model: "vendor-1",
+          stopReason: "stop",
+          usage: {},
+          message: {
+            role: "assistant",
+            content: "Open New game to create the racing game, then describe drifting in its chat.",
+          },
+        };
+      },
+    });
+    await rig.core.games.scaffold("existing", { title: "existing" });
+    // Older versions kept game runs in the Studio log. A new question must stay in Studio.
+    await rig.core.append(
+      [
+        {
+          type: "custom",
+          event_type: "run_started",
+          payload: { runId: "legacy-studio-run", project: "existing", goal: "A racing game" },
+        },
+        {
+          type: "custom",
+          event_type: "run_finished",
+          payload: { runId: "legacy-studio-run", project: "existing", landed: false },
+        },
+      ],
+      rig.core.mainThread,
+    );
+
+    await rig.core.sendUserMessage("Build a racing game with drifting", {
+      engine: "vendor",
+      thread: rig.core.mainThread,
+    });
+    await waitForLog(
+      rig.core,
+      (log) => log.some((e) => e.thread_id === rig.core.mainThread && e.data.type === "turn_ended"),
+      30_000,
+      "Studio turn",
+    );
+    const events = await rig.core.store.listEvents(rig.core.mainThread);
+    assert.equal(briefs.length, 0, "no contractor was briefed from the Studio thread");
+    const reply = events
+      .filter((e) => e.data.type === "messages")
+      .flatMap((e) => (e.data as { messages: Array<{ role: string; content: string }> }).messages)
+      .find((m) => m.role === "assistant");
+    assert.equal(requests.length, 1, "the Studio actually calls the chosen model");
+    assert.match(requests[0]!.systemPrompt!, /recorded context/);
+    assert.equal(requests[0]!.tools, undefined);
+    assert.match(reply!.content, /racing game/);
+    assert.match(reply!.content, /New game|sidebar/i);
+  });
+
+  it("an interrupted build reports the partial state and records what Continue needs", async () => {
+    const rig = await startRig({ replies: [] });
+    rigs.push(rig);
+    const briefs: Array<{ cwd: string }> = [];
+    const vendor = vendorEngine(briefs, {
+      ok: false,
+      summary: "",
+      turns: 12,
+      stopReason: "stopped",
+      sessionId: "ses_halt",
+    });
+    rig.core.engines.register({
+      ...vendor,
+      delegate: async (request) => {
+        request.onEvent?.({ type: "text_delta", payload: { streamId: "partial", delta: "I am still building" } });
+        return vendor.delegate!(request);
+      },
+    });
+    await rig.core.games.scaffold("halted", { title: "halted" });
+    const threadId = await rig.core.threadForGame("halted");
+
+    await rig.core.sendUserMessage("Add a boss fight to the arena", { engine: "vendor", thread: threadId });
+    const deadline = Date.now() + 30_000;
+    let events = await rig.core.store.listEvents(threadId);
+    while (Date.now() < deadline && !events.some((e) => e.data.type === "turn_ended")) {
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      events = await rig.core.store.listEvents(threadId);
+    }
+
+    const incomplete = customEvents(events, "delegation_incomplete")[0] as { sessionId: string; stopReason: string };
+    assert.equal(incomplete.sessionId, "ses_halt", "the session id is in the log where Continue reads it");
+    assert.equal(incomplete.stopReason, "stopped");
+    const delta = rig.events.find((e) => e.type === "chat.delta")?.payload as { streamId: string };
+    assert.ok(delta?.streamId);
+    assert.ok(
+      rig.events.some(
+        (e) =>
+          e.type === "chat.stream.ended" &&
+          (e.payload as { streamId: string; failed: boolean }).streamId === delta.streamId &&
+          (e.payload as { failed: boolean }).failed,
+      ),
+      "Stop retires the partial reply instead of leaving a second answer in chat",
+    );
+    const reply = events
+      .filter((e) => e.data.type === "messages")
+      .flatMap((e) => (e.data as { messages: Array<{ role: string; content: string }> }).messages)
+      .filter((m) => m.role === "assistant")
+      .at(-1);
+    assert.match(reply!.content, /Stopped/i, "a stop is an outcome to report, not an error");
+    assert.match(reply!.content, /Continue/i, "the user is told they can pick up where it left off");
+    assert.ok(
+      !events.some((e) => e.data.type === "error"),
+      "no 'turn failed' — the partial build is a result, not a crash",
+    );
+  });
+
+  it("Continue resumes the same contractor session — a short ask with resume is never mistaken for chit-chat", async () => {
+    const rig = await startRig({ replies: [] });
+    rigs.push(rig);
+    const briefs: Array<{ cwd: string; resume?: string }> = [];
+    rig.core.engines.register(vendorEngine(briefs));
+    await rig.core.games.scaffold("halted", { title: "halted" });
+    const threadId = await rig.core.threadForGame("halted");
+
+    // "Continue." is 9 chars — without resume, the tiny-ask guard would answer instead of build.
+    await rig.core.sendUserMessage("Continue.", { engine: "vendor", thread: threadId, resume: "ses_halt" });
+    const deadline = Date.now() + 30_000;
+    while (Date.now() < deadline && briefs.length === 0) {
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    }
+    assert.equal(briefs[0]!.resume, "ses_halt", "the resume id rides the brief to the engine");
+    assert.ok(briefs[0]!.cwd.endsWith("halted"));
+  });
+
+  it("Keep going preserves a recorded session model, effort and its chat compaction policy", async () => {
+    const rig = await startRig({ replies: [] });
+    rigs.push(rig);
+    const requests: import("../../src/substrate/engines/types.ts").DelegateRequest[] = [];
+    rig.core.engines.register({
+      ...vendorEngine([]),
+      contextControl: async () => ({ supported: true }),
+      delegate: async (request) => {
+        requests.push(request);
+        return {
+          ok: true,
+          engine: "vendor",
+          model: request.model,
+          requestedModel: request.model,
+          sessionId: "saved-session",
+          summary: "done",
+          turns: 1,
+          usage: {},
+        };
+      },
+    });
+    await rig.core.games.scaffold("resume-policy", { title: "Resume policy" });
+    const thread = await rig.core.threadForGame("resume-policy");
+    await rig.core.store.updateThread(thread, {
+      metadata: {
+        contractor: {
+          engine: "vendor",
+          sessionId: "saved-session",
+          project: "resume-policy",
+          model: "chosen",
+          effort: "low",
+        },
+      },
+    });
+    await rig.core.contextPreferences.set("vendor", "chosen", { mode: "custom", thresholdPercent: 35 }, thread);
+    await rig.core.sendUserMessage("Keep going from where we left off.", {
+      engine: "vendor",
+      resume: "saved-session",
+      thread,
+    });
+    await waitForLog(rig.core, (events) => events.some((e) => e.data.type === "turn_ended"), 30000, "resumed turn");
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0]!.resume, "saved-session");
+    assert.equal(requests[0]!.model, "chosen");
+    assert.equal(requests[0]!.effort, "low");
+    assert.equal(requests[0]!.contextPolicy?.thresholdPercent, 35);
+    await rig.core.sendUserMessage("Use the explicitly selected default.", {
+      engine: "vendor",
+      model: "",
+      resume: "saved-session",
+      thread,
+    });
+    await waitForLog(
+      rig.core,
+      (events) => events.filter((e) => e.data.type === "turn_ended").length === 2,
+      30000,
+      "explicit default turn",
+    );
+    assert.equal(requests.length, 2);
+    assert.equal(requests[1]!.model, undefined, "explicit default does not restore the prior named model");
+    assert.equal(requests[1]!.contextPolicy?.mode, "default");
+  });
+
+  it("a stop only stops THAT turn — the next message starts clean", async () => {
+    const rig = await startRig({ replies: [{ text: "still here" }] });
+    rigs.push(rig);
+    // The latent bug: cancel set a flag nothing reset, so one stop poisoned every later turn.
+    await rig.core.stopThread(rig.core.mainThread);
+    await rig.core.sendUserMessage("hello studio", { thread: rig.core.mainThread });
+    const events = await waitForLog(
+      rig.core,
+      (log) => log.some((e) => e.data.type === "turn_ended"),
+      30_000,
+      "turn after stop",
+    );
+    const reply = events
+      .filter((e) => e.data.type === "messages")
+      .flatMap((e) => (e.data as { messages: Array<{ role: string; content: string }> }).messages)
+      .find((m) => m.role === "assistant");
+    assert.match(reply!.content, /still here/, "the turn after a stop runs normally");
+    assert.ok(
+      !events.some((e) => e.data.type === "error" && /cancelled/.test((e.data as { message: string }).message)),
+    );
+  });
+
+  it("keep-going phrasing is a continue, even with a typo", () => {
+    assert.equal(isContinueAsk("keeep going plz"), true);
+    assert.equal(isContinueAsk("Keep going from where we left off."), true);
+    assert.equal(isContinueAsk("continue"), true);
+    assert.equal(isContinueAsk("I want a rainy night city"), false);
+  });
+
+  it("status is per-thread: a busy chat never paints the others", async () => {
+    const rig = await startRig({ replies: [{ text: "done thinking" }] });
+    rigs.push(rig);
+    await rig.core.sendUserMessage("hello studio", { thread: rig.core.mainThread });
+    await waitForLog(rig.core, (log) => log.some((e) => e.data.type === "turn_ended"), 30_000, "turn end");
+
+    const statuses = rig.events
+      .filter((e) => e.type === "harness.status")
+      .map(
+        (e) =>
+          e.payload as { threadId?: string; status: string; all?: Record<string, { status: string; since: number }> },
+      );
+    assert.ok(statuses.length >= 2, "status changes were notified");
+    for (const s of statuses) {
+      assert.equal(s.threadId, rig.core.mainThread, "every status names the thread it belongs to");
+      assert.ok(s.all, "each notification carries the full map, so a reloaded UI can never go stale");
+    }
+    const last = statuses.at(-1)!;
+    assert.equal(last.status, "idle");
+    assert.deepEqual(last.all, {}, "an idle harness shows no thread as busy");
+  });
+
+  it("stop reaches into a local generation mid-flight", async () => {
+    // The reply hangs forever after one delta — the shape of a model deep in a giant tool
+    // call. The turn can only end if Stop actually aborts the completion.
+    const rig = await startRig({ replies: [{ hangAfter: "writing the whole game…" }] });
+    rigs.push(rig);
+    const turnDone = rig.core.sendUserMessage("make doom", { thread: rig.core.mainThread });
+    turnDone.catch(() => {});
+    const deadline = Date.now() + 15_000;
+    while (!rig.events.some((e) => e.type === "chat.delta")) {
+      if (Date.now() > deadline) assert.fail("the stream never started");
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+    await rig.core.stopThread(rig.core.mainThread);
+    const events = await waitForLog(
+      rig.core,
+      (log) => log.some((e) => e.data.type === "turn_ended"),
+      15_000,
+      "the stopped turn to end",
+    );
+    await turnDone;
+    assert.ok(
+      events.some((e) => e.data.type === "error" && (e.data as { message: string }).message === "cancelled"),
+      "the turn ended as a stop",
+    );
+    assert.ok(
+      !events.some((e) => e.data.type === "error" && /turn failed/.test((e.data as { message: string }).message)),
+      "a stop is not a failure",
+    );
+  });
+
+  it("a stop in one thread does not stop another", async () => {
+    const rig = await startRig({ replies: [{ text: "unbothered" }] });
+    rigs.push(rig);
+    // Stop a game thread that is doing nothing; the studio thread's next turn must be untouched.
+    await rig.core.games.scaffold("bystander", { title: "bystander" });
+    const gameThread = await rig.core.threadForGame("bystander");
+    await rig.core.stopThread(gameThread);
+    await rig.core.sendUserMessage("hello studio", { thread: rig.core.mainThread });
+    const events = await waitForLog(
+      rig.core,
+      (log) => log.some((e) => e.data.type === "turn_ended"),
+      30_000,
+      "turn in the other thread",
+    );
+    const reply = events
+      .filter((e) => e.data.type === "messages")
+      .flatMap((e) => (e.data as { messages: Array<{ role: string; content: string }> }).messages)
+      .find((m) => m.role === "assistant");
+    assert.match(reply!.content, /unbothered/, "the other thread's turn ran normally");
+    assert.ok(
+      !events.some((e) => e.data.type === "error" && /cancelled/.test((e.data as { message: string }).message)),
+    );
+  });
+
+  it("archiving marks the thread and refuses while a contractor is inside", async () => {
+    const rig = await startRig({ replies: [] });
+    rigs.push(rig);
+    await rig.core.games.scaffold("shelved", { title: "shelved" });
+    const threadId = await rig.core.threadForGame("shelved");
+    const { dir } = await rig.core.archiveGame("shelved");
+    assert.ok(dir.endsWith("shelved"));
+    const record = await rig.core.store.getRecord(threadId);
+    assert.equal((record.metadata as { archived?: boolean }).archived, true);
+    const log = await rig.core.store.listEvents(rig.core.mainThread);
+    assert.equal(customEvents(log, "game_archived").length, 1);
+  });
+});
+
+describe("context management", () => {
+  it("windows by tokens: keeps the opening intent, fits the tail, states the elision", () => {
+    const messages = [
+      { role: "user", content: "build me a butterfly game with pastel colors" },
+      { role: "assistant", content: "Starting on it." },
+      ...Array.from({ length: 40 }, (_, i) => ({
+        role: "assistant",
+        content: `progress note ${i} ${"x".repeat(400)}`,
+      })),
+      { role: "user", content: "make the wings bigger" },
+    ];
+    const windowed = windowMessagesToBudget(messages as never, 1_000);
+    assert.ok(estimateMessagesTokens(windowed) <= 1_100, "fits the budget (plus the marker)");
+    assert.match(windowed[0]!.content, /butterfly game/, "the opening intent survives");
+    assert.match(windowed.at(-1)!.content, /wings bigger/, "the newest message survives");
+    assert.ok(
+      windowed.some((m: { content: string }) => /elided to fit the model's context/.test(m.content)),
+      "the cut is stated",
+    );
+  });
+
+  it("clamps one giant tool dump instead of letting it evict the conversation", () => {
+    const messages = [
+      { role: "user", content: "check the logs" },
+      { role: "assistant", content: "Reading." },
+      { role: "tool", content: "L".repeat(60_000), tool_call_id: "c1", name: "read_file" },
+      { role: "assistant", content: "The logs look fine." },
+    ];
+    const windowed = windowMessagesToBudget(messages as never, 4_000);
+    const clamped = windowed.find((m: { role: string }) => m.role === "tool")!;
+    assert.ok(clamped.content.length < 12_000, "the dump was clamped");
+    assert.match(clamped.content, /clamped from this message/, "the clamp is stated in place");
+    assert.match(windowed.at(-1)!.content, /look fine/);
+  });
+
+  it("a compacted event replaces exactly what it summarised — the kept tail survives", () => {
+    const events = [
+      { id: "01a", data: { type: "messages", messages: [{ role: "user", content: "old ask" }] } },
+      { id: "01b", data: { type: "messages", messages: [{ role: "assistant", content: "old reply" }] } },
+      { id: "01c", data: { type: "messages", messages: [{ role: "user", content: "recent ask" }] } },
+      {
+        id: "01d",
+        data: {
+          type: "custom",
+          event_type: "compacted",
+          payload: { summary: "They discussed the old thing.", upTo: "01b", messages: 2 },
+        },
+      },
+      { id: "01e", data: { type: "messages", messages: [{ role: "assistant", content: "recent reply" }] } },
+    ];
+    const messages = eventsToMessages(events as never);
+    assert.equal(messages.length, 3);
+    assert.match(messages[0]!.content, /compacted[\s\S]*old thing/i, "the summary leads");
+    assert.match(messages[1]!.content, /recent ask/, "messages after upTo survive verbatim");
+    assert.match(messages[2]!.content, /recent reply/);
+  });
+
+  it("a second and a third compaction replace what they summarised, even a tail older than the last summary (P16-F2)", () => {
+    const say = (id: string, role: string, content: string) => ({
+      id,
+      data: { type: "messages", messages: [{ role, content }] },
+    });
+    const compacted = (id: string, upTo: string, summary: string) => ({
+      id,
+      data: { type: "custom", event_type: "compacted", payload: { summary, upTo, messages: 2 } },
+    });
+    const events = [
+      say("01a", "user", "old ask"),
+      say("01b", "assistant", "old reply"),
+      say("01c", "user", "kept ask"),
+      compacted("01d", "01b", "first summary"),
+      say("01e", "assistant", "kept reply"),
+      // The second compaction's cut falls inside the tail the first one kept: 01c is older than 01d.
+      compacted("01f", "01c", "second summary"),
+      say("01g", "user", "newer ask"),
+      compacted("01h", "01e", "third summary"),
+      say("01i", "assistant", "newest reply"),
+    ];
+    const after = (count: number) => eventsToMessages(events.slice(0, count) as never).map((m) => m.content);
+    const second = after(6);
+    assert.equal(second.length, 2, "the first summary and the ask it kept are replaced");
+    assert.match(second[0]!, /second summary/);
+    assert.match(second[1]!, /kept reply/);
+    const third = after(9);
+    assert.equal(third.length, 3);
+    assert.match(third[0]!, /third summary/);
+    assert.deepEqual(third.slice(1), ["newer ask", "newest reply"]);
+  });
+
+  it("one oversized tool result is clamped in a preserved history, so compaction can make the prompt fit (P04-F3)", async () => {
+    const huge = "row,".repeat(100_000);
+    const events = [
+      { id: "01a", data: { type: "messages", messages: [{ role: "user", content: "read the log" }] } },
+      {
+        id: "01b",
+        data: {
+          type: "messages",
+          messages: [{ role: "assistant", content: "", tool_calls: [{ id: "c1", name: "read_file", arguments: {} }] }],
+        },
+      },
+      { id: "01c", data: { type: "tool_result", tool_call_id: "c1", result: { ok: true, content: huge } } },
+    ];
+    const ctx = {
+      workspace: "/nowhere",
+      call: async (method: string) => (method === "events.list" ? events : null),
+    };
+    const prompt = await materializePrompt(
+      ctx as never,
+      {
+        threadId: "t1",
+        contextWindow: 32_768,
+        preserveHistory: true,
+      } as never,
+    );
+    const tool = prompt.messages.find((m) => m.role === "tool")!;
+    assert.ok(
+      estimateTokens(tool.content) <= 32_768 / 4 + 64,
+      `a quarter of the window at most, got ${tool.content.length}`,
+    );
+    assert.match(tool.content, /clamped from this message/, "the cut is stated in place; the log keeps the whole");
+    assert.equal(prompt.messages.length, 3, "nothing else is dropped");
+  });
+
+  it("compactThread summarises via the engine and appends a compacted event", async () => {
+    const appended: Array<{ threadId: string; batch: Array<Record<string, unknown>> }> = [];
+    const events = Array.from({ length: 20 }, (_, i) => ({
+      id: `01${String(i).padStart(2, "0")}`,
+      data: { type: "messages", messages: [{ role: i % 2 ? "assistant" : "user", content: `message ${i}` }] },
+    }));
+    const notified: string[] = [];
+    const ctx = {
+      call: async (method: string, params: Record<string, unknown>) => {
+        if (method === "events.list") return events;
+        if (method === "engine.complete") {
+          assert.equal((params as { effort?: string }).effort, "low", "the summariser thinks cheap");
+          return { message: { role: "assistant", content: "A tidy summary." }, model: "test-model" };
+        }
+        if (method === "events.append") {
+          appended.push(params as never);
+          return { latestEventId: "x" };
+        }
+        throw new Error(`unexpected call ${method}`);
+      },
+      notify: (type: string) => notified.push(type),
+    };
+    const report = await compactThread(ctx as never, { threadId: "t1", force: true, contextWindow: 8_192 });
+    assert.equal(report.compacted, true);
+    assert.equal(appended[0]!.batch[0]!.event_type, "session_activity");
+    const event = appended.flatMap((a) => a.batch).find((e) => e.event_type === "compacted") as {
+      event_type: string;
+      payload: { summary: string; upTo: string };
+    };
+    assert.equal(event.event_type, "compacted");
+    assert.equal(event.payload.summary, "A tidy summary.");
+    assert.ok(event.payload.upTo, "the event names the boundary so the kept tail survives");
+    assert.ok(notified.includes("thread.compacted"));
+  });
+
+  it("skips compaction when the history comfortably fits", async () => {
+    const events = Array.from({ length: 10 }, (_, i) => ({
+      id: `01${String(i).padStart(2, "0")}`,
+      data: { type: "messages", messages: [{ role: "user", content: "short" }] },
+    }));
+    const ctx = {
+      call: async (method: string) => {
+        if (method === "events.list") return events;
+        throw new Error(`should not have called ${method}`);
+      },
+      notify: () => {},
+    };
+    const report = await compactThread(ctx as never, { threadId: "t1", contextWindow: 32_768 });
+    assert.equal(report.compacted, false);
+  });
+
+  it("logs the engine's exact prompt size as context_usage — the meter never estimates", async () => {
+    const rig = await startRig({ replies: [{ text: "hello there", usage: { prompt: 1_234, completion: 5 } }] });
+    rigs.push(rig);
+    await rig.core.sendUserMessage("hi studio", { thread: rig.core.mainThread });
+    const events = await waitForLog(
+      rig.core,
+      (log) => log.some((e) => e.data.type === "custom" && e.data.event_type === "context_usage"),
+      30_000,
+      "context_usage",
+    );
+    const usage = customEvents(events, "context_usage")[0] as {
+      promptTokens: number;
+      contextWindow: number;
+      percent: number;
+    };
+    assert.equal(usage.promptTokens, 1_234, "the engine's own count, not an estimate");
+    assert.equal(usage.contextWindow, 262_144, "the model's real context window rides along");
+    assert.ok(usage.percent >= 0);
+  });
+
+  it("a follow-up without an explicit resume still continues the same contractor session", async () => {
+    const rig = await startRig({ replies: [] });
+    rigs.push(rig);
+    const briefs: Array<{ cwd: string; resume?: string; prompt?: string }> = [];
+    rig.core.engines.register(vendorEngine(briefs));
+    await rig.core.games.scaffold("megastructure", { title: "megastructure" });
+    const threadId = await rig.core.threadForGame("megastructure");
+
+    await rig.core.sendUserMessage("Build a rainy megastructure city with flying traffic", {
+      engine: "vendor",
+      thread: threadId,
+    });
+    await waitForLog(
+      rig.core,
+      (log) => log.some((e) => e.thread_id === threadId && e.data.type === "turn_ended"),
+      30_000,
+      "first build",
+    );
+
+    await rig.core.sendUserMessage("Keep going", { engine: "vendor", thread: threadId });
+    const deadline = Date.now() + 30_000;
+    while (Date.now() < deadline && briefs.length < 2) {
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    }
+    assert.equal(briefs[1]!.resume, "ses_ok", "typing keep going resumes the session without a UI resume id");
+    assert.ok(briefs[1]!.cwd.endsWith("megastructure"));
+  });
+
+  it("keep going after a session-less auth failure still briefs the original ask", async () => {
+    const rig = await startRig({ replies: [] });
+    rigs.push(rig);
+    const briefs: Array<{ cwd: string; resume?: string; prompt?: string }> = [];
+    rig.core.engines.register(vendorEngine(briefs, { sessionId: undefined }));
+    await rig.core.games.scaffold("blame", { title: "blame" });
+    const threadId = await rig.core.threadForGame("blame");
+
+    await rig.core.sendUserMessage("Make Blame! — a vertical megastructure of rusted walkways", {
+      engine: "vendor",
+      thread: threadId,
+    });
+    await waitForLog(
+      rig.core,
+      (log) => log.some((e) => e.thread_id === threadId && e.data.type === "turn_ended"),
+      30_000,
+      "first build without a session",
+    );
+
+    await rig.core.sendUserMessage("Keep going", { engine: "vendor", thread: threadId });
+    const deadline = Date.now() + 30_000;
+    while (Date.now() < deadline && briefs.length < 2) {
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    }
+    assert.equal(briefs[1]!.resume, undefined, "there is no session to resume after auth died before init");
+    assert.match(briefs[1]!.prompt ?? "", /Make Blame!/, "the original ask is in the brief, not just keep going");
+    assert.ok(briefs[1]!.cwd.endsWith("blame"));
+  });
+
+  it("two games in the library never send a bound chat into the other folder", async () => {
+    const rig = await startRig({ replies: [] });
+    rigs.push(rig);
+    const briefs: Array<{ cwd: string; resume?: string }> = [];
+    rig.core.engines.register(vendorEngine(briefs));
+    await rig.core.games.scaffold("older", { title: "older" });
+    await rig.core.games.scaffold("newer", { title: "newer" });
+    const threadId = await rig.core.threadForGame("older");
+
+    await rig.core.sendUserMessage("Add a rooftop chase", { engine: "vendor", thread: threadId });
+    const deadline = Date.now() + 30_000;
+    while (Date.now() < deadline && briefs.length === 0) {
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    }
+    assert.ok(briefs[0]!.cwd.endsWith("older"), "the bound chat stays in its own folder");
+    assert.ok(!briefs[0]!.cwd.endsWith("newer"), "the newest game is not guessed");
+  });
+
+  it("renameThread retitles the chat and leaves the folder binding intact", async () => {
+    const rig = await startRig({ replies: [] });
+    rigs.push(rig);
+    await rig.core.games.scaffold("named", { title: "named" });
+    const threadId = await rig.core.threadForGame("named");
+    const after = await rig.core.renameThread(threadId, "  rooftop chase  ");
+    assert.equal(after.title, "rooftop chase");
+    assert.equal((after.metadata as { project?: string }).project, "named");
+    const events = await rig.core.store.listEvents(threadId);
+    assert.ok(events.some((event) => event.data.type === "thread_updated" && event.data.title === "rooftop chase"));
+  });
+});

@@ -1,0 +1,552 @@
+{
+  "_about": "Synthetic observations shaped like two measured probe runs. healthy: a single-file build (two requests) entered through the synthetic pointer lock after a HUD legend reading \"Run\" was clicked. stuck: a start control reading \"Enter the village\" clicked and still on screen at the end, with capture dead after the idle phase so every frame is boot or idle.",
+  "healthy": {
+    "frames": [
+      {
+        "file": "frames/frame-0001.png",
+        "atMs": 14326,
+        "phase": "boot",
+        "label": "pre-draw",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0002.png",
+        "atMs": 18497,
+        "phase": "boot",
+        "label": "first-draw",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0003.png",
+        "atMs": 19965,
+        "phase": "idle-baseline",
+        "label": "idle",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0004.png",
+        "atMs": 22183,
+        "phase": "idle-baseline",
+        "label": "idle",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0005.png",
+        "atMs": 24244,
+        "phase": "idle-baseline",
+        "label": "idle",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0006.png",
+        "atMs": 26392,
+        "phase": "idle-baseline",
+        "label": "idle",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0007.png",
+        "atMs": 30417,
+        "phase": "entrance",
+        "label": "after-gesture",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0008.png",
+        "atMs": 32461,
+        "phase": "directions",
+        "label": "KeyD-before",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0009.png",
+        "atMs": 34936,
+        "phase": "directions",
+        "label": "KeyD-after",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0010.png",
+        "atMs": 36948,
+        "phase": "directions",
+        "label": "KeyA-before",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0011.png",
+        "atMs": 39551,
+        "phase": "directions",
+        "label": "KeyA-after",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0012.png",
+        "atMs": 41381,
+        "phase": "directions",
+        "label": "ArrowRight-before",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0013.png",
+        "atMs": 43523,
+        "phase": "directions",
+        "label": "ArrowRight-after",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0014.png",
+        "atMs": 45440,
+        "phase": "directions",
+        "label": "ArrowLeft-before",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0015.png",
+        "atMs": 47731,
+        "phase": "directions",
+        "label": "ArrowLeft-after",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0016.png",
+        "atMs": 49510,
+        "phase": "directions",
+        "label": "KeyW-before",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0017.png",
+        "atMs": 53859,
+        "phase": "directions",
+        "label": "KeyW-after",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0018.png",
+        "atMs": 55905,
+        "phase": "directions",
+        "label": "KeyS-before",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0019.png",
+        "atMs": 60236,
+        "phase": "directions",
+        "label": "KeyS-after",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0020.png",
+        "atMs": 62423,
+        "phase": "directions",
+        "label": "ArrowUp-before",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0021.png",
+        "atMs": 66858,
+        "phase": "directions",
+        "label": "ArrowUp-after",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0022.png",
+        "atMs": 68994,
+        "phase": "directions",
+        "label": "ArrowDown-before",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0023.png",
+        "atMs": 73461,
+        "phase": "directions",
+        "label": "ArrowDown-after",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0024.png",
+        "atMs": 75623,
+        "phase": "directions",
+        "label": "drag-before",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0025.png",
+        "atMs": 79209,
+        "phase": "directions",
+        "label": "drag-after",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0026.png",
+        "atMs": 82428,
+        "phase": "ack",
+        "label": "after-Space",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0027.png",
+        "atMs": 85779,
+        "phase": "ack",
+        "label": "after-MouseLeft",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0028.png",
+        "atMs": 91679,
+        "phase": "ack",
+        "label": "after-MouseDrag",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0029.png",
+        "atMs": 95094,
+        "phase": "interact",
+        "label": "after-KeyF",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0030.png",
+        "atMs": 98304,
+        "phase": "interact",
+        "label": "after-KeyE",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0031.png",
+        "atMs": 101451,
+        "phase": "interact",
+        "label": "after-Enter",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0032.png",
+        "atMs": 104436,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0033.png",
+        "atMs": 119971,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0034.png",
+        "atMs": 134959,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0035.png",
+        "atMs": 151210,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0036.png",
+        "atMs": 165779,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0037.png",
+        "atMs": 182004,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0038.png",
+        "atMs": 198838,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0039.png",
+        "atMs": 214015,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0040.png",
+        "atMs": 229053,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0041.png",
+        "atMs": 246239,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0042.png",
+        "atMs": 261795,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0043.png",
+        "atMs": 277977,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0044.png",
+        "atMs": 293017,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0045.png",
+        "atMs": 310018,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0046.png",
+        "atMs": 326085,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0047.png",
+        "atMs": 341438,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0048.png",
+        "atMs": 356760,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0049.png",
+        "atMs": 372876,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0050.png",
+        "atMs": 387519,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0051.png",
+        "atMs": 402253,
+        "phase": "soak",
+        "label": "soak",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0052.png",
+        "atMs": 402967,
+        "phase": "soak",
+        "label": "final",
+        "source": "page"
+      }
+    ],
+    "raf": {
+      "distinctFrames": 3067,
+      "firstT": 1429.8,
+      "lastT": 402597
+    },
+    "network": {
+      "requests": 2,
+      "assetErrors": 0,
+      "lfsPointers": 0
+    },
+    "firstNonDegenerateMs": 16592,
+    "errorsWithin60s": {
+      "uncaught": 0,
+      "rejections": 0,
+      "contextLost": 0
+    },
+    "pointerLock": {
+      "requested": 1,
+      "grantedNatively": false,
+      "shimmed": true,
+      "locked": true,
+      "engagedAtMs": 26881.200000047684
+    },
+    "entrance": {
+      "startControl": {
+        "found": "Run",
+        "clicked": true,
+        "gone": null
+      },
+      "pressAnyKey": null,
+      "cameraMoved": null,
+      "pointerLockEngaged": true,
+      "pointerLockRequested": true
+    },
+    "exposureChosen": [
+      "frames/frame-0045.png",
+      "frames/frame-0046.png",
+      "frames/frame-0047.png",
+      "frames/frame-0048.png",
+      "frames/frame-0049.png",
+      "frames/frame-0050.png",
+      "frames/frame-0051.png",
+      "frames/frame-0052.png"
+    ]
+  },
+  "stuck": {
+    "frames": [
+      {
+        "file": "frames/frame-0001.png",
+        "atMs": 1466,
+        "phase": "boot",
+        "label": "pre-draw",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0002.png",
+        "atMs": 6933,
+        "phase": "boot",
+        "label": "first-draw",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0003.png",
+        "atMs": 7050,
+        "phase": "idle-baseline",
+        "label": "idle",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0004.png",
+        "atMs": 7709,
+        "phase": "idle-baseline",
+        "label": "idle",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0005.png",
+        "atMs": 8359,
+        "phase": "idle-baseline",
+        "label": "idle",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0006.png",
+        "atMs": 9283,
+        "phase": "idle-baseline",
+        "label": "idle",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0007.png",
+        "atMs": 9934,
+        "phase": "idle-baseline",
+        "label": "idle",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0008.png",
+        "atMs": 10588,
+        "phase": "idle-baseline",
+        "label": "idle",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0009.png",
+        "atMs": 11233,
+        "phase": "idle-baseline",
+        "label": "idle",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0010.png",
+        "atMs": 11885,
+        "phase": "idle-baseline",
+        "label": "idle",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0011.png",
+        "atMs": 12538,
+        "phase": "idle-baseline",
+        "label": "idle",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0012.png",
+        "atMs": 13189,
+        "phase": "idle-baseline",
+        "label": "idle",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0013.png",
+        "atMs": 13853,
+        "phase": "idle-baseline",
+        "label": "idle",
+        "source": "page"
+      },
+      {
+        "file": "frames/frame-0014.png",
+        "atMs": 14521,
+        "phase": "idle-baseline",
+        "label": "idle",
+        "source": "page"
+      }
+    ],
+    "raf": {
+      "distinctFrames": 244,
+      "firstT": 12193.1,
+      "lastT": 888491.4
+    },
+    "network": {
+      "requests": 139,
+      "assetErrors": 0,
+      "lfsPointers": 0
+    },
+    "firstNonDegenerateMs": 6819,
+    "errorsWithin60s": {
+      "uncaught": 0,
+      "rejections": 0,
+      "contextLost": 0
+    },
+    "pointerLock": {
+      "requested": 0,
+      "grantedNatively": false,
+      "shimmed": false,
+      "locked": false,
+      "engagedAtMs": null
+    },
+    "entrance": {
+      "startControl": {
+        "found": "Enter the village",
+        "clicked": true,
+        "gone": false
+      },
+      "pressAnyKey": null,
+      "cameraMoved": null,
+      "pointerLockEngaged": false,
+      "pointerLockRequested": false
+    },
+    "exposureChosen": []
+  }
+}

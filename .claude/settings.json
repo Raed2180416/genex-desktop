@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(npm run check*)",
+      "Bash(npm run typecheck)",
+      "Bash(npm test -- *)",
+      "Bash(npm run test:area*)",
+      "Bash(npm run test:affected*)",
+      "Bash(npm run test:coverage*)",
+      "Bash(npm run test:fast*)",
+      "Bash(npm run test:rig*)",
+      "Bash(npm run verify:context*)",
+      "Bash(npm run verify:architecture*)",
+      "Bash(npm run verify:harness*)",
+      "Bash(npm run review:context*)",
+      "Bash(npm run studio:dev -- fixtures)",
+      "Bash(npm run studio:dev -- status --profile *)",
+      "Bash(npm run studio:dev -- stop --profile *)",
+      "Bash(npm run studio:dev -- clean --profile *)",
+      "Bash(npm run studio:dev -- snapshot --profile *)",
+      "Bash(npm run studio:dev -- capture --profile *)",
+      "Bash(npm run studio:dev -- logs --profile *)",
+      "Bash(node scripts/affected-tests.mjs*)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git show*)"
+    ],
+    "deny": [
+      "Read(~/Library/Application Support/Genex/**)",
+      "Edit(~/Library/Application Support/Genex/**)",
+      "Read(~/Library/Application Support/AI Game Studio/**)",
+      "Edit(~/Library/Application Support/AI Game Studio/**)",
+      "Read(~/Library/Application Support/ai-game-studio/**)",
+      "Edit(~/Library/Application Support/ai-game-studio/**)",
+      "Edit(~/AI Games/**)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean*)",
+      "Bash(rm -rf *)",
+      "Bash(rm -fr *)",
+      "Bash(security *)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && { node scripts/check-node.mjs >/dev/null 2>&1 || { echo 'boundary hook skipped: Node 24 is not the node on PATH (nvm use)' >&2; exit 0; }; } && node scripts/check-boundaries.ts >/dev/null || { echo 'verify:architecture failed: a renderer/shared/page file now reaches main, preload, substrate or Node (errors above)' >&2; exit 2; }",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

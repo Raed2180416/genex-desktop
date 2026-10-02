@@ -1,0 +1,24 @@
+#!/bin/sh
+# Opt-in: install once with `npm run hooks:install` (sets core.hooksPath to scripts/hooks).
+# L0 (npm run check:static) and L1 (the non-rig tests the staged files reach) before each commit.
+# Every fix to the loop ships with an incident test: when anything
+# under src/harness-seed/ or src/game-template/ is staged, the incident suite must be green too.
+set -e
+# Read the staged list with the index git handed this hook (index.lock for `commit -a` or a partial commit).
+staged=$(git diff --cached --name-only --diff-filter=ACMRD)
+if [ -z "$staged" ]; then
+  exit 0
+fi
+# Git pins a hook to this repository and index through GIT_DIR, GIT_INDEX_FILE and friends (absolute
+# paths in a linked worktree). Tests that build fixture repositories would inherit them and commit into
+# this checkout; everything below finds the repository from the working directory instead.
+unset $(git rev-parse --local-env-vars)
+npm run --silent check:static
+IFS='
+'
+set -f
+node scripts/affected-tests.mjs --files $staged --tier L1 --run
+if printf '%s\n' "$staged" | grep -qE '^src/(harness-seed|game-template)/'; then
+  echo "pre-commit: harness or template changed — running the incident suite"
+  npm run --silent verify:harness
+fi

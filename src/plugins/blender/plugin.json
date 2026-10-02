@@ -1,0 +1,207 @@
+{
+  "apiVersion": 3,
+  "id": "blender",
+  "version": "1.1.0",
+  "name": "Local Blender",
+  "publisher": "Studio",
+  "description": "Model 3D assets with Blender on this Mac. No account or credits.",
+  "icon": "icon.png",
+  "backend": "backend.mjs",
+  "capabilities": ["native-runtime", "project.read", "project.write", "jobs", "observe"],
+  "tools": [
+    {
+      "name": "status",
+      "description": "Inspect local Blender readiness and recorded jobs; no account or paid generation.",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "model",
+      "description": "Run a bpy script from assets/src in local Blender; export GLB and two renders. The script builds the scene and must not export or render. Returns exact asset paths and mesh/material stats. Load the returned GLB and verify visible use in the game. To import an existing GLB, pass model and use bpy.ops.import_scene.gltf(filepath=ASSET_INPUTS[\"model\"]).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "script": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string",
+            "description": "Optional project-relative GLB to transform. It is staged and available as ASSET_INPUTS[\"model\"]. Do not use absolute paths."
+          }
+        },
+        "required": ["name"]
+      }
+    },
+    {
+      "name": "retrieve",
+      "description": "Retrieve an existing local Blender job without repeating it.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": ["id"]
+      }
+    }
+  ],
+  "skills": [
+    {
+      "name": "local-modeling",
+      "text": "For useful 3D silhouettes, Local Blender can model assets from a bpy script at assets/src/<name>.py. Inspect blender__status first. The model script starts from an empty scene; do not save/export/render. Call blender__model, inspect returned renders, load the exact returned model.glb path with GLTFLoader and verify it in the actual game preview. Each export has a unique job directory. Preserve those paths in code; this is not the old assets/<slug>.glb layout. Reuse geometry and inspect triangle/texture costs. Size is a performance diagnostic, not a 4 MiB rejection. Native outputs including renders are capped at 100 MiB per job. For an existing GLB pass model to blender__model and import ASSET_INPUTS[\"model\"]; only declared inputs are readable. Preserve the source model. Local Blender and a remote modeling connector are independent choices; never switch to a paid service implicitly."
+    }
+  ],
+  "panels": [
+    {
+      "id": "setup",
+      "title": "Local Blender",
+      "file": "panel.html",
+      "placement": "settings"
+    }
+  ],
+  "settings": [],
+  "actions": [
+    {
+      "name": "status",
+      "label": "Runtime and jobs"
+    },
+    {
+      "name": "install",
+      "label": "Download Blender 5.2.1",
+      "confirmation": "Download the pinned Blender 5.2.1 runtime (about 346 MB) into this plugin\u2019s storage. Studio verifies its digest. Existing external Blender installations stay unchanged."
+    },
+    {
+      "name": "cancel-install",
+      "label": "Cancel download"
+    }
+  ],
+  "nativeRuntimes": [
+    {
+      "id": "blender",
+      "label": "Blender",
+      "candidates": [
+        "/Applications/Blender.app/Contents/MacOS/Blender",
+        "home:Applications/Blender.app/Contents/MacOS/Blender",
+        "studio:tools/Blender.app/Contents/MacOS/Blender"
+      ],
+      "version": {
+        "args": ["-b", "--version"],
+        "pattern": "Blender (\\d+\\.\\d+\\.\\d+)",
+        "minimum": "4.2.0"
+      },
+      "install": {
+        "action": "install",
+        "url": "https://download.blender.org/release/Blender5.2/blender-5.2.1-macos-arm64.dmg",
+        "sha256": "6409e21de80994db5f4c4a34486b6fd43cea21085b912f7491c53e923acb65a3",
+        "bytes": 346264899,
+        "unpackedBytes": 1500000000,
+        "format": "dmg",
+        "entry": "Blender.app",
+        "executable": "Blender.app/Contents/MacOS/Blender",
+        "notices": ["Blender.app/Contents/Resources/text/copyright.txt"]
+      }
+    }
+  ],
+  "nativeJobs": [
+    {
+      "id": "model",
+      "runtime": "blender",
+      "args": [
+        "-b",
+        "--factory-startup",
+        "-noaudio",
+        "--python-exit-code",
+        "1",
+        "--python",
+        {
+          "source": "package",
+          "name": "wrapper.py"
+        },
+        "--",
+        {
+          "source": "input",
+          "name": "script"
+        },
+        {
+          "source": "output",
+          "name": "model.glb"
+        },
+        {
+          "source": "output",
+          "name": "render.png"
+        },
+        {
+          "source": "value",
+          "name": "name"
+        }
+      ],
+      "inputs": ["script"],
+      "values": {
+        "name": {
+          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+          "maxLength": 40
+        }
+      },
+      "outputs": ["model.glb", "render.png", "render-front.png"],
+      "timeoutMs": 120000,
+      "maxOutputBytes": 64000,
+      "maxAssetBytes": 104857600,
+      "gpu": true
+    },
+    {
+      "id": "transform",
+      "runtime": "blender",
+      "args": [
+        "-b",
+        "--factory-startup",
+        "-noaudio",
+        "--python-exit-code",
+        "1",
+        "--python",
+        {
+          "source": "package",
+          "name": "wrapper.py"
+        },
+        "--",
+        {
+          "source": "input",
+          "name": "script"
+        },
+        {
+          "source": "output",
+          "name": "model.glb"
+        },
+        {
+          "source": "output",
+          "name": "render.png"
+        },
+        {
+          "source": "value",
+          "name": "name"
+        },
+        {
+          "source": "input",
+          "name": "model"
+        }
+      ],
+      "inputs": ["script", "model"],
+      "values": {
+        "name": {
+          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+          "maxLength": 40
+        }
+      },
+      "outputs": ["model.glb", "render.png", "render-front.png"],
+      "timeoutMs": 120000,
+      "maxOutputBytes": 64000,
+      "maxAssetBytes": 104857600,
+      "gpu": true
+    }
+  ]
+}

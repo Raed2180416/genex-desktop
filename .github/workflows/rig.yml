@@ -1,0 +1,34 @@
+name: Rig
+# The rig suites (tests reaching tests/helpers/studio-rig.ts, run serially): on demand and on a
+# PR labelled "full-tests". Kept apart from check.yml so label events never touch the required
+# `fast` check. No schedule: GitHub starts scheduled runs only from the default branch, which is
+# not where development integrates.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: rig-${{ github.event.pull_request.number || github.ref }}
+  # A new push makes a running rig result stale; adding a label (full-tests or any other) must
+  # not cancel a rig run that is already going.
+  cancel-in-progress: ${{ github.event.action == 'synchronize' }}
+jobs:
+  rig:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.action == 'labeled' && github.event.label.name == 'full-tests') ||
+      (github.event.action != 'labeled' && contains(github.event.pull_request.labels.*.name, 'full-tests'))
+    runs-on: macos-26
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: node scripts/test.mjs --group rig

@@ -1,0 +1,67 @@
+name: Bug report
+description: Something in the app or the development tooling does not work as described.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Security problems (sandbox escapes, credential exposure, plugin or MCP trust) must not be
+        reported here. Follow SECURITY.md to report them privately.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Create a new game from the brief "..."
+        2. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Chat and questions
+        - Builds and Live
+        - Assets and plugins
+        - Models, accounts and context
+        - Workspace, library and export
+        - Studio and learning
+        - Development tooling, tests or CI
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Model provider
+      options:
+        - Claude Code
+        - Codex
+        - Ollama or Bonsai (local)
+        - Not model-related
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: |
+        Paste Settings → Harness → Copy diagnostics if your build has it (it is redacted, but read
+        it first). Otherwise give the commit or build, OS version, architecture and Node version. For a crash, include relevant lines from
+        the Genex profile logs/studio.log (macOS: ~/Library/Application Support/Genex/).
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Relevant lines only. Never paste tokens, API keys or account details.

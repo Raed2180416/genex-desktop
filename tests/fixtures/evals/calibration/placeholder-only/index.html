@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Calibration: placeholder only</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #20242b;
+      }
+      canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      A null agent: the placeholder asset an `assets: none` run gets, wired into a page with no game.
+      A grader that rewards "the assets arrived" scores this well; that is the grader bug to find.
+    -->
+    <canvas id="view" width="800" height="600"></canvas>
+    <script>
+      const view = document.getElementById("view");
+      const paint = view.getContext("2d");
+      const placeholder = new Image();
+      placeholder.src = "placeholder.svg";
+      function frame() {
+        paint.fillStyle = "#20242b";
+        paint.fillRect(0, 0, view.width, view.height);
+        if (placeholder.complete && placeholder.naturalWidth > 0) paint.drawImage(placeholder, 272, 172, 256, 256);
+        requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,3 @@
+{"type":"system","subtype":"init","cwd":"/work/project","session_id":"00000000-0000-4000-8000-000000000003","tools":["Bash"],"mcp_servers":[],"model":"claude-opus-5-5","permissionMode":"auto","claude_code_version":"2.1.284","agents":["general-purpose"],"skills":[],"plugins":[]}
+{"type":"assistant","message":{"id":"00000000-0000-4000-8000-000000000004","model":"<synthetic>","role":"assistant","content":[{"type":"text","text":"Sign-in needed."}]},"session_id":"00000000-0000-4000-8000-000000000003","error":"authentication_failed","is_api_error_message":true}
+{"type":"result","subtype":"success","is_error":true,"num_turns":1,"result":"Sign-in needed.","terminal_reason":"api_error","api_error_status":null,"session_id":"00000000-0000-4000-8000-000000000003"}

@@ -1,0 +1,24 @@
+{
+  "schema": "genex-evals/pairwise/1",
+  "campaignId": "20261002T100000-smoke",
+  "recordedAt": "2026-10-02T13:00:00Z",
+  "gradeSeq": 1,
+  "gradeId": "a1b2c3d4e5f6",
+  "caseId": "sample-case",
+  "caseVersion": "b8c57baabeb8",
+  "rep": 1,
+  "axis": "product-default",
+  "lanes": { "first": "genex-claude", "second": "raw-claude" },
+  "runIds": {
+    "first": "20261002T101500-genex-claude-sample-case-r1",
+    "second": "20261002T101500-raw-claude-sample-case-r1"
+  },
+  "order": "first-left",
+  "blindSeed": "42",
+  "family": "gpt",
+  "graderModel": "gpt-6.1-sol",
+  "sameFamily": false,
+  "pairwiseRubricSha": "abcdefabcdef",
+  "picks": { "overall": "left", "works": "left", "visuals": "tie", "feel": "right", "play": "invalid" },
+  "judgeSkipped": false
+}

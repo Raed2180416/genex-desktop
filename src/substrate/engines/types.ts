@@ -1,0 +1,505 @@
+import type { ModelCatalogStatus } from "../../shared/model-catalog.ts";
+import type { ProviderUsage } from "../../shared/provider-usage.ts";
+import type { ModelPreferences } from "../../shared/model-preferences.ts";
+import type { EngineAccount, EngineKind, EngineStatus } from "../../shared/engine-descriptor.ts";
+import type { ChatActivityPhase } from "../../shared/chat-activity.ts";
+import type { ContextMeasurement } from "../../shared/context.ts";
+import { EngineFailureKind } from "../../shared/engine-requests.ts";
+import { SECOND_MS } from "../../shared/duration.ts";
+import type {
+  PermissionDecision,
+  PermissionGrant,
+  PermissionMode,
+  ToolPermissionAnswer,
+} from "../../shared/permissions.ts";
+/** What the UI reads about an engine is a contract; it lives in `shared/engine-descriptor.ts`. */
+export type { EngineAccount, EngineStatus, EngineStatusCode } from "../../shared/engine-descriptor.ts";
+/**
+ * Engine interface — layer 3 of the pie.
+ *
+ * Two kinds of builder, one interface, chosen per task and recorded in the log:
+ *
+ *  - **direct** (`complete`): the studio's own turn loop drives the model and executes tools
+ *    itself. v1: Ollama through pi-ai. This is the unlimited overnight workhorse (D8).
+ *  - **delegated** (`delegate`): a vendor harness does the whole build itself; we mirror its
+ *    events into our log and improve the *brief* it reads. Two of them: Claude Code through the
+ *    Agent SDK, and Codex through `codex exec` on a ChatGPT subscription. Each authenticates
+ *    with its own subscription login (D8 — we never see or store a token), and each translates
+ *    its own event stream into the one vocabulary the studio's log speaks.
+ *
+ * Direct API keys are deliberately not surfaced in v1; the code path is the same as Ollama's
+ * (pi-ai provider + auth), so enabling them later is configuration, not architecture.
+ */
+import type { Message } from "../types.ts";
+import type {
+  CompleteResponse,
+  DelegateCaptureGrant,
+  DelegateDirectorGrant,
+  DelegateImage,
+  DelegateOwnership,
+  DelegatePlaytestGrant,
+  DelegateResult,
+  LiveToolResult,
+  LiveToolSpec,
+  SteerMessage,
+  StudioToolSpec,
+  ToolDefinition,
+} from "../../shared/engine-requests.ts";
+/** The serializable request and answer shapes cross the harness RPC; they live in `shared/engine-requests.ts`. */
+export type {
+  CompleteResponse,
+  DelegateCaptureGrant,
+  DelegateDirectorGrant,
+  DelegateImage,
+  DelegateOwnership,
+  DelegatePlaytestGrant,
+  DelegateResult,
+  LiveToolResult,
+  LiveToolSpec,
+  SteerMessage,
+  StudioToolSpec,
+  ToolDefinition,
+};
+
+/** Where an engine's model row got its context window. */
+export const ModelContextSource = {
+  Catalog: "catalog",
+  Configured: "configured",
+  Unknown: "unknown",
+} as const;
+export type ModelContextSource = (typeof ModelContextSource)[keyof typeof ModelContextSource];
+
+export interface EngineModel {
+  /** Discovery row identity, distinct from the value sent for execution. */
+  providerId?: string;
+  /** Provider catalog default; local CLI configuration may choose differently. */
+  providerDefault?: boolean;
+  resolvedModel?: string;
+  id: string;
+  label: string;
+  contextWindow: number;
+  contextChoices?: number[];
+  supportsFast?: boolean;
+  contextSource?: ModelContextSource;
+  hardLimitTokens?: number;
+  maxTokens: number;
+  /** Agentic use requires tool calling; models without it are offered for chat/judging only. */
+  supportsTools: boolean;
+  supportsVision: boolean;
+  supportsThinking: boolean;
+  /**
+   * Reasoning efforts this model actually accepts, best-effort from the engine's own catalogue.
+   * The composer offers exactly these; a provider that does not advertise a dial gets none.
+   */
+  efforts?: string[];
+  /** What the model thinks at when nobody says — shown as the "auto" row's second line. */
+  defaultEffort?: string;
+  sizeBytes?: number;
+  installed?: boolean;
+  /** Set when the catalog knows a better current pick than what is installed. */
+  stale?: boolean;
+  /** Set on a short alias the CLI resolves to another listed model, so pickers list that model once. */
+  aliasOf?: string;
+  note?: string;
+}
+
+export interface CompleteRequest {
+  model?: string;
+  systemPrompt?: string;
+  messages: Message[];
+  tools?: ToolDefinition[];
+  maxTokens?: number;
+  temperature?: number;
+  /**
+   * Reasoning effort ("low" | "medium" | "high" | "max") for models that think. Local thinking
+   * models default deep (Qwen3.8 ships at xhigh — minutes per answer); unattended runs set this
+   * low so an overnight loop iterates instead of meditating.
+   */
+  effort?: string;
+  preferences?: ModelPreferences;
+  signal?: AbortSignal;
+  /**
+   * Wall-clock ceiling for this one completion. Engines that spawn a subprocess (Claude Code)
+   * enforce it themselves — a hung CLI keeps the RPC in flight, which mutes wedge detection,
+   * so the stall would otherwise be invisible and permanent. Surfaces as EngineError "timeout".
+   */
+  timeoutMs?: number;
+  /** Streaming text deltas, forwarded to the UI. */
+  onDelta?: (delta: string) => void;
+  onContext?: (measurement: import("../../shared/context.ts").ContextMeasurement) => void;
+  onActivity?: (phase: import("../../shared/chat-activity.ts").ChatActivityPhase) => void;
+  /** Host-owned policy, applied by paths that can compact before retrying inference. */
+  contextPolicy?: import("../../shared/context.ts").ContextPolicy;
+}
+
+/**
+ * What a delegation reports through `DelegateRequest.onEvent`: the studio's own signals, plus the
+ * contractor's messages mirrored in the compacted Claude Code shape (`assistant`, `user`,
+ * `system`, `result`). Read by `main/core/delegation.ts`, which logs them: never rename a value.
+ */
+export const DelegateEventType = {
+  /** The session started thinking, calling a tool or compacting (`DelegateActivity`). */
+  Activity: "activity",
+  /** A context reading or a compaction boundary. */
+  Context: "context",
+  /** Claude Code's own context meter, read from its telemetry. */
+  ContextUsage: "context_usage",
+  /** A chunk of the reply the user is watching arrive. */
+  TextDelta: "text_delta",
+  /** A chunk of a local model's reply. */
+  AssistantDelta: "assistant_delta",
+  Stderr: "stderr",
+  /** A note the studio put in front of the session (an output limit, a progress check). */
+  Status: "status",
+  /** The contractor said the game reached a moment worth seeing. */
+  Checkpoint: "checkpoint",
+  System: "system",
+  Assistant: "assistant",
+  User: "user",
+  Result: "result",
+  RateLimitEvent: "rate_limit_event",
+  /** The session read a steered message here (`DelegateRequest.steer`): it reads in the chat at this point. */
+  SteerDelivered: "steer_delivered",
+} as const;
+export type DelegateEventType = (typeof DelegateEventType)[keyof typeof DelegateEventType];
+
+/** A mirrored contractor message: its payload is the compacted message itself. */
+type MirroredEventType =
+  | typeof DelegateEventType.System
+  | typeof DelegateEventType.Assistant
+  | typeof DelegateEventType.User
+  | typeof DelegateEventType.Result
+  | typeof DelegateEventType.RateLimitEvent;
+
+/** What a session is doing now, for the chat's activity line. */
+export interface DelegateActivity {
+  phase: ChatActivityPhase;
+  engine: string;
+  sessionId?: string | undefined;
+  /** The tool a local session is calling. */
+  tool?: string;
+}
+
+/** A context reading, or (with `compacted`) the boundary a compaction left. */
+export type DelegateContext = Partial<ContextMeasurement> & {
+  compacted?: boolean;
+  compactionId?: string;
+  checkpointId?: string;
+  parentCheckpoint?: string | undefined;
+  thresholdPercent?: number;
+};
+
+/** One event a delegation reports, typed by what it carries. */
+export type DelegateEvent =
+  | { type: typeof DelegateEventType.Activity; payload: DelegateActivity }
+  | { type: typeof DelegateEventType.Context; payload: DelegateContext }
+  | { type: typeof DelegateEventType.ContextUsage; payload: DelegateContext }
+  | { type: typeof DelegateEventType.TextDelta; payload: { streamId: string; delta: string; replace?: boolean } }
+  | { type: typeof DelegateEventType.AssistantDelta; payload: { text: string } }
+  | { type: typeof DelegateEventType.Stderr; payload: string }
+  | { type: typeof DelegateEventType.Status; payload: { message: string } }
+  | { type: typeof DelegateEventType.Checkpoint; payload: { note: string } }
+  | { type: typeof DelegateEventType.SteerDelivered; payload: { id: string } }
+  | { type: MirroredEventType; payload: unknown };
+
+export interface DelegateRequest {
+  contextPolicy?: import("../../shared/context.ts").ContextPolicy;
+  /** Host-derived final optimizer scope; never taken from model arguments. */
+  optimization?: { denyWrites: string[] };
+  /** The brief — written by the harness, improved by SkillOpt. */
+  prompt: string;
+  cwd: string;
+  model?: string;
+  /** Reasoning effort for the contractor's model ("low" | "medium" | "high" | "max"). */
+  effort?: string;
+  preferences?: ModelPreferences;
+  signal?: AbortSignal;
+  /** No default: a chat build runs until it is done or the user stops it. Runs may set a cap. */
+  maxTurns?: number;
+  /**
+   * Wall-clock ceiling for the whole delegation. When it passes, the studio aborts the
+   * contractor and reports the partial build (stopReason `deadline`, session id kept for
+   * resume) — a spent time budget is an outcome, never a crash.
+   */
+  timeoutMs?: number;
+  /** Continue a previous contractor session (its id from a prior result) instead of starting fresh. */
+  resume?: string;
+  /** Stills folders the user named outside this workspace — readable, not writable. */
+  extraReads?: string[];
+  /** Sibling folders the contractor must not Read — other games, not stills. */
+  denyReads?: string[];
+  /** Host-stored folder trust; never taken from an editable harness RPC parameter. */
+  trustedProjectSettings?: boolean;
+  /** Every message the contractor emits, for mirroring into our event log. */
+  onEvent?: (event: DelegateEvent) => void;
+  /**
+   * Studio intake tools exposed to the contractor as MCP tools (`mcp__studio__<name>`) — the
+   * bridge that lets a Loop chat session ask a question or launch a build itself. Flat schemas
+   * only (string properties). Calls are reported back in `studioToolCalls`; the harness owns
+   * the actual execution. The session otherwise keeps the full contractor tool set.
+   */
+  interviewTools?: StudioToolSpec[];
+  /**
+   * Give the contractor eyes on its own build: when set, the engine exposes an MCP tool
+   * (`mcp__studio__capture`) whose handler is `onCapture` — the studio renders the build in a
+   * hidden pooled preview and saves frames the contractor can Read mid-turn. `selfCapture` is
+   * the serializable half that crosses the RPC from the harness; the studio injects the
+   * matching `onCapture` closure itself — a function never travels over RPC.
+   */
+  selfCapture?: DelegateCaptureGrant;
+  onCapture?: (args: { cameras?: string }) => Promise<string>;
+  /**
+   * The computer (computer use, 2026-09-07): with a `selfCapture` grant the builder also gets `computer` — hands
+   * and eyes on one pooled window that keeps running between actions. `false` withholds it
+   * (a session that must only capture).
+   */
+  computer?: boolean;
+
+  /**
+   * Live studio tools (the playtester): MCP tools whose handler runs
+   * *during* the session and answers — unlike intake tools, which only record. `playtest` is
+   * the serializable half that crosses the RPC; the studio injects `liveTools`/`onLiveTool`
+   * bound to a pooled preview of the build under test.
+   */
+  playtest?: DelegatePlaytestGrant;
+  /**
+   * The director (director, 2026-09-07): the run's orchestrating session. Its cwd is the run's integration
+   * worktree (`root`) — or, for a waking night's lead, the game folder, leading that worktree; it gets the computer tool on a window of its own (`look` points that window at
+   * any build of the run), capture, and the harness's run tools — workers, judges, playtests,
+   * merges, finish — which the studio forwards to the harness process that owns them. The
+   * serializable half; the studio injects the closures.
+   */
+  director?: DelegateDirectorGrant;
+  liveTools?: LiveToolSpec[];
+  onLiveTool?: (name: string, args: Record<string, unknown>) => Promise<LiveToolResult>;
+  /**
+   * A session that may look and talk but never edit or run commands (the playtester), unless it
+   * asks in the chat's mode (`leadAsks`: a waking night's lead, the run's coordinator).
+   */
+  readOnly?: boolean;
+  /** Host-owned stable coordinator workspace; keep session cwd across chat turns. */
+  coordinator?: boolean;
+  /**
+   * Stills that go into the builder's prompt as image blocks: the
+   * reference frames on a facet's first iteration, reference|build pair images when a style
+   * or vision check is failing. A path in a text prompt is not a picture.
+   */
+  images?: DelegateImage[];
+  /**
+   * Edit-time file ownership: the engine blocks Write/Edit outside `owns` (plus the
+   * facet's notes and the wiring line of src/main.js) before the edit lands, with a reason
+   * the contractor reads. `ownsMain` also allows src/main.js, src/studio.js and index.html.
+   *
+   * `template: false` is a game the user brought (M4.6): the entry has no wiring block to pass
+   * through, and a worker with no seam owns the repository minus the entry, the contract and
+   * the page. `neverLock` names directory prefixes the Codex locks must leave writable — a
+   * shape's own build output, on top of the lockfiles and caches every game has.
+   */
+  ownership?: DelegateOwnership;
+  /**
+   * This delegation is the chat's current turn, and the person's messages may reach it mid-turn
+   * (only for an engine with `steersMidTurn`). The engine calls `ready` once, as soon as it knows
+   * whether this session takes input mid-turn: with `send`, which hands one message in and says
+   * whether the session took it, or with null. A message taken is either read by the session —
+   * reported the moment it is (`onEvent` type `steer_delivered`, payload `{id}`) and listed in
+   * `steered` — or not delivered, and the caller queues it again.
+   */
+  steer?: { ready(send: SteerSend | null): void };
+  /**
+   * A person is answering this chat and chose how it may act (Claude Code's permission modes).
+   * Present only for a game chat's own session answering a message the person sent: the host
+   * decides that from what it recorded, never the harness. Absent, the engine keeps the
+   * unattended contract: sandboxed shell, edits in the workspace, no questions.
+   */
+  permissions?: DelegatePermissions;
+  /**
+   * A build's lead, or the run's coordinator, in a game chat: the chat's main agent, limited only by
+   * the chat's mode and the rules the person saved. Its session gets Claude Code's tools, no sandbox
+   * and no blanket shell, in its chat's Auto, Accept edits or Bypass, else in Manual
+   * (`LeadAsks.mode`), which the picker switches while it runs (`onControl`); every tool call but a
+   * read or the studio's own is screened by the host first (`LeadAsks.screen`, to ask first while the
+   * chat is in a mode its session could not be switched to), and each question goes to the host,
+   * which answers it for the chat's mode. Only the host sets it (the harness's
+   * `engine.delegate` has no such field), never together with `permissions`.
+   */
+  leadAsks?: LeadAsks;
+}
+
+/** One tool call Claude Code wants to make and cannot decide alone. */
+export interface PermissionAsk {
+  tool: string;
+  input: Record<string, unknown>;
+  toolUseId: string;
+  title?: string;
+  displayName?: string;
+  description?: string;
+  reason?: string;
+  blockedPath?: string;
+  /** Claude Code's "always" suggestions, translated; empty when it offered none. */
+  always: PermissionGrant[];
+  agentId?: string;
+}
+
+/** A running session's mode, as the composer's picker reaches it. */
+export interface PermissionControl {
+  /** Rejects with an error whose `code` is a `ModeSwitchFailure` when the session will not switch. */
+  setMode(mode: PermissionMode): Promise<void>;
+}
+
+/**
+ * The host's own deny when the work ended around a question (a Stop, the turn's end): Claude reads
+ * its words as they are, never as the person's. Only the host builds one; no answer the Studio UI
+ * sends carries `withdrawn` (`permissionAnswer` builds each answer afresh).
+ */
+export interface WithdrawnAnswer {
+  decision: typeof PermissionDecision.Deny;
+  withdrawn: true;
+  message: string;
+}
+
+/** How a question ends: the person's answer, or the host's withdrawal. */
+export type PermissionReply = ToolPermissionAnswer | WithdrawnAnswer;
+
+/** What a session that asks is handed: its standing grants, the host files it never edits, and the way to ask. */
+export interface DelegateAsks {
+  /** Saved "always allow" rules for this game and this chat, in Claude Code's rule syntax. */
+  allow: string[];
+  /** Folders granted for this chat, beyond the workspace and `extraReads`. */
+  directories: string[];
+  /** Host-owned paths no mode may edit (absolute). The engine's `protectedPaths` are also unreadable. */
+  protectWrites: string[];
+  /** Ask the person; resolves with their answer, or a deny when the work ends first. */
+  ask(request: PermissionAsk, signal: AbortSignal): Promise<PermissionReply>;
+  /**
+   * The composer's picker's reach into the running session, while it takes control requests;
+   * called with null when it stops.
+   */
+  onControl?(control: PermissionControl | null): void;
+}
+
+/** One tool call, as the host screens it before Claude Code's own rules and mode decide on it. */
+export interface ScreenedCall {
+  tool: string;
+  input: Record<string, unknown>;
+  /** The call's id, as its question carries it (`PermissionAsk.toolUseId`) if the host asks first. */
+  toolUseId?: string;
+}
+
+/**
+ * The host's word that a call must be asked about, whatever the session's mode would decide: a
+ * lead running in Auto, Accept edits or Bypass whose chat is in another mode it could not be
+ * switched to. `reason` is the question's reason.
+ */
+export interface AskFirst {
+  askFirst: true;
+  reason: string;
+}
+
+/**
+ * What a build's lead or the run's coordinator is handed: a session that asks, and the host's word
+ * on each tool call before anything else decides it. Claude Code applies its mode and allow rules
+ * (the saved ones, a game's own `.claude` settings) before it asks, so only a check that runs ahead
+ * of them holds while the chat is in a mode the session could not be switched to.
+ */
+export interface LeadAsks extends DelegateAsks {
+  /**
+   * The mode its session starts in: its chat's Auto, Accept edits or Bypass, Manual otherwise. The
+   * picker switches it the same way while it runs (`onControl`).
+   */
+  mode:
+    | typeof PermissionMode.Auto
+    | typeof PermissionMode.AcceptEdits
+    | typeof PermissionMode.Bypass
+    | typeof PermissionMode.Manual;
+  /**
+   * The host's deny for this call, in its own words, its demand to ask first, or null to leave it
+   * to the session's rules, mode and questions. Asked for every call but a read or one of the
+   * studio's own tools, each time: the chat's mode is read then, not when the session started.
+   */
+  screen(call: ScreenedCall): Promise<WithdrawnAnswer | AskFirst | null>;
+}
+
+/** What a session a person is answering is handed: its mode as well, and the picker's reach into it. */
+export interface DelegatePermissions extends DelegateAsks {
+  mode: PermissionMode;
+  /** The mode the session actually runs in, as it reports it (start, and each change). */
+  onMode?(mode: string): void;
+}
+
+/** Hands one steered message into a running session; false when the session will not take it. */
+export type SteerSend = (message: SteerMessage) => boolean;
+
+/** The failure kinds (and `isContextFailure`) live in `shared/engine-requests.ts`, beside the results they end. */
+export { EngineFailureKind, isContextFailure } from "../../shared/engine-requests.ts";
+
+/**
+ * Engine failures the harness reacts to by policy. Rate limits matter most in v1: subscriptions
+ * throttle server-side, and the run must survive it by pausing or falling back to local.
+ */
+export class EngineError extends Error {
+  readonly kind: EngineFailureKind;
+  readonly engine: string;
+  readonly retryAfterMs?: number;
+  constructor(kind: EngineFailureKind, engine: string, message: string, retryAfterMs?: number) {
+    super(message);
+    this.name = "EngineError";
+    this.kind = kind;
+    this.engine = engine;
+    if (retryAfterMs !== undefined) this.retryAfterMs = retryAfterMs;
+  }
+}
+
+export interface Engine {
+  usageSnapshot?: () => ProviderUsage | null;
+  /** Subscription engines: the plan's limits, read from the provider without starting a turn. */
+  readUsage?(): Promise<ProviderUsage | null>;
+  /** Subscription engines: login source and CLI summary for Settings. */
+  account?(): Promise<EngineAccount>;
+  readonly id: string;
+  readonly label: string;
+  readonly kind: EngineKind;
+  /** Can execute a persisted workspace session (including direct local engines). */
+  readonly supportsSessions?: boolean;
+  /**
+   * Takes the person's messages into a running delegation (`DelegateRequest.steer`). A session
+   * engine without it is steered by interrupting its turn and resuming the same session.
+   */
+  readonly steersMidTurn?: boolean;
+  /** Its delegated sessions honour `DelegateRequest.permissions` and ask mid-turn. */
+  readonly permissionPrompts?: boolean;
+  dispose?(): Promise<void>;
+  /** Cheap liveness/auth probe used by the UI and by engine fallback. */
+  status(): Promise<EngineStatus>;
+  models(): Promise<EngineModel[]>;
+  catalogSnapshot?(): ModelCatalogStatus;
+  refreshModels?(force?: boolean): Promise<void>;
+  contextControl?(model: string): Promise<{ supported: boolean; reason?: string }>;
+  /** One-shot completion. Direct engines use this for the whole tool loop; Claude Code uses it only as the isolated critic (no tools, no game folder). */
+  complete?(request: CompleteRequest): Promise<CompleteResponse>;
+  /** Build a game. Delegated engines (Claude Code) take a brief and work in a workspace. */
+  delegate?(request: DelegateRequest): Promise<DelegateResult>;
+  defaultModel?(): Promise<string | null>;
+}
+
+/** How many characters of an HTTP error body an engine error quotes. */
+const HTTP_BODY_EXCERPT_CHARS = 200;
+
+/** An HTTP failure from a model server, as the engine error the run policy reacts to. */
+export function classifyHttpFailure(engine: string, status: number, body: string): EngineError {
+  const excerpt = body.slice(0, HTTP_BODY_EXCERPT_CHARS);
+  if (status === 429) {
+    const retry = /retry-after[:= ]+(\d+)/i.exec(body);
+    return new EngineError(
+      EngineFailureKind.RateLimit,
+      engine,
+      `rate limited: ${excerpt}`,
+      retry ? Number(retry[1]) * SECOND_MS : undefined,
+    );
+  }
+  if (status === 401 || status === 403) {
+    return new EngineError(EngineFailureKind.Auth, engine, `not authorised: ${excerpt}`);
+  }
+  if (status >= 500)
+    return new EngineError(EngineFailureKind.Unavailable, engine, `engine error ${status}: ${excerpt}`);
+  return new EngineError(EngineFailureKind.Other, engine, `HTTP ${status}: ${excerpt}`);
+}

@@ -1,0 +1,7 @@
+# Formatting-only commits that `git blame` skips. GitHub reads this file by name; locally run
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+# Add the full SHA of the repo-wide Biome reformat here when it lands, one per line with a
+# comment naming it. Never list a commit that also changes behaviour.
+
+# style: format the whole repository with Biome
+95e4e72e1f6be51c36aa1b527b15ba5718d431bf

@@ -1,0 +1,17 @@
+{
+  "schema": "genex-evals/human/1",
+  "campaignId": "20261002T100000-smoke",
+  "recordedAt": "2026-10-02T14:00:00Z",
+  "caseId": "sample-case",
+  "caseVersion": "b8c57baabeb8",
+  "reviewerId": "0f1e2d3c",
+  "runIds": {
+    "a": "20261002T101500-genex-claude-sample-case-r1",
+    "b": "20261002T101500-raw-claude-sample-case-r1"
+  },
+  "placementSeed": "9",
+  "pick": "a",
+  "defect": "none",
+  "requestSatisfied": { "a": "pass", "b": "unknown" },
+  "reviewSeconds": 95
+}

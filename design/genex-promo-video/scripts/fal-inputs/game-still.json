@@ -1,0 +1,13 @@
+{
+  "prompt": "Build a finished third-person video game screenshot from these generated 3D assets. Use the exact timber-framed cottage from image 1, the stone well with its little shingled roof from image 2, and the oak tree from image 3, now placed together in a lush medieval village: a winding dirt path, soft green grass, a wooden fence, a few flowers, smoke from the cottage chimney. The hooded archer from image 4 is the player character, now fully textured in dark green cloak and brown leather, bow on her back, seen from behind and slightly above by a third-person game camera, walking along the path toward the well. Warm golden late-afternoon sunlight, long soft shadows, gentle depth of field in the far background, stylized-realistic Unreal Engine 5 look, rich but not oversaturated colors. Clear readable composition. No text, no user interface, no watermark.",
+  "image_urls": [
+    "file:out/clips/ref-cottage.jpg",
+    "file:out/clips/ref-well.jpg",
+    "file:out/clips/ref-village.jpg",
+    "file:out/clips/ref-archer.jpg"
+  ],
+  "aspect_ratio": "4:3",
+  "resolution": "2K",
+  "num_images": 1,
+  "output_format": "png"
+}

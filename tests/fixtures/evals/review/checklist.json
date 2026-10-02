@@ -1,0 +1,50 @@
+{
+  "items": [
+    {
+      "item": {
+        "id": "sample-case-01",
+        "text": "The ball rolls toward where the player aims",
+        "tracesTo": "aim and putt",
+        "key": true,
+        "assetsOnly": false,
+        "control": false
+      },
+      "byFamily": [],
+      "verdicts": { "claude": "pass", "gpt": "fail" },
+      "combined": "inconclusive"
+    },
+    {
+      "item": {
+        "id": "sample-case-02",
+        "text": "A stroke counter is visible",
+        "tracesTo": null,
+        "key": false,
+        "assetsOnly": false,
+        "control": false
+      },
+      "byFamily": [],
+      "verdicts": { "claude": "pass", "gpt": "pass" },
+      "combined": "pass"
+    },
+    {
+      "item": {
+        "id": "sample-case-03",
+        "text": "A skipped item no family judged",
+        "tracesTo": null,
+        "key": false,
+        "assetsOnly": true,
+        "control": false
+      },
+      "byFamily": [],
+      "verdicts": {},
+      "combined": "inconclusive"
+    }
+  ],
+  "scoreAllRuns": 0.33,
+  "scoreGraded": 0.5,
+  "inconclusiveRate": 0.33,
+  "judgeSkipped": false,
+  "graderVoid": null,
+  "graders": [],
+  "usage": { "uncachedInput": 0, "cacheWrite": 0, "cacheRead": 0, "output": 0, "reasoning": 0 }
+}

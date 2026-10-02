@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Genex sphere recipe v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "seed", "base", "palette"],
+  "properties": {
+    "version": { "const": 1 },
+    "seed": { "type": "integer", "minimum": 0, "maximum": 4294967295 },
+    "base": { "enum": ["planets", "ribbons", "crystal", "eclipse", "fragments", "cloud-pearl"] },
+    "mix": { "enum": ["none", "clouds", "moon", "fragments", "crystal", "ribbons"], "default": "none" },
+    "palette": { "enum": ["ice", "violet", "jade", "amber", "rose", "silver"] }
+  },
+  "allOf": [
+    { "if": { "properties": { "base": { "const": "planets" } } }, "then": { "properties": { "mix": { "enum": ["none", "clouds", "fragments", "crystal"] } } } },
+    { "if": { "properties": { "base": { "const": "ribbons" } } }, "then": { "properties": { "mix": { "enum": ["none", "moon", "crystal", "fragments"] } } } },
+    { "if": { "properties": { "base": { "const": "crystal" } } }, "then": { "properties": { "mix": { "enum": ["none", "clouds", "moon", "fragments"] } } } },
+    { "if": { "properties": { "base": { "const": "eclipse" } } }, "then": { "properties": { "mix": { "enum": ["none", "clouds", "fragments", "ribbons"] } } } },
+    { "if": { "properties": { "base": { "const": "fragments" } } }, "then": { "properties": { "mix": { "enum": ["none", "clouds", "moon", "ribbons"] } } } },
+    { "if": { "properties": { "base": { "const": "cloud-pearl" } } }, "then": { "properties": { "mix": { "const": "none" } } } }
+  ]
+}

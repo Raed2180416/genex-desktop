@@ -1,0 +1,132 @@
+/**
+ * Settings → Model Providers: which of a provider's models the model picker lists. The newest
+ * models are on by default (model-lineup.ts); older ones wait, switched off, under Older models.
+ * The provider's default model is always listed.
+ */
+import { type JSX, useId, useState } from "react";
+import { latestModels, modelName, shownModels } from "../model-lineup.ts";
+import { useModelPicker } from "../state/hooks.ts";
+import { pickerModelSet, pickerModelsReset } from "../state/model-picker.ts";
+import { studio } from "../state/studio.ts";
+import type { EngineDescriptor } from "../types.ts";
+import { Button } from "../ui/Button.tsx";
+import { Icon } from "../ui/icons.tsx";
+import { Switch } from "../ui/switch.tsx";
+import { PICKER_MODELS_WORDS } from "../words.ts";
+
+/** The model id that means "whatever the CLI is set to"; it is no model of its own. */
+const DEFAULT_MODEL = "default";
+/** One empty object, so the selector returns the same reference while an engine has no choices. */
+const NO_CHOICES: Readonly<Record<string, boolean>> = {};
+
+interface PickerRow {
+  id: string;
+  name: string;
+  /** Listed by the rule, before any Settings choice. */
+  byDefault: boolean;
+  shown: boolean;
+  /** The provider's default model, which is always listed. */
+  locked: boolean;
+}
+
+function pickerRows(engine: EngineDescriptor, choices: Readonly<Record<string, boolean>>): PickerRow[] {
+  const models = engine.models.filter((model) => model.id !== DEFAULT_MODEL);
+  const latest = latestModels(engine.id, models);
+  const shown = shownModels(engine.id, models, choices);
+  return models.map((model) => ({
+    id: model.id,
+    name: modelName(engine.id, model),
+    byDefault: latest.has(model.id) || model.providerDefault === true,
+    shown: shown.has(model.id),
+    locked: model.providerDefault === true,
+  }));
+}
+
+function ModelSwitch({ row, onChange }: { row: PickerRow; onChange: (shown: boolean) => void }): JSX.Element {
+  const id = useId();
+  return (
+    <div
+      className="flex min-h-9 items-center gap-2 px-2.5"
+      title={row.locked ? PICKER_MODELS_WORDS.alwaysShown : undefined}
+    >
+      <label htmlFor={id} className="min-w-0 truncate text-chat-sub text-ink">
+        {row.name}
+      </label>
+      {row.locked && <span className="text-micro text-ink-3">{PICKER_MODELS_WORDS.defaultModel}</span>}
+      <Switch
+        id={id}
+        data-picker-model={row.id}
+        className="ml-auto"
+        checked={row.shown}
+        disabled={row.locked}
+        onCheckedChange={onChange}
+      />
+    </div>
+  );
+}
+
+export function PickerModels({ engine, name }: { engine: EngineDescriptor; name: string }): JSX.Element | null {
+  const choices = useModelPicker((state) => state.choices[engine.id] ?? NO_CHOICES);
+  const [olderOpen, setOlderOpen] = useState(false);
+  const olderId = useId();
+  const rows = pickerRows(engine, choices);
+  if (rows.length === 0) return null;
+  const store = studio().modelPicker;
+  const change = (row: PickerRow) => (shown: boolean) =>
+    store.setState(
+      (state) => pickerModelSet(state, { engine: engine.id, model: row.id, shown, byDefault: row.byDefault }),
+      true,
+    );
+  const latest = rows.filter((row) => row.byDefault);
+  const older = rows.filter((row) => !row.byDefault);
+  const changed = rows.some((row) => !row.locked && row.shown !== row.byDefault);
+  const olderShown = older.filter((row) => row.shown).length;
+  return (
+    <div
+      role="group"
+      aria-label={PICKER_MODELS_WORDS.group(name)}
+      data-picker-models={engine.id}
+      className="mt-1 flex flex-col rounded-[14px] border border-line bg-card p-1.5"
+    >
+      <div className="flex min-h-8 items-center gap-2 px-2.5">
+        <span className="text-body-sm font-medium text-ink">{PICKER_MODELS_WORDS.title}</span>
+        {changed && (
+          <Button
+            className="ml-auto"
+            onClick={() => store.setState((state) => pickerModelsReset(state, engine.id), true)}
+          >
+            {PICKER_MODELS_WORDS.reset}
+          </Button>
+        )}
+      </div>
+      {latest.map((row) => (
+        <ModelSwitch key={row.id} row={row} onChange={change(row)} />
+      ))}
+      {older.length > 0 && (
+        <>
+          <div role="separator" className="mx-2.5 my-1.5 h-px bg-line" />
+          <button
+            type="button"
+            aria-expanded={olderOpen}
+            aria-controls={olderId}
+            onClick={() => setOlderOpen(!olderOpen)}
+            className="flex min-h-9 w-full cursor-pointer items-center gap-2 rounded-control px-2.5 text-left text-chat-sub text-ink hover:bg-control-hover"
+          >
+            {PICKER_MODELS_WORDS.older}
+            <span className="text-micro text-ink-3">{PICKER_MODELS_WORDS.olderShown(olderShown, older.length)}</span>
+            <Icon
+              name="chevron-down"
+              size={14}
+              className={`ml-auto text-icon transition-transform motion-reduce:transition-none ${olderOpen ? "rotate-180" : ""}`}
+            />
+          </button>
+          <div id={olderId} hidden={!olderOpen}>
+            {older.map((row) => (
+              <ModelSwitch key={row.id} row={row} onChange={change(row)} />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}

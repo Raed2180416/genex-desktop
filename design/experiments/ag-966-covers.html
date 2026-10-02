@@ -1,0 +1,125 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Genex · Game cover experiments</title><style>
+@font-face{font-family:Geist;src:url('../../src/renderer/fonts/GeistMono-variable.woff2')}*{box-sizing:border-box}body{margin:0;background:#131316;color:#e6e6e8;font:14px/1.5 system-ui,sans-serif}main{max-width:1120px;margin:auto;padding:52px 32px}header{display:flex;justify-content:space-between;align-items:start;gap:32px}.eyebrow{font:11px Geist,monospace;color:#97959e;letter-spacing:.12em;text-transform:uppercase}h1{font-size:32px;font-weight:450;letter-spacing:-1px;margin:12px 0}p{color:#a09fa9;max-width:640px;margin:0 0 24px}.default{flex:none;text-align:center}.default img{display:block;width:64px;height:64px;border-radius:50%;margin:0 auto 8px}.default small{color:#9897a1}label{display:block;color:#a09fa9;font-size:12px;margin-bottom:8px}input{width:100%;padding:14px;background:#202025;color:#f4f4f6;border:1px solid #48444f;border-radius:10px;font:14px Geist,monospace;outline-color:#969dcc}.examples,.palettes{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}button{cursor:pointer;background:#242329;color:#aeacb7;border:1px solid #38353f;border-radius:6px;padding:7px 10px;font:12px system-ui}button:hover,button[aria-pressed=true]{background:#3b3646;color:white;border-color:#696178}#cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;margin-top:36px}h2{font-size:14px;font-weight:500;margin:0 0 14px}.hero{width:100%;aspect-ratio:1;border-radius:14px;outline:1px solid #ffffff18;image-rendering:auto}.row{display:flex;gap:10px;align-items:center;margin-top:16px;padding:10px;background:#242328;border-radius:8px;min-width:0}.row img{width:28px;height:28px;border-radius:50%;outline:1px solid #ffffff20}.row span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px}footer{border-top:1px solid #ffffff15;margin-top:36px;padding-top:18px;color:#77747f;font-size:12px}@media(max-width:750px){#cards{grid-template-columns:1fr}main{padding:28px 20px}header{display:block}.default{display:none}}
+</style><main><header><div><div class="eyebrow">Genex / AG-966 / exploration</div><h1>A small world for every game.</h1><p>Procedural cover directions, using the same renderer as the sidebar. Change the brief or palette to explore. These are experiments, not final artwork.</p></div><div class="default"><img id="default" alt="Default game image"><small>Before the first brief</small></div></header><label for="brief">First game brief</label><input id="brief" value="A snowy temple on a floating island" maxlength="500"><div class="examples"><button data-example="A snowy temple on a floating island">Ice temple</button><button data-example="A neon drift racing game">Night drive</button><button data-example="A quiet fishing village">Fishing village</button><button data-example="A desert kingdom at sunset">Desert kingdom</button></div><div class="palettes" aria-label="Color palette"><button data-palette="auto" aria-pressed="true">From brief</button><button data-palette="0">Violet dusk</button><button data-palette="1">Cold blue</button><button data-palette="2">Sage mist</button><button data-palette="3">Rose sand</button></div><section id="cards"></section><footer>Local SVG geometry · no model calls · no tokens · no network · deterministic from the brief. The row previews show the actual 28px circular crop.</footer></main><script>(() => {
+  // src/shared/game-cover.ts
+  var PALETTES = [
+    ["#141329", "#6c5482", "#e0a6ac", "#626bac", "#a6c3c5"],
+    ["#0e192d", "#345375", "#b0c9dc", "#657ba4", "#d0e2df"],
+    ["#122c2e", "#426867", "#c5b395", "#617d77", "#b4cabb"],
+    ["#302233", "#965e75", "#e9b38d", "#987c91", "#dfd0b1"]
+  ];
+  function gameCoverSvg(cover) {
+    if (!cover || cover.kind !== "procedural") return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><rect width="256" height="256" fill="#25252b"/><path d="M64 100 128 65l64 35v62l-64 35-64-35Z" fill="#34343e" stroke="#73737f" stroke-width="3"/><path d="m64 100 64 36 64-36M128 136v61" fill="none" stroke="#73737f" stroke-width="3"/><path d="m108 111 20-11 20 11-20 11Z" fill="#b1b1bb"/></svg>`;
+    let state = cover.seed || 1;
+    const random = () => {
+      state = Math.imul(state, 1664525) + 1013904223 >>> 0;
+      return state / 4294967296;
+    };
+    const [dark, sky, light, mid, pale] = PALETTES[cover.palette % PALETTES.length];
+    const poly = (points, fill) => `<polygon points="${points}" fill="${fill}"/>`;
+    const sunX = 150 + Math.round(random() * 45), sunY = 52 + Math.round(random() * 25);
+    let scene = `<rect width="256" height="256" fill="${dark}"/><rect width="256" height="155" fill="${sky}"/><circle cx="${sunX}" cy="${sunY}" r="31" fill="${light}"/>`;
+    for (let i = 0; i < 24; i++) {
+      const x = Math.round(random() * 256), y = Math.round(random() * 112);
+      scene += `<rect x="${x}" y="${y}" width="1.5" height="1.5" fill="${pale}" opacity=".6"/>`;
+    }
+    scene += poly("0,142 40,104 85,142 129,108 174,139 216,98 256,133 256,170 0,170", mid);
+    scene += poly("0,158 42,133 91,160 162,127 204,151 256,134 256,187 0,187", dark);
+    if (cover.style === "world") {
+      const peak = 44 + Math.round(random() * 22);
+      scene += poly(`31,158 92,120 165,122 222,160 156,194 96,197`, mid);
+      scene += poly(`31,158 96,169 96,197 62,207`, sky);
+      scene += poly("96,169 156,173 156,224 96,197", dark);
+      scene += poly("156,173 222,160 193,202 156,224", sky);
+      scene += poly("31,158 92,120 132,150 96,169", pale);
+      scene += poly("92,120 165,122 132,150", light);
+      scene += poly("132,150 165,122 222,160 156,173", mid);
+      scene += poly("122,151 137,154 157,182 146,190 137,166", light);
+      scene += poly(`74,136 105,${peak} 130,145`, sky);
+      scene += poly(`105,${peak} 112,141 130,145`, dark);
+      scene += poly("154,139 154,99 177,91 177,137", dark);
+      scene += poly("177,91 189,100 189,146 177,137", sky);
+      scene += poly("154,99 177,91 189,100 168,108", pale);
+      scene += `<path d="M162 136v-17l7-3v23" fill="${light}"/>`;
+    } else if (cover.style === "relic") {
+      scene += `<ellipse cx="128" cy="191" rx="70" ry="15" fill="${mid}"/>`;
+      scene += poly("128,53 185,104 164,164 128,185 71,145 73,93", pale);
+      scene += poly("128,53 128,116 73,93", light);
+      scene += poly("128,53 185,104 128,116", mid);
+      scene += poly("73,93 128,116 71,145", sky);
+      scene += poly("128,116 185,104 164,164 128,185", dark);
+      scene += poly("128,116 143,133 128,185 71,145", mid);
+      scene += `<path d="m70 144 60-29 55-12" fill="none" stroke="${pale}" stroke-width="2"/>`;
+    } else {
+      for (let i = 0; i < 8; i++) {
+        const x = i * 33 - 4, y = 75 + Math.round(random() * 67), w = 22 + Math.round(random() * 14);
+        scene += `<rect x="${x}" y="${y}" width="${w}" height="${195 - y}" fill="${i % 2 ? dark : mid}"/>`;
+        for (let j = 0; j < 6; j++) scene += `<rect x="${x + 6}" y="${y + 9 + j * 14}" width="4" height="5" fill="${light}" opacity="${j % 2 ? ".4" : ".85"}"/>`;
+      }
+      scene += poly("115,148 142,148 206,256 45,256", dark);
+      scene += `<path d="m128 157-1 14m-1 13-3 21m-2 19-4 32" stroke="${light}" stroke-width="3"/>`;
+    }
+    for (let i = 0; i < 130; i++) scene += `<rect x="${Math.floor(random() * 128) * 2}" y="${Math.floor(random() * 128) * 2}" width="2" height="2" fill="${i % 2 ? pale : dark}" opacity=".13"/>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">${scene}</svg>`;
+  }
+  function gameCoverUrl(cover) {
+    return cover?.kind === "image" ? cover.dataUrl : `data:image/svg+xml,${encodeURIComponent(gameCoverSvg(cover))}`;
+  }
+  var COVER_STYLES = [
+    { id: "world", label: "Low-poly world" },
+    { id: "relic", label: "Chrome relic" },
+    { id: "city", label: "Night city" }
+  ];
+
+  // src/shared/game-library.ts
+  function coverFromBrief(brief, style = "world") {
+    let seed = 2166136261;
+    for (const character of brief.normalize("NFKC")) seed = Math.imul(seed ^ character.codePointAt(0), 16777619) >>> 0;
+    const palette2 = /ice|snow|winter|space|лед|снег/i.test(brief) ? 1 : /forest|garden|village|fish|лес|дерев/i.test(brief) ? 2 : /fire|desert|sun|огонь|пустын/i.test(brief) ? 3 : seed % 4;
+    return { kind: "procedural", seed, style, palette: palette2 };
+  }
+
+  // <stdin>
+  var input = document.querySelector("input");
+  var palette = null;
+  var cards = document.querySelector("#cards");
+  function draw() {
+    const brief = input.value || "Untitled game";
+    document.querySelector("#default").src = gameCoverUrl();
+    cards.replaceChildren();
+    for (const style of COVER_STYLES) {
+      const cover = coverFromBrief(brief, style.id);
+      if (palette !== null) cover.palette = palette;
+      const card = document.createElement("article");
+      const title = document.createElement("h2");
+      title.textContent = style.label;
+      card.append(title);
+      const img = document.createElement("img");
+      img.src = gameCoverUrl(cover);
+      img.className = "hero";
+      card.append(img);
+      const row = document.createElement("div");
+      row.className = "row";
+      const avatar = document.createElement("img");
+      avatar.src = img.src;
+      row.append(avatar);
+      const name = document.createElement("span");
+      name.textContent = brief;
+      row.append(name);
+      card.append(row);
+      cards.append(card);
+    }
+  }
+  input.addEventListener("input", draw);
+  document.querySelectorAll("[data-palette]").forEach((button) => button.onclick = () => {
+    palette = button.dataset.palette === "auto" ? null : Number(button.dataset.palette);
+    document.querySelectorAll("[data-palette]").forEach((b) => b.setAttribute("aria-pressed", String(b === button)));
+    draw();
+  });
+  document.querySelectorAll("[data-example]").forEach((b) => b.onclick = () => {
+    input.value = b.dataset.example;
+    draw();
+  });
+  draw();
+})();
+</script></html>

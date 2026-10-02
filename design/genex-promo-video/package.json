@@ -1,0 +1,22 @@
+{
+  "name": "genex-promo-video",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Looping Remotion promo for the Genex Tools plugin card",
+  "type": "module",
+  "scripts": {
+    "studio": "remotion studio",
+    "render": "sh scripts/render.sh",
+    "still": "remotion still GenexPromo"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.529",
+    "remotion": "4.0.529",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "typescript": "5.9.3"
+  }
+}

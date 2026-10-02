@@ -1,0 +1,114 @@
+name: Package
+# Unsigned packages on PRs into main and pushes to main (dev -> main is opened by hand; PRs into
+# dev skip this billed matrix): the same makers the release uses (dmg and zip on macOS; deb, rpm
+# and zip on Linux; the Squirrel installer on Windows), then the packaged smoke and the packaged
+# terminal against the result. No secrets: the macOS build is ad-hoc signed and the Windows build
+# unsigned. Signed builds come from release.yml. A dispatch with `only` builds one platform.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      only:
+        description: One platform to package (darwin, linux or win32); empty for all three
+        required: false
+        default: ""
+permissions:
+  contents: read
+concurrency:
+  group: package-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      # Every platform, or the one a dispatch names (billed minutes: macOS costs five times Windows).
+      matrix:
+        include: >-
+          ${{ fromJSON(
+            inputs.only == 'darwin' && '[{"os":"macos-26","platform":"darwin","arch":"arm64"}]' ||
+            inputs.only == 'linux' && '[{"os":"ubuntu-22.04","platform":"linux","arch":"x64"}]' ||
+            inputs.only == 'win32' && '[{"os":"windows-latest","platform":"win32","arch":"x64"}]' ||
+            '[{"os":"macos-26","platform":"darwin","arch":"arm64"},{"os":"ubuntu-22.04","platform":"linux","arch":"x64"},{"os":"windows-latest","platform":"win32","arch":"x64"}]'
+          ) }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Linux desktop, sandbox and rpm prerequisites
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2 bubblewrap socat ripgrep rpm
+      # Linux node-pty has no spawn-helper until rebuilt; the root postinstall checks it.
+      - name: Install Linux dependencies before rebuilding the terminal
+        if: runner.os == 'Linux'
+        run: npm ci --ignore-scripts
+      - if: runner.os != 'Linux'
+        run: npm ci
+      - name: Install the pinned Linux Electron runtime
+        if: runner.os == 'Linux'
+        run: node node_modules/electron/install.js
+      # Windows packages node-pty's own prebuilds (forge.config.cjs rebuildConfig).
+      - if: runner.os != 'Windows'
+        run: npm run rebuild:terminal
+      - name: Check the Linux runtime after rebuilding the terminal
+        if: runner.os == 'Linux'
+        run: npm run runtime:check
+      - name: Make (unsigned)
+        run: |
+          # nuget and Squirrel stage the app in temp folders (TEMP, SQUIRREL_TEMP) and refuse paths over
+          # 260 characters; short ones keep the Genex CLI payload's deepest files under the limit.
+          if [ "$RUNNER_OS" = Windows ]; then mkdir -p /d/t && export TMP='D:\t' TEMP='D:\t' SQUIRREL_TEMP='D:\t'; fi
+          npm run make -- --platform ${{ matrix.platform }} --arch ${{ matrix.arch }}
+      # A real per-user install of Genex-Setup.exe, its shortcuts, path lengths and uninstall.
+      - name: Squirrel install and uninstall
+        if: runner.os == 'Windows'
+        run: node tests/e2e/run-squirrel-install.mjs
+      # The hosted runner is elevated and disposable, so the one-time sandbox install needs no UAC.
+      - name: Windows sandbox setup (srt-sandbox user and WFP filters)
+        if: runner.os == 'Windows'
+        run: node scripts/ci-windows-sandbox.mjs
+      - name: Packaged smoke and packaged terminal
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then run="xvfb-run -a"; else run=""; fi
+          $run npm run test:packaged
+          $run node tests/e2e/run-terminal-packaged.mjs
+      # A whole fixture chat turn (model, tools, workspace, preview) in the installed-shape package,
+      # with the harness inside the Windows sandbox.
+      - name: Packaged chat turn
+        if: ${{ !cancelled() && runner.os == 'Windows' }}
+        run: node tests/e2e/run-electron-e2e.mjs --packaged
+      - name: Package sizes
+        if: always()
+        run: find out/make -type f -exec ls -l {} \; || true
+      - name: Artifact provenance
+        run: node scripts/release-manifest.mjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: package-${{ matrix.platform }}-${{ matrix.arch }}
+          path: |
+            out/make/**/*.dmg
+            out/make/**/*.zip
+            out/make/**/*.deb
+            out/make/**/*.rpm
+            out/make/squirrel.windows/x64/*.exe
+            out/make/squirrel.windows/x64/*.nupkg
+            out/make/squirrel.windows/x64/RELEASES
+            out/make/PROVENANCE-*.json
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: package-${{ matrix.platform }}-evidence
+          path: .studio-dev/evidence
+          if-no-files-found: ignore

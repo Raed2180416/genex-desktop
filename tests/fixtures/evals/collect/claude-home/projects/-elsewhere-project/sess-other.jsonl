@@ -1,0 +1,2 @@
+{"type":"user","sessionId":"sess-other","cwd":"/elsewhere/project","timestamp":"2026-09-21T14:13:21.000Z","message":{"role":"user","content":"Other work."}}
+{"type":"assistant","sessionId":"sess-other","cwd":"/elsewhere/project","timestamp":"2026-09-21T14:13:21.100Z","message":{"model":"claude-opus-5-5","id":"msg_other","role":"assistant","content":[],"usage":{"input_tokens":1,"cache_creation_input_tokens":1,"cache_read_input_tokens":1,"output_tokens":1}}}

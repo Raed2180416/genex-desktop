@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mini Golf: one hole</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #173b22;
+        font-family: system-ui, sans-serif;
+        color: #f4f1e6;
+        overflow: hidden;
+      }
+      canvas {
+        display: block;
+        margin: 0 auto;
+        max-width: 100vw;
+        max-height: 100vh;
+        cursor: crosshair;
+      }
+      #hud {
+        position: fixed;
+        top: 12px;
+        left: 16px;
+        font-size: 20px;
+        font-weight: 600;
+        text-shadow: 0 1px 2px #000a;
+      }
+      #hud .power {
+        display: inline-block;
+        width: 140px;
+        height: 12px;
+        margin-left: 12px;
+        border: 2px solid #f4f1e6;
+        vertical-align: middle;
+      }
+      #hud .power i {
+        display: block;
+        height: 100%;
+        width: 0;
+        background: #f0b429;
+      }
+      .overlay {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        background: #0d1f12cc;
+        text-align: center;
+      }
+      .overlay[hidden] {
+        display: none;
+      }
+      .overlay h1 {
+        margin: 0;
+        font-size: 40px;
+      }
+      .overlay button {
+        font-size: 22px;
+        padding: 10px 28px;
+        border: 0;
+        border-radius: 8px;
+        background: #f0b429;
+        color: #1b1b1b;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="course" width="800" height="600"></canvas>
+    <div id="hud">Strokes: <span id="strokes">0</span><span class="power"><i id="power"></i></span></div>
+    <div class="overlay" id="title">
+      <h1>Mini Golf</h1>
+      <p>Aim with the mouse, click to putt. The farther the pointer, the harder the shot.<br />
+        Keys: arrows aim and set power, space putts, R restarts.</p>
+      <button id="play" type="button">Play</button>
+    </div>
+    <div class="overlay" id="sunk" hidden>
+      <h1>In the hole!</h1>
+      <p id="sunk-text"></p>
+      <button id="again" type="button">Play again</button>
+    </div>
+    <script src="main.js"></script>
+  </body>
+</html>

@@ -1,0 +1,118 @@
+/**
+ * Which subscription models the picker shows when nobody chose: the newest version of each
+ * family, from the provider's newest generation. A model's family and version are read from its
+ * provider id (Claude's resolved model, Codex's slug), never from its display name, so a new
+ * release replaces the one before it without a table to keep. An id that cannot be read stays
+ * in the picker: a model named some new way must never vanish. Settings choices
+ * (`state/model-picker.ts`) override the rule per model; the provider's default always shows.
+ */
+import { EngineId } from "../shared/providers.ts";
+
+/** A catalog row as the lineup reads it. */
+export interface LineupModel {
+  id: string;
+  label: string;
+  resolvedModel?: string;
+  providerDefault?: boolean;
+}
+
+/** A model's family and version, read from its provider id. */
+interface Lineage {
+  family: string;
+  major: number;
+  minor: number;
+}
+
+/** The id that means "whatever the CLI is set to"; it is no model of its own. */
+const DEFAULT_MODEL = "default";
+
+/** `claude-opus-5-5`, `claude-opus-5`, `claude-haiku-4-5-20251001`. */
+const CLAUDE_ID = /^claude-([a-z]+)-(\d+)(?:-(\d{1,2}))?(?:-\d{8})?$/;
+/** `gpt-6.1-sol`, `gpt-6-astra`, `gpt-5.5`. */
+const CODEX_ID = /^gpt-(\d+)(?:\.(\d+))?(?:-([a-z]+))?$/;
+/** A context variant such as `[1m]` names the same model. */
+const VARIANT_SUFFIX = /\[[^\]]*\]$/;
+
+function claudeLineage(model: LineupModel): Lineage | undefined {
+  const match = CLAUDE_ID.exec(modelBase(model.resolvedModel ?? model.id));
+  if (!match) return undefined;
+  return { family: match[1] ?? "", major: Number(match[2]), minor: Number(match[3] ?? 0) };
+}
+
+function codexLineage(model: LineupModel): Lineage | undefined {
+  const match = CODEX_ID.exec(model.id);
+  if (!match) return undefined;
+  return { family: match[3] ?? "", major: Number(match[1]), minor: Number(match[2] ?? 0) };
+}
+
+const LINEAGE: Partial<Record<string, (model: LineupModel) => Lineage | undefined>> = {
+  [EngineId.ClaudeCode]: claudeLineage,
+  [EngineId.Codex]: codexLineage,
+};
+
+const lineageOf = (engine: string, model: LineupModel): Lineage | undefined => LINEAGE[engine]?.(model);
+
+/**
+ * A model id without its context variant. The CLI lists one model under different ids as its
+ * cache warms (`claude-fable-5-1[1m]`, then `claude-fable-5-1`), so a saved pick is matched on this.
+ */
+export const modelBase = (id: string): string => id.replace(VARIANT_SUFFIX, "");
+
+const versionText = (lineage: Lineage): string =>
+  lineage.minor ? `${lineage.major}.${lineage.minor}` : String(lineage.major);
+
+const isNewer = (a: Lineage, b: Lineage): boolean => a.major > b.major || (a.major === b.major && a.minor > b.minor);
+
+const sameVersion = (a: Lineage, b: Lineage): boolean => a.major === b.major && a.minor === b.minor;
+
+type Read = { model: LineupModel; lineage: Lineage };
+
+/** Of two rows for one family, the newer; for the same model, the provider default, else the first listed. */
+function preferred(kept: Read | undefined, next: Read): Read {
+  if (!kept || isNewer(next.lineage, kept.lineage)) return next;
+  const promotes = sameVersion(next.lineage, kept.lineage) && next.model.providerDefault && !kept.model.providerDefault;
+  return promotes ? next : kept;
+}
+
+/** The ids the picker shows by default, in the provider's order. */
+export function latestModels(engine: string, models: readonly LineupModel[]): Set<string> {
+  const listed = models.filter((model) => model.id !== DEFAULT_MODEL);
+  const read = listed.flatMap((model) => {
+    const lineage = lineageOf(engine, model);
+    return lineage ? [{ model, lineage }] : [];
+  });
+  const generation = Math.max(...read.map((entry) => entry.lineage.major));
+  const newest = new Map<string, Read>();
+  for (const entry of read) {
+    if (entry.lineage.major !== generation) continue;
+    newest.set(entry.lineage.family, preferred(newest.get(entry.lineage.family), entry));
+  }
+  const kept = new Set([...newest.values()].map((entry) => entry.model.id));
+  const unread = (model: LineupModel) => !read.some((entry) => entry.model === model);
+  return new Set(listed.filter((model) => kept.has(model.id) || unread(model)).map((model) => model.id));
+}
+
+/** The ids the picker shows: the rule, then the person's Settings choices; the provider default always. */
+export function shownModels(
+  engine: string,
+  models: readonly LineupModel[],
+  choices: Readonly<Record<string, boolean>> = {},
+): Set<string> {
+  const latest = latestModels(engine, models);
+  const shown = (model: LineupModel) => model.providerDefault === true || (choices[model.id] ?? latest.has(model.id));
+  return new Set(models.filter((model) => model.id !== DEFAULT_MODEL && shown(model)).map((model) => model.id));
+}
+
+/**
+ * The name a row shows: the provider's, with the version read from its id put after the family
+ * name when the provider left it out (a cold Claude cache says "Opus" for Opus 5.5).
+ */
+export function modelName(engine: string, model: LineupModel): string {
+  const lineage = model.id === DEFAULT_MODEL ? undefined : lineageOf(engine, model);
+  if (!lineage?.family) return model.label;
+  const version = versionText(lineage);
+  const head = model.label.slice(0, lineage.family.length);
+  const namesFamily = head.toLowerCase() === lineage.family;
+  if (!namesFamily || model.label.includes(version)) return model.label;
+  return `${head} ${version}${model.label.slice(lineage.family.length)}`;
+}

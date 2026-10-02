@@ -1,0 +1,8 @@
+{
+  "name": "calibration-broken-build",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node tools/build.mjs"
+  }
+}

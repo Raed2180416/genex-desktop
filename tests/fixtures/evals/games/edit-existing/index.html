@@ -1,0 +1,45 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Gem Garden</title>
+<style>
+  html,
+  body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    background: #0d1420;
+    font: 15px/1.4 ui-sans-serif, system-ui, sans-serif;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  #hud {
+    position: fixed;
+    top: 12px;
+    left: 14px;
+    color: #f4f1de;
+    text-shadow: 0 1px 2px #000;
+  }
+  #message {
+    position: fixed;
+    inset: 0;
+    display: none;
+    place-items: center;
+    color: #ffe066;
+    font-size: 28px;
+    text-shadow: 0 2px 4px #000;
+  }
+</style>
+<div id="hud">Gems 0 / 6</div>
+<div id="message"></div>
+<script type="importmap">
+  {
+    "imports": {
+      "three": "/vendor/three.module.js",
+      "three/addons/": "/vendor/three/examples/jsm/"
+    }
+  }
+</script>
+<script type="module" src="/src/main.js"></script>

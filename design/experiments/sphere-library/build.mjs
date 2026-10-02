@@ -1,0 +1,28 @@
+import { readFileSync,writeFileSync } from 'node:fs';
+import { build } from 'esbuild';
+import { renderLibrarySphere, SPHERE_EXAMPLES, SPHERE_BASES, SPHERE_PALETTES } from './index.mjs';
+import { png } from '../spheres/png.mjs';
+
+const bundle=await build({entryPoints:[new URL('index.mjs',import.meta.url).pathname],bundle:true,write:false,format:'iife',globalName:'SphereLibrary',target:'es2022',minify:true});
+const bundleSource=bundle.outputFiles[0].text;
+const font=name=>readFileSync(new URL(`../../../src/renderer/fonts/${name}`,import.meta.url)).toString('base64');
+const uri=art=>`data:image/png;base64,${png(art.width,art.height,art.data).toString('base64')}`;
+const images=SPHERE_EXAMPLES.map(item=>uri(renderLibrarySphere(item.recipe,224)));
+const hero=uri(renderLibrarySphere(SPHERE_EXAMPLES[0].recipe,416));
+const names={'planets':'Planets','ribbons':'Liquid ribbons','crystal':'Crystal core','eclipse':'Eclipse','fragments':'Fragments','cloud-pearl':'Cloud pearl'};
+const cards=(start,end)=>SPHERE_EXAMPLES.slice(start,end).map((item,j)=>{const i=start+j;return `<button type="button" class="specimen" data-example="${i}" aria-pressed="${i===0}"><img src="${images[i]}" alt="" width="224" height="224"><span>${item.name}</span><span class="specimen-small"><img src="${images[i]}" alt="At sidebar size" width="28" height="28"><small>28 px</small></span></button>`;}).join('');
+const html=`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Genex — Sphere library</title><style>
+@font-face{font-family:StudySans;src:url(data:font/woff2;base64,${font('ZalandoSansSemiExpanded-variable.woff2')}) format('woff2');font-weight:100 900;font-display:swap}
+@font-face{font-family:StudyMono;src:url(data:font/woff2;base64,${font('GeistMono-variable.woff2')}) format('woff2');font-weight:100 900;font-display:swap}
+${readFileSync(new URL('../spheres/styles.css',import.meta.url),'utf8')}
+${readFileSync(new URL('styles.css',import.meta.url),'utf8')}
+</style></head><body><main>
+<header class="page-header"><div><p class="eyebrow">GENEX <span>/</span> SPHERE LIBRARY</p><h1>Worlds within.</h1><p class="intro">Different contents. A shared glass sphere. Choose a family, then try a mix.</p></div><button type="button" id="background" class="quiet-button" aria-pressed="false">Light background</button></header>
+<section aria-labelledby="families-title"><div class="section-heading"><h2 id="families-title">The families</h2><button type="button" id="one-color" class="text-button" aria-pressed="false">Compare in one color</button></div><div class="catalog">${cards(0,6)}</div></section>
+<section class="workbench" aria-label="Sphere mixer"><div class="preview-column"><div class="stage"><img id="hero" src="${hero}" alt="Planetary system inside a glass sphere" width="416" height="416"></div><div class="preview-foot"><div class="inline-row"><img id="row-image" src="${hero}" width="28" height="28" alt=""><span id="row-name">Planetary system</span></div><button type="button" id="save-png" class="text-button">Save PNG ↗</button></div></div><div class="recipe-column"><h2>Mix your own</h2><form id="mixer"><div class="field-pair"><label>Inside<select id="base">${SPHERE_BASES.map(id=>`<option value="${id}">${names[id]}</option>`).join('')}</select></label><label>Add<select id="mix"><option value="none">Nothing</option><option value="clouds">Clouds</option><option value="fragments">Fragments</option><option value="crystal">Crystal</option></select></label></div><div class="field-pair"><label>Palette<select id="palette">${Object.keys(SPHERE_PALETTES).map(id=>`<option value="${id}">${id[0].toUpperCase()+id.slice(1)}</option>`).join('')}</select></label><label>Seed<input type="number" id="seed" min="0" max="4294967295" value="127" required></label></div><div class="recipe-actions"><button type="button" id="new-seed" class="quiet-button">Another arrangement ↻</button><button type="button" id="copy-recipe" class="text-button">Copy recipe</button></div></form><pre id="recipe" tabindex="0" aria-label="Current sphere recipe">${JSON.stringify(SPHERE_EXAMPLES[0].recipe,null,2)}</pre><p class="recipe-note">One short recipe. Local rendering. No image-generation call.</p><details class="brief-panel"><summary>Try a game brief</summary><label for="brief">Game idea</label><textarea id="brief" rows="2" placeholder="A quiet exploration game on an icy moon"></textarea><button type="button" id="from-brief" class="quiet-button">Make an identity</button><p>Deterministic text mapping for this preview. A chat agent can choose the family and mix explicitly.</p></details><p id="status" role="status" aria-live="polite">Ready · generated locally</p></div></section>
+<section aria-labelledby="mixes-title"><div class="section-heading"><h2 id="mixes-title">A few combinations</h2><span class="section-note">One main composition + one supporting element</span></div><div class="catalog mixes">${cards(6,11)}</div></section>
+<footer class="study-footer"><div class="default-preview"><img src="${images[5]}" width="40" height="40" alt="Cloud pearl placeholder"><div><strong>Cloud pearl</strong><span>The placeholder before a game has its own identity.</span></div></div><p>Rendered once. Stable until you choose to change it.</p></footer>
+<noscript><p>All examples are visible. Enable JavaScript to use the mixer.</p></noscript></main>
+<script>${bundleSource}\n${readFileSync(new URL('controls.js',import.meta.url),'utf8')}</script></body></html>`;
+const out=new URL('../ag-966-sphere-library.html',import.meta.url);writeFileSync(out,html);
+console.log(out.pathname);console.log(`${Math.round(Buffer.byteLength(html)/1024)} KB, self-contained`);

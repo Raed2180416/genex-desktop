@@ -1,0 +1,18 @@
+/** Shown while entries arrive below a reader who scrolled up; one press brings them back down. */
+import type { JSX } from "react";
+
+export function JumpToLatest({ unseen, onJump }: { unseen: number; onJump: () => void }): JSX.Element | null {
+  if (unseen <= 0) return null;
+  return (
+    <button
+      type="button"
+      onClick={onJump}
+      className="chat-jump absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-surface px-2.5 py-1 text-[13px] text-ink shadow-card"
+    >
+      Jump to latest
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
+        <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </button>
+  );
+}

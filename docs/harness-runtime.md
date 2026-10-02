@@ -1,0 +1,502 @@
+# Harness runtime guide
+
+Read this when changing the in-app game-building harness. External developer memory is
+owned by [AGENTS.md](../AGENTS.md); this page describes product behavior.
+
+What the harness may assume of any served page (studio-ultra M4). Every page the studio serves
+carries the studio's own shim before the game's first line, so `window.__studio` answers on a game
+that never heard of the contract, the studio owns the clock, `seed(n)` is reproducible, draw calls
+are counted at the graphics API, and readiness is a fact the page reports rather than a wait. That
+holds for any Three.js game of any shape — inline, ES modules with an import map, a Vite bundle
+(which adds the two-line `installStudio({ renderer, player })` and nothing else), WebGL or WebGPU.
+It does not hold for Phaser, plain canvas 2D or an engine export: those are out of scope, and a
+folder whose kind is `engine-export` can be played and photographed but can never start a night.
+
+The kind of game (`loop/kinds.ts`). Eight kinds — first-person, third-person, top-down, side-2d,
+racing, flight, static-board, free-camera. Each names the traits it implies, the state axes its
+look and move probes read, the eye cameras it wants, its critic and its play script. Every trait is
+OFF until the planner, the director or `studio.json`'s nested `game` block declares it, so a game
+nobody described carries no harness input check at all; a declared kind supplies its traits and an
+explicit boolean beside it wins. The harness drives that kind's play script before every
+judgement, and `gameLine(run.game)` is the first line of every judge call. Two critics, not one:
+`place` for a world a player walks through and `screen` for a board, a puzzle or a builder.
+
+Malformed facet ballots hold the current build and report an unmeasured comparison. A
+faceted vote needs all four explicit A/B/tie answers; an invalid legacy facet pick cannot
+declare satisfaction or contribute observed defects. Genuine ties retain their existing rules.
+A judge reply with no JSON is asked again, twice at most; one that stays garbled is `unusable`
+(a tie pick and no `biggest_gap`), which no caller may read as a tie, a defect or a failure: the
+autopilot's global judge then closes the run `judge-down` with the build kept unjudged.
+Every A/B verdict (`blindCompare`, `facetCompare`, `tasteVeto`) carries `judged`
+(`loop/judge-provenance.ts`): the system prompt's SHA-256, `parse` valid or invalid, the
+challenger's placement (`challenger-a` or `challenger-b`, from an injectable `random` shuffle), the
+engine, the requested and served model, and whether it fell back. It also carries `judgeCall`,
+the call's audit: the model that answered, a SHA-256 of the whole ask (rubric and evidence), the
+reply's first 4,000 characters, usage, the image count and how many asks it took. An unusable
+answer or an unreadable ballot is `invalid`: not a tie, no defects, and the incumbent is kept.
+An evaluation profile may pin the judge with `judge/pin.json` in the harness workspace
+(`{engine?, model?, fallback?}`); a missing, invalid, oversized or symlinked pin is no pin, and
+`"fallback": false` forbids moving a throttled judge to its fallback engine. Each direct model call is recorded by the host as `completion_call`
+with the caller's role (judge, playtester or SkillOpt gate). An autopilot close carries its
+`stopCode`, including `base-failed`, `not-judgeable`, `no-improvement` and `reference-unbeaten`
+(the landing-conflict and integration-stage Stop closes keep only their sentence); a kept older `outcomes.ts` leaves only the sentence. The [evals](evals.md)
+read these signals.
+
+Where learning goes. Four places, and they are not interchangeable: a check earned into
+`library/checks.json` (five technical checks ship; a planner's check earns its place by being
+used), a craft recipe in `library/recipes` (opinions about how a thing should look — retrieved
+when a check fails or a judge names the defect, never imposed), a skill file (how an agent works),
+and a prompt (what a role is). `library/games/<game>.jsonl` and `.md` hold what a night learned
+about one game and belong to the harness workspace, never the user's repository.
+
+What the loop's code is. The seed is TypeScript that Node runs by stripping its types — under
+Electron's own Node (`ELECTRON_RUN_AS_NODE`) in the app, with no build step — so it uses
+erasable syntax only (no `enum`, `namespace` or parameter properties) and imports its siblings
+by their `.ts` names. It is type-checked as its own project (`src/harness-seed/tsconfig.json`,
+strict; `npm run typecheck` runs it through `tsconfig.harness.json`). The host calls it may make
+are typed in `types/host-api.d.ts` and named in `loop/host-methods.ts` (`HostMethod`), both
+generated from `src/shared/harness-api.ts` by `scripts/gen-harness-types.ts` (the build writes
+fresh copies into the seed it ships, and `harness-types.test.ts` holds the committed copies to
+the contract); the ctx a loop function is
+handed is `types/harness.d.ts`. The game page's own verbs that `preview.call` names, and the
+words `game.validate` and `game.attached` use for a game's studio contract, are spelled once in
+`loop/page-contract.ts` (`PageMethod`, `StudioContract`, `AttachedContract`). The bootstrap imports `loop/main.ts`, and a workspace from
+before the conversion that has only `loop/main.mjs` still boots from that. The tool registry
+loads `tools/*.ts` and a legacy `tools/*.mjs`, and when both `x.ts` and `x.mjs` are there `x.ts`
+wins and `x.mjs` is not loaded; `install_tool` takes a `.ts` file name (`.mjs` still passes).
+
+How an existing workspace becomes TypeScript. The seed manifest records a layout
+(`layoutVersion`: absent or 1 is JavaScript, 2 is TypeScript). While a workspace still has an
+`x.mjs` the seed now ships as `x.ts`, `applySeed` holds that `.ts` back (`deferred`), so the
+bootstrap keeps running the JavaScript tree and an agent-edited `loop/main.mjs` is never
+shadowed by a new `main.ts`. At start, before the harness boots, `RecoveryService.migrateHarnessLayout`
+takes a snapshot, runs `migrateHarnessLayout` in a validation fork of it, type-checks and
+boots the fork, and only then runs the same migration on the live workspace and snapshots it
+again: an untouched `x.mjs` (its bytes are what the manifest last applied, or a backed-up seed
+vintage) is backed up and replaced by the shipped `x.ts`; an edited one is renamed to `x.ts` with
+its content kept (the original goes to `updates/harness-edits-*`, outside the seed vintages); a
+deleted one keeps its `x.ts` deleted; an edited one beside an existing `x.ts`, which wins, is
+backed up the same way and removed (`stranded`); an edited `tools/index.mjs`, which imports only
+`.mjs` tools and so would register none, is backed up and the shipped `index.ts` laid down
+(`replaced`); and every relative `.mjs` specifier whose module is now a `.ts` is repointed, the
+agent's own `.mjs` tools included. Type errors in the renamed files never block the boot: the
+`harness_layout_migrated` record (Studio activity) carries them, and a note in the agent's memory
+tells it they are there to fix (and names replaced or stranded edits). Neither snapshot, nor the
+`seed upgrade baseline`, is healthy for being taken, since each may hold a last-session edit that
+never ran. Each is healthy when its code equals an already-healthy snapshot's, or once the live
+boot that follows answers (`vouchForBootedSelf`). A migrated self that booted in its fork
+but fails live is therefore no rewind target: the rewind goes back to the JavaScript tree or an
+older healthy self, and the attempt is recorded. A fork that does not boot leaves the live
+JavaScript tree in place, records `ok: false`, and the attempt is retried only when the seed or the
+workspace's `.mjs` modules change. A rewind to a snapshot from before the migration brings `.mjs`
+files back and the next start migrates again; one from before the upgrade also took the files only
+the TypeScript layout has (modules with no `.mjs` predecessor, `types/`, `tsconfig.json`), which
+that migration lays down again (`restored`) rather than reading their absence as the agent's
+deletion. The crash-recovery reseed and the user's reset remove the `.mjs` modules the seed
+replaced (backed up to `updates/reseed-backup-*`). Every manifest write stamps `writer` (layout and
+app version); a manifest an older app rewrote has none while still carrying `.ts` entries or
+retired `.mjs` modules, and the next start records `harness_downgraded` with the JavaScript edits
+the agent made meanwhile, which the migration strands.
+
+The self-edit gate. `write_own_file`, `write_skill` and `install_tool` change the agent's own
+files only through `guardian.write_self`: the host tries the change as `guardian.validate_edit`
+does, and only a pass is written, between two host snapshots, with a record the host writes
+(`self_edit`, `skill_edited`, `tool_installed`; the harness may not append these). Activity lists
+each one until it is undone, and Undo reverts exactly its file. `prompts/` and `skills/` are
+write-denied to every agent process, like `judge/`, so nothing else changes them.
+`guardian.validate_edit`: the host makes a validation fork (a worktree of the harness at its
+current commit plus the live uncommitted files), writes the change into it, runs the vendored
+TypeScript 7 compiler (`resources/tsc`, `substrate/type-gate.ts`) as `tsc --noEmit -p
+tsconfig.json` inside ProcessSandbox with the fork denied for writing and a time limit, then boots
+the fork and asks its healthcheck. The fork's `tsconfig.json` is first replaced by the app's own
+(`resources/harness-seed/tsconfig.json`): the workspace's is the agent's to edit ungated, and a
+loosened one (`noCheck`, a narrowed `include`) would otherwise switch the check off. `run.exec`
+denies writes to the harness's code (`loop/`, `tools/`, `memory/`, `types/`, `tsconfig.json`,
+`package.json`), so a shell cannot change it around the gate. A change may not add type errors: errors the self already had
+(counted by file, code and message, since an edit moves lines) do not block it, so a migrated file
+can be fixed a piece at a time, and every error it adds is reported. A refusal
+reaches the agent as the tool result with the compiler's lines (bounded), and nothing is written or
+snapshotted. A missing compiler, a timeout or a compiler failure refuses too; nothing reads them as
+a pass. A passing fork's code is remembered by fingerprint, and the after-snapshot the tool asks to
+be healthy is healthy when the live code is exactly that code — a rewind target without a restart.
+The architect's fork (`SelfImprovementService.runArchitectJob`) uses the same fork, type check and
+boot, plus the loop self-test.
+
+How the loop's code is laid out. The modes keep their own control flow — `director.ts` (the
+night, with its parts under `loop/director/`: `setup.ts` builds the night as one explicit object,
+`workers.ts`, `tools.ts`, `integrate.ts`, `night.ts` for the night's shared functions, `rules.ts`
+for what needs no night, the wake loop that drives the lead's session — `wake.ts` (its turns),
+`wake-schedule.ts` (when it is woken, a pure leaf) and `wake-prompts.ts` (what it is told) — and
+the full journal — `journal.ts` (the night's record every save writes to the run journal, the
+clock a Resume keeps, and what a resumed night reads back) and `journal-prompts.ts` (the resumed
+lead's first digest) — and one session — `lead-session.ts` (whose session the lead is, and the
+chat's bookmark), `lead-session-prompts.ts` (the chat's own session as lead, building in the integration worktree) and `conflict-worker.ts`
+(the worker a merge conflict goes to) — and a finished build reopened — `reopen.ts` (the journal
+the chat rewrites, where the night forks) and `reopen-prompts.ts` (its words) — the parts never import `director.ts`, which re-exports it), `autopilot.ts` (a run is a list of named phases, `PIPELINE_PHASES`, over one `pipeline`
+object), `facet-loop.ts` (a round is a list of named phases, `ROUND_PHASES`, over the facet's
+state and the round's; the phases are `loop/facet/phases/*.ts`, beside the facet's `state.ts`,
+`policy.ts`, `scoring.ts`, `round.ts` and `round-judgement.ts`, what a judged round may claim: a
+rung already built or set aside, a regression a second look reproduces, a gap a judge named),
+`gauntlet.ts` (`ITERATION_PHASES`) and `spike.ts` — and share
+primitives instead of copies of them: `git.ts` builds and runs every git command line (a
+conformance test finds no other), `evidence.ts` is the evidence pass (named phases too, inside
+the `finally` that hands the game back running) with its one failure classifier and the window
+leases, `build-turn.ts` is one
+build turn on either kind of engine, `config.ts` holds the shared waits and the light effort a
+bounded ask runs at (always "low", whatever role effort the user set), `outcomes.ts` gives every stop a
+code beside its sentence (`stopCode`; the classic pipeline decides which facets died early on the
+code) and the director's worker states, `run-events.ts` writes a run's events and journal and
+logs a failed write to the harness's stderr, at most once a minute per kind, instead of dropping
+it, and `prompts-build.ts` holds the briefs two modes build. A seed upgrade keeps a file the
+agent edited, so a module that code moved out of still exports every name it had
+(`tests/fixtures/seed-exports-2e-pre.json`), a kept older file keeps loading against the new
+siblings, and a name an existing module newly needs comes from a new module, never from another
+existing one that the agent may have kept at an older vintage (the wake loop's, the journal's,
+live chat's, one session's, the after-night chat's, the reopen's and goal-directed generation's
+vintages are `seed-exports-pre-wake.json`, `seed-exports-pre-journal.json`,
+`seed-exports-pre-live.json`, `seed-exports-pre-one-session.json`,
+`seed-exports-pre-after-night.json`, `seed-exports-pre-reopen.json` and
+`seed-exports-pre-goals.json`, the last kept one module at a time). Where a kept older
+part would contradict a newer one, the loop asks before it relies on it: a waking night seats its
+chat's session as its lead only when every part that lead depends on exports
+`SERVES_LEAD` (`director.ts` `seatsLead`), and otherwise a director with its own hands leads, as
+before; the chat after that lead's night goes to the same session only when its runner, turn and
+brief (`turn-loop.ts`, `delegated-turn.ts`, `chat-session.ts`) export `SERVES_AFTER_NIGHT`
+(`chat-dispatch.ts` `ownSessionAfterNight`), and otherwise to the coordinator; and a Loop message
+after a finished build reopens the same run only when the parts that answer it export
+`SERVES_REOPEN` — the session's runner, turn, note and start (`turn-loop.ts`, `delegated-turn.ts`,
+`after-night-prompts.ts`, `run-dispatch.ts`; `chat-dispatch.ts` `ownSessionReopens`), or the
+coordinator, its prompt and the start (`coordinator.ts`, `coordinator-prompts.ts`,
+`run-dispatch.ts`; `coordinatorReopens`) — and is otherwise answered as with Loop off. The night's
+own parts need no such mark for a reopen: the chat rewrites the journal
+(`director/reopen.ts` `reopenedJournal`) without the clock and wake state, which every vintage of
+`setup.ts`, `wake.ts` and `journal.ts` reads as a new night's. An edit the agent made to a moved
+function in a kept file still serves that file's own callers; the rest of the loop uses the new
+home. The upgrade does not hold the callers back (that would freeze every shipped fix to them for
+as long as the file stays edited); it says so instead. `SEED_MOVES` in `substrate/seed-upgrade.ts`
+lists what moved where, and `applySeed` reports a kept file that still defines moved code which
+other files now import from the new home (`moved`: names, new home, callers). The
+`seed_upgraded` chat card and Studio activity name it, and every boot keeps one note per such
+file in the agent's memory (`RecoveryService.noteSeedMoves`), taken back once the kept file no
+longer defines the moved code.
+
+Scheduled for removal: the long turn (`directorLoop: "turn"`, `STUDIO_DIRECTOR_LOOP=turn`, its
+`wait` tool, continuation prompts and `.studio/DIRECTOR.md` memory), the way back from the wake
+loop. Its gate is the first release that ships the lead as the chat's own session and the chat
+after its night. A later PR deletes it once that release's own build has passed, live
+(L5, with the owner's permission), on Claude Code and on Codex each: a waking night led by the
+chat's own session is stopped with Stop, resumed from the chat, and after its close answers a
+question and makes a change in the same session — no night on the long turn, no coordinator
+session. The removal PR's validation summary records, per engine, the build, profile and provider
+identity and each step's outcome; the raw thread log and journal stay in
+`.studio-dev/evidence/after-night-gate/<engine>/`.
+
+Not removed at that gate: the run's coordinator (`loop/coordinator.ts`, `coordinator-prompts.ts`,
+the host's `coordinator` delegation and `continue_build`) and the `SERVES_LEAD` and
+`SERVES_AFTER_NIGHT` checks. The coordinator answers after every classic-pipeline run — on a model
+without sessions it is the only answerer there is (its tool rounds, `answerWithTools`) — after a
+night of a kept older seed whose parts lack those marks or of a lead that was a session of its own,
+and a message on another engine than the lead's
+([the coordinator, a fallback](conversation-coordinator.md#the-coordinator-a-fallback)). With Loop
+on after a finished build whose journal seated a lead, a coordinator that answers in a session is
+told so (`coordinatorReopenRules`), and its `continue_build` reopens that same run for the Loop's
+time on the build's own models once the reply ends (`reopen-run.ts` `finishedNight`), instead of
+one builder turn. A finished build no Loop can go on from — no lead seated (the long turn, a kept
+pre-lead director, the classic pipeline, a gauntlet), a coordinator without sessions, a kept older
+part — is answered as with Loop off, and the chat says so once per build while the loop lives
+(`firstLoopUnused`). Not solved, by the owner's decision: a chat whose build ran on the classic
+pipeline or a gauntlet (as on a local model without sessions) has no way to start another timed
+build in it since "Start a new build" was removed. Nothing replaces the coordinator for the cases it
+answers yet; it goes only once something does, in work of its own.
+
+`src/harness-seed/prompts/` is the LOCAL-ENGINE game chat path only (`loop/prompt.ts`): the delegated
+engines get their instructions from the briefs the loop renders, not from those files. Trimming
+them changes the local game chat and the readiness fixture, and nothing a night does.
+Studio's tool-free instructions live in `loop/studio-chat.ts` for every provider.
+
+Session permissions, web research and thinking summaries (`substrate/engines/claude-code.ts`,
+`claude-permissions.ts`). Only the Claude Code session answering a message the person sent in a
+game's own chat is interactive: the host, never the loop, hands it `DelegateRequest.permissions`,
+so it runs in the mode the person picked, without the studio's sandbox or a blanket Bash allow,
+and asks them (`canUseTool`) whatever Claude Code would ask. The host decides from its own records:
+the brief's shape, the message id it dispatched on that thread (`chatTurn`) and the thread's
+metadata. A waking night's lead answering its chat, and the coordinator of a run started in that
+chat, get `leadAsks` instead: Claude Code's tools in the chat's Auto, Accept edits or Bypass, else
+in Manual, switched by the permission picker while they run, no sandbox, limited only by the chat's
+mode and saved rules as the chat's own session (the studio's fence spares a lead the integration
+worktree it builds in); each question answered for that mode or carded (withdrawn after five
+minutes), and every call but a read or a studio tool screened by the host ahead of every allow rule
+(a PreToolUse hook) only to ask first while the chat is in a mode the session could not be switched
+to. A lead also has the chat's own session's plugins and connectors, its plugins acting on the
+build it leads. Builders, workers, the playtester, scouts and judges are unattended: `acceptEdits`, a
+sandboxed shell auto-allowed inside the workspace, and no questions. A harness edit can make a
+session ask only about a message the person sent that is still unanswered, and never chooses its
+mode or answers a card: `thread.create` takes only a title and `events.append`/`turn.append`
+refuse `tool_permission` and `plugin_consent` rows. Nor does it write a game's `.claude` folder,
+whose settings and hooks the person's session loads. Deny rules name
+absolute paths (`absoluteRule`: `//abs/path`, on Windows `//c/...`), because Claude Code reads a
+rule's `/x` relative to the settings root. A worktree's session still reads its own game, and a
+folder's neighbours are denied only inside the games root or scratch
+([tool permissions](tool-permissions.md)). A Claude Code chat,
+long-turn director and builder may use WebSearch and WebFetch; judges (`complete()`), read-only
+sessions (the coordinator, playtester, scout and a waking night's lead; the lead and coordinator
+only by asking) and performance-optimization candidates may not, and an unattended
+shell keeps its sandboxed network. Every delegated Claude session asks for thinking summaries
+(`showThinkingSummaries`); the chat shows a chat or lead session's non-empty summary under the
+work disclosure's Thinking details, never a builder's or judge's. Codex keeps its CLI's own web
+search default.
+
+Connector tools are host-owned and arrive from one list. Studio main is the only MCP client: the
+connector registry connects each enabled connector, namespaces its tools `<connector>__<tool>` and
+appends them to the same `liveTools` every path already carries, so Claude Code gets them on the
+in-process `studio` server, Codex through the file bridge and the local harness over `mcp.tools` /
+`mcp.invoke`. The harness never speaks MCP itself, and it never learns a connector's name from a
+prompt file: guidance is one short paragraph the registry composes for whatever was in scope, tool
+schemas travel as `inputSchema` beside the flat `parameters`, and a name collision with a plugin
+tool throws rather than resolving. Nothing on the agent side can add, change or enable a connector.
+
+What the evidence pass proves before it gathers. It waits for the page and records
+`readyAfterMs`; it proves the studio owns the clock (two steps, `steppedFrames` — a base fails
+where an iteration warns); it drives the kind's play script and the run's `setup`; it photographs
+the game's own cameras, falling back to the view the game renders when it registered none (with a
+warning, never a void), and the page as well when the page has UI; and when `ok` is false it always
+says why. Frames that ran and drew nothing are a verdict on a base with content in it and a warning
+on an empty scaffold — the same exemption the blank-pixel rule already had, settled by inspection
+(`EMPTY_SCENE_PROBE`) rather than by the game's own word. One classifier answers for every caller: `none`, `observation`, `race` or `build` — an
+observation failure is not a build defect, and "evidence pass failed" is not a race.
+
+What a rollback may assume of a game folder. `snapshot.restore` on a game commits a rescue
+snapshot first and may refuse with a typed `code` (`branch-changed`, `history-changed`,
+`operation-in-progress`, `rescue-failed`), leaving the folder as it is; a loop must treat that as
+"stop or pause", never retry around it with raw git, and never report a rollback that was refused
+(autopilot's `rollBackGame` sets `report.rolledBack`). A loop snapshots its attempt before rolling
+back and skips the rollback when that snapshot fails (the live spike does). Model or judge text
+that reaches `/bin/sh` — a commit message, a worker title — goes through `loop/shell.ts`
+`shellQuote`, never a `"` replacement, and the command line is built by `loop/git.ts`. A director land whose final-edits commit fails is refused
+as `final-commit-failed`. A landing that git refuses over uncommitted changes in the game folder,
+or one into a folder with something staged or a merge of its own under way (which the failed
+merge's abort would undo, so it is not tried), is refused as `uncommitted-changes` and names them
+without blaming anyone; a conflict with commits there, or a hook or lock that refuses the merge,
+stays `could-not-land` with git's words.
+
+One seam per worker. In a game the user brought, a worker is given a path, a folder or a glob to
+own (`*` and `?` stop at a slash, `**` crosses them; a glob must be quoted in the tool call), and
+`worker_start` refuses a second worker in such a game with no seam of its own — a game's entry is
+owned whole, because two workers in one entry file get union-merged and the merge has no seam to
+follow. `src/substrate/ownership.ts` and `loop/review.ts` are two copies of that one rule, held in
+step by a conformance test, because the seed runs outside the app, where nothing under `src/` resolves.
+
+Manual SkillOpt resolves the most recent run's model through `modelOn`, as the post-run path does.
+A cross-provider run stores its builder model alongside its orchestrator engine, so those two raw
+fields must not be passed together to a completion call. Skill gates compare instruction texts against saved task descriptions; they do not execute
+candidate builds or establish better future game outcomes. The analyst sees every other mined task and
+the gate judges only the rest, with the candidate changing sides between its three votes; a skill with
+no held-out task is not analysed. The pass stages proposals and never writes a skill itself: the host
+applies them (see Architecture, learned changes). Anything that learns asks `learningOn(ctx)` first:
+with the user's Self-improvement switch off it records what happened and changes nothing. The idle code architect remains a separate
+opt-in and preserves fork validation, snapshots and rollback.
+
+## Acceptance evidence
+
+`npm run test:agentic-readiness` prepares two disposable local Git checkouts with shared
+read-only-in-practice node_modules, then boots their fixture profiles plus a separate owned
+sentinel. It exercises navigation/filter/model menu, Unicode/keyboard, coordinator Send,
+Stop's real pending AbortSignal, history buttons/graph, distinct game input/image, diagnostics,
+identity failures, stale builds, preserved runtime self-edits, restart and cleanup isolation.
+It writes `.studio-dev/evidence/accept-<time>/report.json` and selected artifacts. Read the
+current report: required check statuses, not the existence of this command, establish support.
+The runner never alters/prunes existing developer worktrees or stops the real main app.
+
+`npm run verify` checks Node 24, then includes context, architecture, typecheck, all Node tests,
+general Electron e2e, Build UI, Shapes and agentic readiness. It builds once before invoking
+the three Electron runners that share `dist`; standalone `test:e2e`, `test:build-ui` and
+`test:shapes:e2e` still build their own current output. Readiness keeps its separate immutable
+builds because it tests isolation. Add packaged checks when that surface changes. The
+source/document ownership areas in knowledge-map.json route changes to maintained topic docs.
+`verify:context` checks links, documented commands, source ownership and Git artifact policy.
+It is read-only and stores no per-edit fingerprints. Review prose against changed behavior
+and summarize that review in the PR; a structural pass does not certify semantic accuracy.
+The new conformance tests deliberately corrupt temporary inputs/imports/ownership/request
+shapes and compile an incompatible canonical API method; they do not break app source.
+
+Background interaction was checked initially on Electron 43.4.1: Unicode input and Send worked
+unfocused; a delayed real Stop aborted its pending fixture coordinator and produced a durable
+turn end. The existing coordinator records an aborted delegated turn as error; the fixture
+asserts the explicit abort cause, without changing coordinator semantics. A sent Stop during
+the composer's short ignore guard is not evidence of cancellation. Capture content must still
+be reviewed by the task's developer. Native IME, vendor authorization, every graph geometry,
+and a real packaged-main plus development OS identity combination remain unverified.
+
+Implementation references for debugger input: [Electron Debugger](https://www.electronjs.org/docs/latest/api/debugger)
+and [Chromium Input](https://chromedevtools.github.io/devtools-protocol/tot/Input/). Runtime
+acceptance on the pinned version, rather than current online API descriptions, defines coverage.
+
+The app smoke suite now explicitly checks early Electron/session path isolation, forwarded
+local-model host, and absence of the developer controller in ordinary builds. The shared
+Node rig injects its scripted local provider before startup. Two existing asynchronous tests
+now wait for the first turn's completion and rendezvous of parallel delegates respectively;
+they retain the original assertions without a fixed overlap timing window. Fixture native
+guards and missing game compositor bounds fail explicitly; interrupted transport responses
+are tested as failures, never successful captures.
+
+Finished base capture fixtures use the run-level `base/screenshots/default.jpg` path. Click
+the card header for details: once a thumbnail has loaded, its center opens the image viewer.
+Acceptance checks `naturalWidth` and completion of the saved image before recording success.
+The automatic-animation selftest waits up to five seconds for an observed frame advance; it
+never starts or steps the game to satisfy that assertion. The on-device speech selftest loads a
+page and a cross-site frame that call the Web Speech members which used to kill a game renderer;
+it is the real-Electron guard for `GAME_DISABLED_BLINK_FEATURES`, whose names Chromium would
+ignore silently after an Electron upgrade. Packaged smoke also attempts a
+developer launch flag in test mode and requires rejection before profile initialization.
+
+Forge has an explicit exclusion for `.studio-dev`, `.claude`, `.codex`, `.agents` and agent
+guidance. Git ignore rules alone do not exclude packaging inputs. Packaged smoke inspects
+the actual asar file and fails if private development roots appear in it. This also prevents
+packaging from racing active fixture writes or bundling local controller capabilities.
+
+`npm run census` (`scripts/transcript-census.ts`) counts what the roles spend: per role, how many
+sessions, how long the brief was, how many turns and how many tokens, and which tools were called.
+It reads Claude Code's own transcripts under the studio's engine home and Codex's rollouts, and
+normalises both onto the same numbers — Codex reports a running `total_token_usage` where Claude
+reports per message, a Codex `node .studio/bridge/tool.mjs preview_ready` is counted as the same
+tool as a Claude `mcp__studio__preview_ready`, and a turn is ONE MODEL RESPONSE on both sides: one
+per deduplicated assistant `message.id` for Claude, and for Codex the run of response items
+between two tool outputs, so a rollout of ninety tool calls does not read as one turn in the
+column that holds a Claude session's ninety. It is read-only by construction: the only
+writes are the two files `--json` and `--md` name, an output path inside the app directory or
+either engine's home is refused ("refusing to write inside the studio's own data"), and no
+transcript text reaches the output — counts, byte lengths, role labels and tool names only. A role
+exists only when the sentence that identifies it is a real literal in the harness seed
+(`tests/conformance/census.test.ts` asserts every one of them, so a reworded brief fails the suite
+instead of quietly emptying a row); everything else is `other`, and the report says what share of
+the corpus that is. The default run prints where it looked and what it found for each engine,
+because this machine has no isolated Codex home and a silent zero is indistinguishable from a bug;
+`--system-codex` is opt-in and keeps only the sessions the studio itself started: the ones that ran
+in a game folder, and the ones that ran in a scratch folder the studio named under the temp root
+(`studio-playtest-`, `studio-judge-` — a playtester and every judge call run there, in nobody's
+game, and filtering on the game roots alone emptied those rows silently). What the filter drops is
+said in the where-I-looked line, not swallowed. `--baseline <json>` adds the change against an earlier run — run it before a diet and
+again after.
+
+Milestone 4's own suites, all in `npm test`: `page-serve.test.ts` (where the studio's tags land in
+a page it did not write), `page-shim.test.ts` (the clock, the seed, the merging facade, and the
+game view's sandbox and disabled Blink features),
+`attach.test.ts` (renderer discovery and the world choice), `capture.test.ts` and
+`draw-counters.test.ts` (how a frame becomes a picture, and the counters at the graphics API),
+`shapes-fixtures.test.ts` (the five checked-in games are what their manifests say they are),
+`census.test.ts`, `engine-voice.test.ts` (every exported brief rendered once per engine: no bridge
+command in a Claude render, no `mcp__` name in a Codex render), `check-grammar.test.ts`,
+`facet-loop-v2.test.ts` and `evidence.test.ts`. `npm run verify:architecture` now walks `src/page`
+as well as `src/renderer` and `src/shared`, following the `/vendor/studio/*.js` specifier back to
+the `src/page/*.ts` file it is built from, so the page world cannot reach main, preload or substrate either.
+
+`node tests/e2e/run-preview-visibility.mjs` exercises real Electron windows with forced
+capture failures: hidden/minimized windows remain hidden, failed evidence stays unavailable,
+and parallel private previews retain input, capture and reload without show/focus/restore events.
+Reports include timestamped native events under `.studio-dev/evidence/preview-visibility`.
+`STUDIO_PACKAGE_DIR="out/Genex-darwin-arm64" node tests/e2e/run-computer-smoke.mjs`
+runs the existing scripted worker/playtester checks against the packaged application.
+
+`Options.skills` is a CONTEXT FILTER, not a sandbox. The studio's judge sessions run with
+`skills: []` (`ClaudeCodeEngineOptions.skills.judge`, default `[]`): a bundled skill's frontmatter
+is prompt weight a judge pays on every verdict, and it can only make two verdicts that should be
+the same differ. Delegations send no `skills` key at all unless one is set, so a builder keeps the
+CLI's own behaviour and a project skill still earns its keep.
+
+## Build outcome reporting acceptance
+
+Run `tests/conformance/run-summary.test.ts` with graph, build-progress, chat and director
+conformance; `run-summary-feed.test.ts` covers incremental graph replies and shared live feeds. The sanitized village metadata fixture proves six integrations, three accepted and
+one rejected evaluated attempts, stopped follow-ups, explicit replacements and final negative
+visual evidence coexisting with structural passes. It is not a new gameplay-quality evaluation.
+The build UI smoke additionally checks shared chat/graph totals, stopped follow-ups hanging
+below the line, failed-question visibility and learning separation in Electron. Inspect screenshots for layout;
+semantic assertions do not prove readability. `STUDIO_PACKAGE_DIR` may point both packaged
+smoke runners at an isolated Forge output directory so verification does not overwrite the user's
+running app bundle. Fixture checks need no paid assets, real CLIs or credentials.
+
+Build actions regression: real Git showBuild requests overlap in director conformance; Electron
+Build smoke overlaps two showBuild IPC requests with loadPreview, repeats Play, and checks
+live work staying in view, Jump to now and graph cursors. run-steps tests own step folding,
+merge-first state, gates and layout. No production game is used as a fixture.
+
+The Build UI smoke also controls pending/failing bootstrap and selected-thread IPC reads to
+assert the startup loader, no premature Ready or empty games, explicit errors, and successful Retry.
+Smoke read gates are unset in ordinary sessions and only consulted by fixture smoke handlers.
+Injected read failures persist until the test explicitly retries: development React's StrictMode
+replays mount effects, so a one-shot rejection can be consumed by a disposed effect and hide the
+intended error. Keep StrictMode and all loading/error assertions enabled. Only watch and owned
+`--dev-build` builds bundle development React; `npm run build` (so `npm start`) bundles production
+React, and package/make/publish add `--release` (minified, no eager three.js, 6 MB dev / 3 MB
+release static-graph budgets), as `renderer-build.test.ts` pins. Packaged smoke checks the bundle
+report.
+
+Owned fixture snapshots expose Profiler counters. Diagnostics add IPC/push totals, startup marks,
+GPU/process status and loop delay; normal launches require `--studio-diagnostics` for counters.
+`studio:performance.mark` accepts fixed journey names. Compare build-graph, large-build-graph
+(1,000 steps/five workers), chat-history and game-surface traces. macOS evidence does not certify
+Windows/Linux.
+
+
+### Goal completion and worker approvals
+
+Until-satisfied director runs treat the clock as a safety ceiling; explicit duration runs retain
+their working window and user Finish override. However a night ends — the lead's `finish`, the
+clock, the user's Finish, an engine limit — the close judges the head it is about to make live
+(`director/tools.ts` `judgeTheLanding`, from `integrate.ts`): blind against the build the user had,
+or, for a new game or one whose start nobody could photograph, a yes-or-no on the goal
+(`close-prompts.ts`). A lead's own blind judge of that head against the start, whichever build it
+picked, stands in for it. The judge borrows the studio's window, and its model calls must be done
+four minutes after it starts (judge.ts's per-call deadline, for engines that honour a request's
+timeout), because the close runs inside the lead's ten-minute `finish` call; an answer it was not
+surer of than a coin flip counts as none. A head that never moved beyond the start is not judged,
+and a Stop before or during the close lands nothing. The verdict is reported, not a veto: the build
+lands when the close's look loaded it or a judge saw it load, the close's own included.
+`landingResult` says what the landing may claim (`judge-pick`; `judge-answered-yes` or
+`judge-answered-no` for a sure answer to the goal question; otherwise the health tokens), and
+`finish` tells the lead. A workspace that kept an agent-edited older `integrate.ts` keeps its older
+close; one that kept an older `tools.ts` lands as before and notes that it did not judge.
+
+The initial plan freezes required acceptance scenarios in the versioned director journal. A
+reopened build takes the Loop's policy (`reopen-run.ts` `reopenBudgets`: ∞ a goal, hours a duration) and none of the finished night's
+outcomes: its journal records `goals: null` (`director/reopen.ts` `reopenedJournal`); under ∞ its
+lead's first plan taken for the ask posts the plan card and freezes new ones (a refused plan sets
+none), and until then `worker_start` asks for that plan (`workers.ts` `goalRefusal`). A Resume
+before it plans keeps waiting: `restoreNight` takes outcomes from the plan only for a journal from
+before they were kept, and `reopen.ts` `outcomesAwaitPlan` sets aside any a kept older
+`journal.ts` rebuilt. Renaming workers does not reset an
+unresolved goal's attempt allowance. Independent integration playtests record acceptance on
+an exact revision; a new revision requires fresh evidence before victory. Typed external
+blockers retain the integration ref and pause once no independent required work remains.
+A user Resume revisits the prerequisite without granting package or publishing permission.
+An initial plan part requiring Genex online play declares `multiplayer: true`. Before delegation,
+`plugins.preflightMultiplayer` checks a regular game manifest, the pinned SDK installation tool,
+unlocked Genex account and consented publishing capability. Missing capabilities block the goal;
+readiness never grants installation/publication consent or claims remote authentication or hosted
+play passed. Actual SDK installs still use the consolidated consent card.
+
+Worker plugin approvals are recorded in the run owner's conversation, resolved from host
+call attribution and persisted run starts. The original worker remains the cancellation
+scope. Ambiguous or mismatched run ownership is never guessed from a project name.
+Codex ownership recovery metadata lives beside the Codex engine home, never inside it (a folder
+there would read as a sign-in), rather than appearing as an untracked game edit; legacy in-game
+records remain recoverable with hostile-path checks.
+The first independently verified milestone and latest checkpoint are retained in the journal
+and report, with immutable Git refs so later integration and cleanup cannot discard them. A one-time 30-minute review reports verified outcomes and blockers without ending
+healthy work. A reopen earns the checkpoints and the review anew. Existing Show build and safe
+landing operations can recover the saved commit;
+Stop does not overwrite the game folder.
+
+Wake payloads report their estimated token size against an 8k budget, excluding user messages,
+attachments and provider-managed history. Unchanged build cards and routine goal-plan
+replacements are not repeated. Host-call and director-tool durations use a monotonic clock;
+local timing history is bounded, survives Resume and records any omitted spans. Monotonic clock
+origins keep within-process wall-clock corrections out of elapsed unions. Concurrent work totals are
+separate from wall-time union; neither is a measured model-speed improvement.
+
+## Provider model defaults
+
+Unset model roles defer to the selected coding CLI under Genex settings. An explicit main-model
+pick fills unset roles with that same request ID; there is no version-specific planner/worker
+split. Persisted role selections and user-edited harness files remain authoritative. Catalog
+discovery belongs to the host; the seed never maintains a list of available provider models.

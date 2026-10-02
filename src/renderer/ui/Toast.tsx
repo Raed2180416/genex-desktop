@@ -1,0 +1,44 @@
+import type { JSX } from "react";
+import { type ToastItem, ToastTone } from "../state/toasts.ts";
+
+const TONE_DOT: Record<ToastTone, string> = {
+  [ToastTone.Error]: "bg-red",
+  [ToastTone.Ok]: "bg-green",
+  [ToastTone.Info]: "bg-accent",
+};
+
+export function ToastStack({
+  toasts,
+  onDismiss,
+}: {
+  toasts: ToastItem[];
+  onDismiss: (id: number) => void;
+}): JSX.Element | null {
+  if (toasts.length === 0) return null;
+  return (
+    <div className="pointer-events-none fixed right-4 bottom-4 z-[300] flex w-80 flex-col gap-2">
+      {toasts.map((toast) => (
+        <div
+          key={toast.id}
+          role="status"
+          className="pointer-events-auto overflow-hidden rounded-card bg-surface px-3 py-2.5 shadow-overlay"
+        >
+          <div className="flex items-start gap-2">
+            <span className={`mt-1.5 size-1.5 shrink-0 rounded-full ${TONE_DOT[toast.tone]}`} />
+            <span className="min-w-0 flex-1 font-mono text-xs leading-relaxed text-ink-2">{toast.text}</span>
+            <button
+              type="button"
+              aria-label="Dismiss"
+              onClick={() => onDismiss(toast.id)}
+              className="grid size-5 shrink-0 place-items-center rounded-full text-ink-3 hover:bg-control-hover hover:text-control-text-hover"
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}

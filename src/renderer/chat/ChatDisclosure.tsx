@@ -1,0 +1,66 @@
+import { useId, useRef, useState, type ReactNode, type HTMLAttributes } from "react";
+import { Icon } from "../ui/icons.tsx";
+import { useTextFade, useWidthGlide } from "../ui/label-motion.ts";
+import { Presence } from "../ui/Presence.tsx";
+
+/** Shared reading and expansion grammar for work, outcomes and learning: the body opens and closes in place. */
+export function ChatDisclosure({
+  label,
+  children,
+  suffix,
+  open: controlled,
+  onToggle,
+  frame = true,
+  triggerLabel,
+  className = "",
+  ...props
+}: {
+  label: ReactNode;
+  children: ReactNode;
+  suffix?: ReactNode;
+  open?: boolean;
+  onToggle?: () => void;
+  frame?: boolean;
+  triggerLabel?: string;
+} & Omit<HTMLAttributes<HTMLDivElement>, "onToggle">) {
+  const [expanded, setExpanded] = useState(false);
+  const open = controlled ?? expanded;
+  const id = useId();
+  // New words ("Worked on 3 steps") fade in as the label's width glides to them, the chevron along.
+  const labelBox = useRef<HTMLSpanElement>(null);
+  const words = typeof label === "string" ? label : "";
+  useTextFade(labelBox, words);
+  useWidthGlide(labelBox, words);
+  return (
+    <div {...props} className={`min-w-0 text-chat text-ink-2 ${className}`}>
+      <button
+        type="button"
+        aria-label={triggerLabel}
+        aria-expanded={open}
+        aria-controls={id}
+        onClick={onToggle ?? (() => setExpanded((value) => !value))}
+        className="chat-disclosure"
+      >
+        <span ref={labelBox} className="min-w-0 truncate">
+          {label}
+        </span>
+        {suffix}
+        <Icon name="chevron-right" size={14} className={`chat-chevron ${open ? "rotate-90" : ""}`} />
+      </button>
+      <Presence>
+        {open
+          ? [
+              {
+                key: "body",
+                node: (
+                  <div id={id} className={frame ? "chat-tool-frame" : undefined}>
+                    {children}
+                  </div>
+                ),
+              },
+            ]
+          : []}
+      </Presence>
+    </div>
+  );
+}

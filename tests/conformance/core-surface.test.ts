@@ -1,0 +1,172 @@
+/**
+ * Characterization of `StudioCore`'s public surface: the methods and accessors main, the IPC
+ * layer and the tests reach it through, and the fields an initialized core exposes.
+ *
+ * Stage 2 splits this class. Until then any addition, rename or removal here must be a deliberate
+ * edit of these lists, so a refactor that silently drops an entry point fails before it ships.
+ */
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { StudioCore } from "../../src/main/studio-core.ts";
+import { coreLite } from "../helpers/core-lite.ts";
+
+const METHODS = [
+  "_computerToolsFor",
+  "_directorToolsFor",
+  "_playtestToolsFor",
+  "acceptStagedProposal",
+  "activeBuilders",
+  "activityEvents",
+  "activityItems",
+  "adoptProject",
+  "agentScreens",
+  "answerPermission",
+  "answerPlan",
+  "api",
+  "append",
+  "archiveGame",
+  "askToolPermission",
+  "assertProjectAllowed",
+  "bindThreadToProject",
+  "buildPreview",
+  "buildProblem",
+  "changeQueuedMessage",
+  "chatFileTarget",
+  "compactThread",
+  "connectionSnapshot",
+  "createGame",
+  "createGameThread",
+  "defaultDelegatedEngine",
+  "discardStagedProposal",
+  "dispatchRun",
+  "emit",
+  "exportPublicCopy",
+  "forgetPermission",
+  // Create game's location, checked before anything is written (studio:game.location.pick).
+  "gameLocation",
+  "init",
+  "inspectFolder",
+  "installPackages",
+  "knownSecretValues",
+  "landBuild",
+  "listAllEvents",
+  "liveState",
+  "loadPreview",
+  "messageImages",
+  // A game started from its first request is named before its folder is made (studio:game.name).
+  "nameGame",
+  "newRunId",
+  "offerBuild",
+  "offerLive",
+  "permissionSettings",
+  "playGameSnapshot",
+  "pluginBinding",
+  "presentProjectAssets",
+  "previewProjectAsset",
+  "projectAssets",
+  // Publish's file list, shown in Studio's dialog before anything is uploaded (studio:plugins.genex-publish-review).
+  "publicCopyFiles",
+  "readGameFile",
+  "readProjectAsset",
+  "readRunStill",
+  "checkpointPreview",
+  "previewStageVisible",
+  "previewForeground",
+  "previewSound",
+  "reconcileSeedManifest",
+  "recover",
+  "referenceStills",
+  "reloadLive",
+  "reloadPreview",
+  "removeGame",
+  "renameThread",
+  "requestConsent",
+  "revealGameFile",
+  "requestRunFinish",
+  "requestSelfRestart",
+  "resolveChatFiles",
+  "resolveConsent",
+  "resumeAutopilot",
+  "retainedAssetFile",
+  "rewindChat",
+  "rewindPreview",
+  "rollbackTo",
+  "runFeedback",
+  "runIdleCheckNow",
+  "runPreviewIdentity",
+  "saveReferenceFrames",
+  "saveRunArtifact",
+  "selfChangeList",
+  "sendUserMessage",
+  "setGamesRoot",
+  "setPermissionMode",
+  "showBuild",
+  "snapshot",
+  "start",
+  "stop",
+  "stopThread",
+  "threadForGame",
+  "undoSelfChange",
+  "updateGame",
+  "updateSettings",
+  // The files the person approved in that dialog, approved for the one publish it starts.
+  "withApprovedExport",
+];
+// `planReviews` is TypeScript-`private`, which is erased: it is still reachable at run time.
+const ACCESSORS = ["assetCheckpoints", "pendingUpdateId", "planReviews", "settings"];
+/** Own enumerable fields after `init()` (true `#private` state is not visible and not listed). */
+const FIELDS = [
+  "budget",
+  "builds",
+  "candidates",
+  "contextPreferences",
+  "engines",
+  "games",
+  "host",
+  "improvements",
+  "journal",
+  "layout",
+  "mainThread",
+  "mcp",
+  "ollamaSidecar",
+  "options",
+  "pluginServices",
+  "plugins",
+  "sandbox",
+  "snapshotIndex",
+  "snapshots",
+  "store",
+  "turns",
+];
+
+function prototypeSurface() {
+  const methods: string[] = [];
+  const accessors: string[] = [];
+  for (const name of Object.getOwnPropertyNames(StudioCore.prototype)) {
+    if (name === "constructor") continue;
+    const descriptor = Object.getOwnPropertyDescriptor(StudioCore.prototype, name)!;
+    if (descriptor.get || descriptor.set) accessors.push(name);
+    else if (typeof descriptor.value === "function") methods.push(name);
+  }
+  return { methods: methods.sort(), accessors: accessors.sort() };
+}
+
+test("StudioCore prototype exposes exactly the golden public methods and accessors", () => {
+  const surface = prototypeSurface();
+  assert.deepEqual(
+    surface.methods,
+    [...METHODS].sort(),
+    "a change to StudioCore's public methods must update this list deliberately",
+  );
+  assert.deepEqual(surface.accessors, [...ACCESSORS].sort());
+  assert.deepEqual(
+    Object.getOwnPropertyNames(StudioCore).filter((n) => !["length", "name", "prototype"].includes(n)),
+    [],
+    "no static members",
+  );
+});
+
+test("an initialized StudioCore exposes exactly the golden public fields", async () => {
+  const { core } = await coreLite();
+  assert.deepEqual(Object.keys(core).sort(), [...FIELDS].sort());
+});

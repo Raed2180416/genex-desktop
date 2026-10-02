@@ -1,0 +1,721 @@
+/* Genex icon set: line glyphs on a 24-unit grid; each animates once when its control is hovered or focused. */
+.gi {
+  overflow: visible;
+}
+.gi * {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+/* Static `transform` attributes (the tilted plug) keep SVG's own origin. */
+.gi [transform] {
+  transform-box: view-box;
+  transform-origin: 0 0;
+}
+.gi :is(.a-spin, .a-rewind, .a-hand, .a-gear6) {
+  transform-box: view-box;
+  transform-origin: 12px 12px;
+}
+.gi .a-lens {
+  transform-box: view-box;
+  transform-origin: 10.5px 10.5px;
+}
+.gi :is(.a-pin, .a-cord) {
+  transform-box: view-box;
+  transform-origin: 12px 20.5px;
+}
+.gi .a-lid {
+  transform-box: view-box;
+  transform-origin: 4.5px 7px;
+}
+.gi .a-ring {
+  transform-box: view-box;
+  transform-origin: 12px 3.6px;
+}
+.gi .a-pen {
+  transform-box: view-box;
+  transform-origin: 10px 14px;
+}
+.gi :is(.a-ink, .a-paper, .a-zap, .a-scan, .a-waves) {
+  opacity: 0;
+}
+
+/* Each moving part names its motion; the control's hover or keyboard focus plays it once. */
+.gi .a-pen {
+  --gi: gi-pen;
+}
+.gi .a-ink {
+  --gi: gi-ink;
+}
+.gi .a-plug {
+  --gi: gi-plug;
+}
+.gi .a-cord {
+  --gi: gi-cord;
+}
+.gi .a-zap {
+  --gi: gi-zap;
+}
+.gi .a-scan {
+  --gi: gi-scan;
+}
+.gi .a-gear6 {
+  --gi: gi-gear6;
+}
+.gi .a-lens {
+  --gi: gi-lens;
+}
+.gi .a-divider {
+  --gi: gi-divider;
+}
+.gi .a-prompt {
+  --gi: gi-nx;
+}
+.gi .a-cursor {
+  --gi: gi-blink;
+}
+.gi .a-flap {
+  --gi: gi-flap;
+}
+.gi .a-paper {
+  --gi: gi-paper;
+}
+.gi .a-up {
+  --gi: gi-up;
+}
+.gi .a-d1 {
+  --gi: gi-b1;
+}
+.gi .a-d2 {
+  --gi: gi-b2;
+}
+.gi .a-d3 {
+  --gi: gi-b3;
+}
+.gi .a-meridian {
+  --gi: gi-meridian;
+}
+.gi .a-spin {
+  --gi: gi-spin;
+}
+.gi .a-nudge {
+  --gi: gi-nx;
+}
+.gi .a-pin {
+  --gi: gi-drop;
+}
+.gi .a-sun {
+  --gi: gi-rise;
+}
+.gi .a-lid {
+  --gi: gi-lid;
+}
+.gi .a-rot {
+  --gi: gi-rot;
+}
+.gi .a-nx {
+  --gi: gi-nx;
+}
+.gi .a-px {
+  --gi: gi-px;
+}
+.gi .a-ny {
+  --gi: gi-ny;
+}
+.gi .a-pulse {
+  --gi: gi-pulse;
+}
+.gi .a-wig {
+  --gi: gi-wig;
+}
+.gi .a-hand {
+  --gi: gi-spin;
+}
+.gi .a-bob {
+  --gi: gi-bob;
+}
+.gi .a-lift {
+  --gi: gi-bob;
+}
+.gi .a-l1 {
+  --gi: gi-l1;
+}
+.gi .a-l2 {
+  --gi: gi-l2;
+}
+.gi .a-l3 {
+  --gi: gi-l3;
+}
+.gi .a-back {
+  --gi: gi-slide-a;
+}
+.gi .a-front {
+  --gi: gi-slide-b;
+}
+.gi .a-draw {
+  --gi: gi-draw;
+}
+.gi .a-b1 {
+  --gi: gi-b1;
+}
+.gi .a-b2 {
+  --gi: gi-b2;
+}
+.gi .a-p1 {
+  --gi: gi-s1;
+}
+.gi .a-p2 {
+  --gi: gi-s2;
+}
+.gi .a-p3 {
+  --gi: gi-s3;
+}
+.gi .a-trace {
+  --gi: gi-trace;
+}
+.gi .a-rewind {
+  --gi: gi-rewind;
+}
+.gi .a-ring {
+  --gi: gi-ring;
+}
+.gi .a-clap {
+  --gi: gi-clap;
+}
+.gi .a-waves {
+  --gi: gi-zap;
+}
+:is(button, a[href], summary, [role="button"], [role^="menuitem"], [role="tab"], [role="option"]):not(
+    :disabled,
+    [aria-disabled="true"],
+    [data-disabled]
+  ):is(:hover, :focus-visible, [data-highlighted])
+  .gi
+  [class^="a-"],
+/* A control can also play its glyph once to announce a change (the bell when something arrives). */
+  [data-announce]
+  .gi
+  [class^="a-"] {
+  animation: var(--gi) 1.5s cubic-bezier(0.22, 1, 0.36, 1) 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .gi * {
+    animation: none !important;
+  }
+}
+
+/* The motion itself happens within the first 30% (≈450 ms); the rest holds the resting pose. */
+@keyframes gi-pen {
+  0%,
+  30%,
+  100% {
+    transform: none;
+  }
+  10% {
+    transform: translate(-1px, 1px) rotate(-10deg);
+  }
+  20% {
+    transform: translate(0.6px, -0.3px) rotate(4deg);
+  }
+}
+@keyframes gi-ink {
+  0% {
+    opacity: 1;
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+  }
+  16%,
+  24% {
+    opacity: 1;
+    stroke-dasharray: 1;
+    stroke-dashoffset: 0;
+  }
+  32%,
+  100% {
+    opacity: 0;
+    stroke-dasharray: 1;
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes gi-plug {
+  0%,
+  30%,
+  100% {
+    transform: none;
+  }
+  11% {
+    transform: translateY(-2px);
+  }
+  20% {
+    transform: translateY(0.4px);
+  }
+}
+@keyframes gi-cord {
+  0%,
+  30%,
+  100% {
+    transform: scaleY(1);
+  }
+  11% {
+    transform: scaleY(1.44);
+  }
+  20% {
+    transform: scaleY(0.91);
+  }
+}
+@keyframes gi-zap {
+  0%,
+  9% {
+    opacity: 0;
+  }
+  13% {
+    opacity: 1;
+  }
+  24%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes gi-scan {
+  0% {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  5% {
+    opacity: 1;
+  }
+  25% {
+    opacity: 1;
+    transform: translateY(5px);
+  }
+  30%,
+  100% {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+}
+@keyframes gi-gear6 {
+  0% {
+    transform: rotate(0);
+  }
+  22% {
+    transform: rotate(68deg);
+  }
+  30%,
+  100% {
+    transform: rotate(60deg);
+  }
+}
+@keyframes gi-lens {
+  0%,
+  30%,
+  100% {
+    transform: none;
+  }
+  11% {
+    transform: rotate(-14deg) scale(1.06);
+  }
+  21% {
+    transform: rotate(4deg);
+  }
+}
+@keyframes gi-divider {
+  0%,
+  30%,
+  100% {
+    transform: none;
+  }
+  13% {
+    transform: translateX(-3.6px);
+  }
+}
+@keyframes gi-nx {
+  0%,
+  30%,
+  100% {
+    transform: none;
+  }
+  12% {
+    transform: translateX(2px);
+  }
+}
+@keyframes gi-px {
+  0%,
+  30%,
+  100% {
+    transform: none;
+  }
+  12% {
+    transform: translateX(-2px);
+  }
+}
+@keyframes gi-ny {
+  0%,
+  30%,
+  100% {
+    transform: none;
+  }
+  12% {
+    transform: translateY(2px);
+  }
+}
+@keyframes gi-blink {
+  0%,
+  14%,
+  28%,
+  100% {
+    opacity: 1;
+  }
+  7%,
+  21% {
+    opacity: 0;
+  }
+}
+@keyframes gi-flap {
+  0%,
+  30%,
+  100% {
+    transform: none;
+  }
+  13% {
+    transform: translateY(1.8px);
+  }
+}
+@keyframes gi-paper {
+  0%,
+  30%,
+  100% {
+    opacity: 0;
+    transform: translateY(1.5px);
+  }
+  13% {
+    opacity: 1;
+    transform: translateY(-0.6px);
+  }
+}
+@keyframes gi-up {
+  0% {
+    transform: none;
+    opacity: 1;
+  }
+  12% {
+    transform: translateY(-4px);
+    opacity: 0;
+  }
+  13% {
+    transform: translateY(3px);
+    opacity: 0;
+  }
+  30%,
+  100% {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes gi-b1 {
+  0%,
+  24%,
+  100% {
+    transform: none;
+  }
+  8% {
+    transform: translateY(-3px);
+  }
+  16% {
+    transform: translateY(0.6px);
+  }
+}
+@keyframes gi-b2 {
+  0%,
+  4%,
+  28%,
+  100% {
+    transform: none;
+  }
+  12% {
+    transform: translateY(-3px);
+  }
+  20% {
+    transform: translateY(0.6px);
+  }
+}
+@keyframes gi-b3 {
+  0%,
+  8%,
+  32%,
+  100% {
+    transform: none;
+  }
+  16% {
+    transform: translateY(-3px);
+  }
+  24% {
+    transform: translateY(0.6px);
+  }
+}
+@keyframes gi-meridian {
+  0%,
+  30%,
+  100% {
+    transform: scaleX(1);
+  }
+  15% {
+    transform: scaleX(0.05);
+  }
+}
+@keyframes gi-spin {
+  0% {
+    transform: rotate(0);
+  }
+  30%,
+  100% {
+    transform: rotate(360deg);
+  }
+}
+@keyframes gi-rewind {
+  0%,
+  30%,
+  100% {
+    transform: none;
+  }
+  14% {
+    transform: rotate(-50deg);
+  }
+}
+@keyframes gi-drop {
+  0%,
+  30%,
+  100% {
+    transform: none;
+  }
+  10% {
+    transform: translateY(-2.5px) rotate(-14deg);
+  }
+  20% {
+    transform: translateY(0.5px) rotate(3deg);
+  }
+}
+@keyframes gi-rise {
+  0% {
+    transform: translateY(3px);
+    opacity: 0;
+  }
+  20% {
+    transform: translateY(-0.6px);
+    opacity: 1;
+  }
+  30%,
+  100% {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes gi-lid {
+  0%,
+  30%,
+  100% {
+    transform: none;
+  }
+  11% {
+    transform: translateY(-1.6px) rotate(-16deg);
+  }
+  21% {
+    transform: translateY(-0.3px) rotate(-3deg);
+  }
+}
+@keyframes gi-rot {
+  0% {
+    transform: rotate(0);
+  }
+  30%,
+  100% {
+    transform: rotate(90deg);
+  }
+}
+@keyframes gi-pulse {
+  0%,
+  30%,
+  100% {
+    transform: scale(1);
+  }
+  13% {
+    transform: scale(0.72);
+  }
+}
+@keyframes gi-wig {
+  0%,
+  30%,
+  100% {
+    transform: rotate(0);
+  }
+  8% {
+    transform: rotate(-12deg);
+  }
+  17% {
+    transform: rotate(8deg);
+  }
+  24% {
+    transform: rotate(-3deg);
+  }
+}
+@keyframes gi-bob {
+  0%,
+  30%,
+  100% {
+    transform: none;
+  }
+  11% {
+    transform: translateY(-2.4px);
+  }
+  21% {
+    transform: translateY(0.5px);
+  }
+}
+@keyframes gi-l1 {
+  0% {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+  }
+  14%,
+  100% {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes gi-l2 {
+  0%,
+  6% {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+  }
+  20%,
+  100% {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes gi-l3 {
+  0%,
+  12% {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+  }
+  26%,
+  100% {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes gi-slide-a {
+  0%,
+  30%,
+  100% {
+    transform: none;
+  }
+  13% {
+    transform: translate(1.6px, 1.6px);
+  }
+}
+@keyframes gi-slide-b {
+  0%,
+  30%,
+  100% {
+    transform: none;
+  }
+  13% {
+    transform: translate(-1.6px, -1.6px);
+  }
+}
+@keyframes gi-draw {
+  0% {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+  }
+  26%,
+  100% {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes gi-s1 {
+  0%,
+  24%,
+  100% {
+    transform: scale(1);
+  }
+  10% {
+    transform: scale(1.6);
+  }
+}
+@keyframes gi-s2 {
+  0%,
+  4%,
+  28%,
+  100% {
+    transform: scale(1);
+  }
+  14% {
+    transform: scale(1.6);
+  }
+}
+@keyframes gi-s3 {
+  0%,
+  8%,
+  32%,
+  100% {
+    transform: scale(1);
+  }
+  18% {
+    transform: scale(1.6);
+  }
+}
+@keyframes gi-ring {
+  0%,
+  30%,
+  100% {
+    transform: none;
+  }
+  6% {
+    transform: rotate(-16deg);
+  }
+  13% {
+    transform: rotate(12deg);
+  }
+  20% {
+    transform: rotate(-6deg);
+  }
+  26% {
+    transform: rotate(2deg);
+  }
+}
+@keyframes gi-clap {
+  0%,
+  4%,
+  30%,
+  100% {
+    transform: none;
+  }
+  10% {
+    transform: translateX(1.6px);
+  }
+  17% {
+    transform: translateX(-1.4px);
+  }
+  24% {
+    transform: translateX(0.6px);
+  }
+}
+@keyframes gi-trace {
+  0% {
+    stroke-dasharray: 0.28 0.72;
+    stroke-dashoffset: 0;
+  }
+  29% {
+    stroke-dasharray: 0.28 0.72;
+    stroke-dashoffset: -1;
+  }
+  30%,
+  100% {
+    stroke-dasharray: 1 0;
+    stroke-dashoffset: 0;
+  }
+}

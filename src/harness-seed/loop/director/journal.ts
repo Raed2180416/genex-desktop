@@ -1,0 +1,520 @@
+import { CompletionPolicy } from "../completion-policy.ts";
+import { createGoals, GoalBlocker, GoalStatus, restoreGoals } from "./goals.ts";
+import { durationCommission, goalCommission } from "./commission.ts";
+/**
+ * The night's record in its run journal (`autopilot_<runId>`, the harness's own and durable):
+ * everything a night needs to go on after a restart, a crash or a pause, and not only in the
+ * harness's memory — the night's own clock; each worker's brief, seam, deadline, rounds and last
+ * commit; the defects nobody owns; the plan and its review window; the integration's health; the
+ * log and how much of it the lead has heard; and the wake loop's own state.
+ *
+ * Every save writes it (`recordNight`, called by night.ts `saveJournal`). A resumed night reads it
+ * back (`restoreNight`, called by setup.ts `prepareNight`), and its lead's first message is a
+ * digest built from it (wake.ts). The journal counts the time the night has worked, and a Resume
+ * goes on with what the budget has left (`nightClock`): every Resume used to start the whole
+ * budget again, so a night paused twice could run three times as long as the user gave it; and a
+ * resumed lead knew nothing of its workers but their names.
+ *
+ * Its functions take the night explicitly; they are not bound onto it. It imports only names the
+ * seed exported before it existed (tests/fixtures/seed-exports-pre-journal.json), and names from
+ * modules newer than it (director/reopen.ts): a seed upgrade keeps a module the agent edited, and a
+ * name newer than that copy would not link.
+ */
+import { WorkerState } from "../outcomes.ts";
+import { runRef } from "../repo.ts";
+import { clip } from "../text.ts";
+import { MAX_LEDGER, wrapReserveMs } from "./budgets.ts";
+import {
+  priorCommitWords,
+  priorIdTaken,
+  priorWorkerLeft,
+  priorWorkersLine,
+  priorWorkerState,
+} from "./journal-prompts.ts";
+import { priorEra } from "./reopen.ts";
+import { DirectorLoop, WAKE_WINDOW_MS } from "./wake-schedule.ts";
+import type { AnyRecord } from "../../types/harness.d.ts";
+import type { Night, NightLogEntry, NightState, Worker, WorkerLimit } from "./night.ts";
+import type { ShelvedDefect } from "./rules.ts";
+import type { DigestWorker } from "./wake-prompts.ts";
+import type { WakeState } from "./wake.ts";
+
+/**
+ * This part serves a lead that is its chat's own session and writes nothing (one session): a night
+ * seats one only when every part it depends on says so (lead-session.ts `servesLead`).
+ */
+export const SERVES_LEAD = true;
+
+/** How many of the night's log lines the journal keeps, the newest: a digest's news and a fresh start's past. */
+export const JOURNAL_LOG_LINES = 60;
+/** How much of a worker's brief the journal keeps. */
+export const JOURNAL_BRIEF_CHARS = 600;
+/** How much of why a worker or its last round stopped the journal keeps. */
+export const JOURNAL_REASON_CHARS = 300;
+/** How much of a worker-from-before's brief `run_status` carries. */
+const STATUS_BRIEF_CHARS = 300;
+/** The fewest characters of a commit's sha that name it, as `worker_start from=` reads one. */
+const MIN_SHA_CHARS = 7;
+
+/**
+ * The night's own clock: when its working time ends and when it ends. `started` is when the night
+ * would have started had it never paused, so the time it has worked is always `now - started`.
+ */
+export interface NightClock {
+  started: number;
+  softDeadline: number;
+  finalDeadline: number;
+}
+
+/** A worker from before the pause, as the journal kept it: not running now, but its work is on its ref. */
+export interface PriorWorker {
+  id: string;
+  title: string;
+  /** Its state when the journal last saw it: running means the night paused under it. */
+  state: string;
+  stoppedBecause: string | null;
+  brief: string;
+  owns: string[];
+  from: string | null;
+  rounds: number;
+  accepted: number;
+  /** Its last commit — its last accepted round's while it built. */
+  lastCommit: string | null;
+  ref: string;
+}
+
+/** What the wake loop takes back from the journal on a Resume. */
+export interface RestoredWake {
+  idleAsked: boolean;
+  wakesAt: number[];
+  /** Lost sessions the night has already replaced: the allowance does not start again on a Resume (P08-F9). */
+  freshSessions?: number;
+}
+
+/** A time for the journal: ISO, or null. */
+const iso = (ms: number | null | undefined): string | null =>
+  typeof ms === "number" && Number.isFinite(ms) ? new Date(ms).toISOString() : null;
+
+/** A time from the journal — ISO or milliseconds — or null when it is not one. */
+function msOf(value: unknown): number | null {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value !== "string") return null;
+  const ms = Date.parse(value);
+  return Number.isFinite(ms) ? ms : null;
+}
+
+/** A count from the journal. */
+const countOf = (value: unknown): number => (typeof value === "number" && Number.isFinite(value) ? value : 0);
+
+/** How long the night had worked when its journal was last saved, or null when it kept no count (a night from before it did). */
+function workedMsOf(saved: unknown): number | null {
+  const worked = (saved as AnyRecord | null | undefined)?.workedMs;
+  return typeof worked === "number" && Number.isFinite(worked) && worked >= 0 ? worked : null;
+}
+
+/**
+ * The night's clock. A new night starts one; a resumed night goes on with the working time it had
+ * left — the budget less the time it has worked, which its journal counts (`recordNight`), never
+ * the wall clock: time spent paused does not count, and time worked is never given back. A night
+ * whose worked time used its working time gets only its wrap-up, the reserve long, to land what it
+ * built.
+ */
+export function nightClock({ saved, now, totalMs }: { saved: unknown; now: number; totalMs: number }): NightClock {
+  const reserve = wrapReserveMs(totalMs);
+  const worked = workedMsOf(saved) ?? 0;
+  const started = now - worked;
+  const clock = { started, softDeadline: started + totalMs - reserve, finalDeadline: started + totalMs };
+  if (worked === 0 || now < clock.softDeadline) return clock;
+  return { started, softDeadline: now, finalDeadline: now + reserve };
+}
+
+/** Why a worker stopped, in the words it was given (as digests.ts says it). */
+const stopReasonOf = (worker: Worker): string | null =>
+  worker.result?.stoppedBecause ?? worker.stopWhy ?? worker.error ?? null;
+
+/** A worker's last round, as the journal keeps it. */
+function lastRoundOf(rounds: readonly AnyRecord[]): AnyRecord | null {
+  const last = rounds.at(-1);
+  if (!last) return null;
+  return {
+    iteration: last.iteration,
+    won: last.won === true,
+    stopped: last.stopped === true,
+    reason: clip(last.reason, JOURNAL_REASON_CHARS),
+  };
+}
+
+/** One worker as the journal keeps it: enough to name it, go on from its work, and start it again. */
+function workerRecord(worker: Worker, runId: string): AnyRecord {
+  const rounds = worker.iterations as readonly AnyRecord[];
+  const because = stopReasonOf(worker);
+  return {
+    id: worker.id,
+    title: worker.title,
+    mode: worker.mode,
+    from: worker.from,
+    startedAt: iso(worker.startedAt),
+    endedAt: iso(worker.endedAt),
+    deadline: iso(worker.deadline),
+    state: worker.state,
+    stoppedBecause: because ? clip(because, JOURNAL_REASON_CHARS) : null,
+    brief: clip(worker.brief, JOURNAL_BRIEF_CHARS),
+    owns: [...(worker.owns ?? [])],
+    ownsMain: worker.ownsMain === true,
+    rounds: rounds.length,
+    accepted: rounds.filter((round) => round.won).length,
+    lastRound: lastRoundOf(rounds),
+    lastCommit: worker.lastCommit ?? worker.lastAccepted ?? null,
+    ref: runRef(runId, "workers", worker.id),
+  };
+}
+
+/** The newest lines of the night's log, as the journal keeps them. */
+function logRecord(log: readonly NightLogEntry[]): NightLogEntry[] {
+  return log.slice(-JOURNAL_LOG_LINES).map(({ at, seq, text, kind }) => ({ at, seq, text, ...(kind ? { kind } : {}) }));
+}
+
+/** The night's own clock: the one prepareNight kept on it, else the one it runs on (a kept older setup.ts). */
+function clockOf(night: Night): NightClock {
+  return (
+    night.clock ?? { started: night.started, softDeadline: night.softDeadline, finalDeadline: night.finalDeadline }
+  );
+}
+
+/** The workers' engine limit, as the journal keeps it. */
+function limitRecord(limit: WorkerLimit | null): AnyRecord | null {
+  return limit ? { ...limit, at: iso(limit.at) } : null;
+}
+
+/**
+ * Put the night's record on its journal (`journal.director`), as every save does: its clock (its
+ * own — a wrap-up that started early moves the working deadline, never this) and the time it has
+ * worked, the plan and its review window, the defects nobody owns, the integration's last health
+ * pass, the workers' engine limit, the log and how much of it the lead has heard, and every worker
+ * of this session. Workers from before a pause keep the records the journal already had.
+ * Idempotent: the wake loop writes it too (wake.ts `journalWake`), for a kept older night.ts whose
+ * save does not.
+ */
+export function recordNight(night: Night, now = Date.now()): void {
+  const director = night.journal?.director;
+  if (!director || !night.state) return;
+  const { state } = night;
+  const clock = clockOf(night);
+  Object.assign(director, {
+    clock: {
+      started: iso(clock.started),
+      softDeadline: iso(clock.softDeadline),
+      finalDeadline: iso(clock.finalDeadline),
+      workedMs: Math.max(0, now - clock.started),
+    },
+    plan: state.plan,
+    // Null, not absent: this night's outcomes wait for its plan, so a Resume never makes the old
+    // plan's parts its outcomes (`restoreNight`); absent is a journal from before outcomes were kept.
+    goals: state.goals ?? null,
+    planReview: { until: iso(state.planReviewUntil), go: state.planGo, saidFrom: state.planSaidFrom },
+    ledger: [...state.ledger],
+    integrationHealthy: state.integrationHealthy,
+    workerLimit: limitRecord(state.workerLimit),
+    log: logRecord(state.log),
+    logSeq: night.logSeq,
+    heardSeq: night.waitSeq,
+  });
+  director.completionPolicy = durationCommission(night.run) ? CompletionPolicy.Duration : CompletionPolicy.Goal;
+  director.workers ??= {};
+  for (const worker of state.workers.values()) director.workers[worker.id] = workerRecord(worker, night.run.runId);
+}
+
+/**
+ * The journal as a save compares it with what the last save wrote (night.ts `saveJournal`): all of
+ * it but the count of worked time, which moves every moment and is alone no reason to write a
+ * version — the store keeps every one. Null when it cannot be read as JSON; it is then written.
+ */
+export function journalText(journal: AnyRecord): string | null {
+  const clock = journal?.director?.clock;
+  const director = clock ? { ...journal.director, clock: { ...clock, workedMs: undefined } } : journal?.director;
+  try {
+    return JSON.stringify({ ...journal, director });
+  } catch {
+    return null;
+  }
+}
+
+/** The wake loop's own state, as the journal keeps it (wake.ts `journalWake` writes it). */
+export function wakeRecord(
+  wake: Pick<WakeState, "idleAsked" | "wrapCause" | "wakes" | "wakesAt" | "lastWakeAt" | "asleepSince"> & {
+    freshSessions?: number;
+  },
+): AnyRecord {
+  return {
+    loop: DirectorLoop.Wake,
+    idleAsked: wake.idleAsked,
+    freshSessions: wake.freshSessions ?? 0,
+    wrapCause: wake.wrapCause,
+    wakes: wake.wakes,
+    wakesAt: wake.wakesAt.map(iso),
+    lastWakeAt: iso(wake.lastWakeAt),
+    asleepSince: iso(wake.asleepSince),
+  };
+}
+
+/** Does this night pick up one its journal kept: a Resume of a director's night? */
+export function resumedFromJournal(night: Pick<Night, "resume" | "priorJournal">): boolean {
+  return night.resume === true && Boolean(night.priorJournal?.director);
+}
+
+/** The defects nobody owns, as the journal kept them. */
+function restoredLedger(saved: unknown): ShelvedDefect[] {
+  if (!Array.isArray(saved)) return [];
+  return saved
+    .filter((defect): defect is AnyRecord => typeof defect?.text === "string" && defect.text.length > 0)
+    .map((defect) => ({
+      text: defect.text,
+      from: String(defect.from ?? ""),
+      owner: String(defect.owner ?? ""),
+      at: msOf(defect.at) ?? 0,
+    }))
+    .slice(-MAX_LEDGER);
+}
+
+/**
+ * The plan's review window, as the journal kept it. The window keeps its own closing time: a user
+ * who had not answered when the night paused still has until then. A window that closed while the
+ * night was paused has closed — the plan goes as it stands, and nothing waits or wakes for it.
+ */
+function restorePlanWindow(state: NightState, saved: unknown, now: number): void {
+  const window = (saved ?? {}) as AnyRecord;
+  const until = msOf(window.until);
+  const closedWhilePaused = until !== null && until <= now;
+  if (window.go === true || closedWhilePaused) {
+    state.planGo = true;
+    return;
+  }
+  if (until === null) return;
+  state.planReviewUntil = until;
+  state.planSaidFrom = countOf(window.saidFrom);
+}
+
+/**
+ * The workers' engine limit, as the journal kept it — none when it was not one, or when its reset
+ * time passed while the night was paused. A limit with no reset time stands until a worker's
+ * session comes back (workers.ts).
+ */
+function restoredWorkerLimit(saved: unknown, now: number): WorkerLimit | null {
+  const limit = (saved ?? {}) as AnyRecord;
+  const at = msOf(limit.at);
+  if (at === null || typeof limit.kind !== "string" || typeof limit.engine !== "string") return null;
+  const retryAfterMs = typeof limit.retryAfterMs === "number" ? limit.retryAfterMs : null;
+  if (retryAfterMs !== null && at + retryAfterMs <= now) return null;
+  return {
+    engine: limit.engine,
+    kind: limit.kind,
+    message: String(limit.message ?? ""),
+    retryAfterMs,
+    at,
+    worker: String(limit.worker ?? ""),
+  };
+}
+
+/** The log's newest lines as the journal kept them, and how much of it the lead has heard. */
+function restoreLog(night: Night, saved: AnyRecord): void {
+  const log = (Array.isArray(saved.log) ? saved.log : []).filter(
+    (entry: AnyRecord): entry is NightLogEntry => typeof entry?.seq === "number" && typeof entry.text === "string",
+  );
+  night.state.log = log;
+  night.logSeq = Math.max(countOf(saved.logSeq), log.at(-1)?.seq ?? 0);
+  night.waitSeq = Math.min(countOf(saved.heardSeq), night.logSeq);
+}
+
+/** The workers the journal named, as a resumed night knows them: from before the pause. */
+function priorWorkersOf(saved: unknown, runId: string): PriorWorker[] {
+  return Object.entries((saved ?? {}) as Record<string, AnyRecord>).map(([key, record]) => {
+    const id = String(record?.id ?? key);
+    return {
+      id,
+      title: String(record?.title ?? id),
+      // A worker the journal saw start and never end was building when the night stopped.
+      state: String(record?.state ?? WorkerState.Running),
+      stoppedBecause: typeof record?.stoppedBecause === "string" ? record.stoppedBecause : null,
+      brief: String(record?.brief ?? ""),
+      owns: Array.isArray(record?.owns) ? record.owns.map(String) : [],
+      from: typeof record?.from === "string" ? record.from : null,
+      rounds: countOf(record?.rounds),
+      accepted: countOf(record?.accepted),
+      lastCommit: typeof record?.lastCommit === "string" ? record.lastCommit : null,
+      ref: String(record?.ref ?? runRef(runId, "workers", id)),
+    };
+  });
+}
+
+/**
+ * What the resumed night's own journal keeps naming from the one before: the workers (so a second
+ * pause loses none of them) and the plan's parts, which the app checks a steer addressed to a
+ * worker against — a resumed night that dropped them refused every such steer until it re-planned.
+ */
+function carryForward(night: Night): void {
+  const { journal, priorJournal } = night;
+  if (!journal?.director) return;
+  journal.director.workers = { ...(priorJournal?.director?.workers ?? {}), ...(journal.director.workers ?? {}) };
+  const facets = priorJournal?.plan?.facets;
+  if (Array.isArray(facets) && facets.length) journal.plan = { ...journal.plan, facets };
+}
+
+/**
+ * A resumed night reads its journal back: the defects nobody owns, the plan window, the last
+ * health pass, the workers' engine limit, the log and how much of it the lead had heard, and the
+ * workers from before the pause. The plan, the integration head and the last judge come back
+ * through `nightState` and `startingCommits`, the clock through `nightClock`. Called before the
+ * night writes a line of its own.
+ */
+export function restoreNight(night: Night, now = Date.now()): void {
+  night.priorWorkers = [];
+  if (!resumedFromJournal(night)) return;
+  const saved = night.priorJournal?.director ?? {};
+  const { state } = night;
+  state.ledger = restoredLedger(saved.ledger);
+  night.journal.director.operationSpans = [...(saved.operationSpans ?? [])];
+  for (const key of ["firstVerifiedCheckpoint", "latestVerifiedCheckpoint", "softReviewAt"]) {
+    if (saved[key] !== undefined) night.journal.director[key] = saved[key];
+  }
+  state.goals = restoreGoals(saved.goals) ?? outcomesFromPlan(saved, night);
+  // Resume is an explicit user decision to revisit the prerequisite; it grants no tool permission.
+  for (const goal of state.goals?.entries ?? []) {
+    if (goal.status !== GoalStatus.Blocked) continue;
+    if (goal.blocker === GoalBlocker.NoProgress) {
+      goal.attempts = 0;
+      goal.replan = null;
+    }
+    goal.status = GoalStatus.Pending;
+    goal.blocker = null;
+  }
+  restorePlanWindow(state, saved.planReview, now);
+  if (typeof saved.integrationHealthy === "boolean") state.integrationHealthy = saved.integrationHealthy;
+  state.workerLimit = restoredWorkerLimit(saved.workerLimit, now);
+  restoreLog(night, saved);
+  night.priorWorkers = priorWorkersOf(saved.workers, night.run.runId);
+  carryForward(night);
+}
+
+/**
+ * The outcomes a journal from before outcomes were kept takes from its plan, on a goal commission;
+ * none for one that kept them — `null` waits for the next plan (a finished build reopened,
+ * director/reopen.ts), whose parts are the new commission's.
+ */
+function outcomesFromPlan(saved: AnyRecord, night: Night) {
+  const parts = saved.goals === undefined && goalCommission(night.run) ? night.state.plan?.workers : undefined;
+  return parts ? createGoals(parts) : undefined;
+}
+
+/** The wake loop's own state as the journal kept it: whether the lead was asked what next, and the wakes still in the cap's window. */
+export function restoredWake(saved: unknown, now: number): RestoredWake {
+  const record = (saved ?? {}) as AnyRecord;
+  const wakesAt = (Array.isArray(record.wakesAt) ? record.wakesAt : [])
+    .map(msOf)
+    .filter((at: number | null): at is number => at !== null && at > now - WAKE_WINDOW_MS && at <= now);
+  const freshSessions = Number.isInteger(record.freshSessions) && record.freshSessions > 0 ? record.freshSessions : 0;
+  return { idleAsked: record.idleAsked === true, wakesAt, ...(freshSessions ? { freshSessions } : {}) };
+}
+
+/** The workers from before the pause that no worker of this session has taken the id of. */
+function priorNotSuperseded(night: Night): PriorWorker[] {
+  return (night.priorWorkers ?? []).filter((worker) => !night.state.workers.has(worker.id));
+}
+
+/** The worker from before the pause of this id that no worker of this session has taken it from, or null. */
+function priorNamed(night: Night, id: string): PriorWorker | null {
+  return priorNotSuperseded(night).find((worker) => worker.id === id) ?? null;
+}
+
+/** A worker from before the pause that left a commit of its own: work a new worker of its id would move its ref off. */
+type PriorWithWork = PriorWorker & { lastCommit: string };
+const leftWork = (worker: PriorWorker): worker is PriorWithWork =>
+  Boolean(worker.lastCommit) && worker.lastCommit !== worker.from;
+
+/** Does `from=` (as a slug) name this worker's work: its id, or its last commit, in full or a short sha? */
+function buildsOn(worker: PriorWithWork, from: string): boolean {
+  if (from === worker.id) return true;
+  return from.length >= MIN_SHA_CHARS && worker.lastCommit.toLowerCase().startsWith(from);
+}
+
+/**
+ * Why `worker_start` may not give a new worker this id, or null when it may. A worker from before
+ * the pause had it and left work of its own on its ref, which the new worker's first accepted
+ * round would move off and leave unreachable — unless the new one builds on that work (`from=` its
+ * id or its last commit), so the old commits stay under the new ones. `from` is a slug.
+ */
+export function priorIdRefusal(night: Night, id: string, from: string): string | null {
+  const prior = priorNamed(night, id);
+  if (!prior || !leftWork(prior) || buildsOn(prior, from)) return null;
+  return priorIdTaken({ id, lastCommit: prior.lastCommit, ref: prior.ref, era: priorEra(night) });
+}
+
+/** The id a worker the lead named none for gets: the next `w<n>` no worker has had, this session's or one from before the pause. */
+export function defaultWorkerId(night: Night): string {
+  const { state } = night;
+  const taken = new Set([...state.workers.keys(), ...(night.priorWorkers ?? []).map((worker) => worker.id)]);
+  let n = state.workers.size + 1;
+  while (taken.has(`w${n}`)) n += 1;
+  return `w${n}`;
+}
+
+/** The ids of the workers from before the pause (`worker_start replaces=` may name one). */
+export function priorWorkerIds(night: Night): string[] {
+  return (night.priorWorkers ?? []).map((worker) => worker.id);
+}
+
+/**
+ * What `worker_start from=<id>` forks from when `id` is a worker from before the pause: its last
+ * commit, else the commit it forked from (null when it left neither) — or null when no worker from
+ * before the pause has that id.
+ */
+export function priorFork(night: Night, id: string): { commit: string | null } | null {
+  const prior = priorNamed(night, id);
+  return prior ? { commit: prior.lastCommit ?? prior.from } : null;
+}
+
+/** The workers from before the pause, as a digest names them: what they left, and how to go on from it. */
+export function priorDigestWorkers(night: Night): DigestWorker[] {
+  return priorNotSuperseded(night).map((worker) => ({
+    id: worker.id,
+    title: worker.title,
+    state: priorWorkerState(worker.state, priorEra(night)),
+    accepted: worker.accepted,
+    ...(worker.stoppedBecause ? { stoppedBecause: worker.stoppedBecause } : {}),
+    fromBefore: priorWorkerLeft({ ...worker, lead: Boolean(night.lead) }),
+  }));
+}
+
+/** A worker from before the pause, as `run_status` and `worker_status` show it. */
+function statusOf(worker: PriorWorker): AnyRecord {
+  return {
+    id: worker.id,
+    title: worker.title,
+    stateBeforeThePause: worker.state,
+    rounds: worker.rounds,
+    accepted: worker.accepted,
+    lastCommit: worker.lastCommit,
+    ref: worker.ref,
+    owns: worker.owns,
+    brief: clip(worker.brief, STATUS_BRIEF_CHARS),
+  };
+}
+
+/** The workers from before the pause, as `run_status` shows them. */
+export function priorWorkersStatus(night: Night): AnyRecord[] {
+  return priorNotSuperseded(night).map(statusOf);
+}
+
+/** One worker from before the pause, as `worker_status <id>` answers: its record, and how to go on from its work. Null when there is none of that id. */
+export function priorWorkerStatus(night: Night, id: string): AnyRecord | null {
+  const prior = priorNamed(night, id);
+  return prior ? { ...statusOf(prior), notRunning: priorCommitWords({ ...prior, lead: Boolean(night.lead) }) } : null;
+}
+
+/**
+ * The workers from before the pause in one line, for every digest after a resumed night's first —
+ * which gave each its full line (`priorDigestWorkers`). Null when there are none.
+ */
+export function priorWorkersSummary(night: Night): string | null {
+  const ids = priorNotSuperseded(night).map((worker) => worker.id);
+  return ids.length ? priorWorkersLine(ids, priorEra(night)) : null;
+}

@@ -1,0 +1,182 @@
+{
+  "schema": "genex-evals/run/1",
+  "runId": "20261002T101500-genex-claude-sample-case-r1",
+  "campaignId": "20261002T100000-smoke",
+  "recordedAt": "2026-10-02T12:05:11Z",
+  "gradeSeq": 1,
+  "gradeId": "000000000000",
+  "kind": "build",
+  "campaignVoid": null,
+  "supersededBy": null,
+  "case": {
+    "id": "sample-case",
+    "version": "b8c57baabeb8",
+    "checklistVersion": "1c0d9e2f3a4b",
+    "exposure": "none",
+    "visibility": "public"
+  },
+  "lane": {
+    "id": "genex-claude",
+    "agent": "genex-app",
+    "engine": "claude-code",
+    "mode": "product-default",
+    "modeServed": "autopilot-until-satisfied",
+    "harnessPin": "9e1f00aa11bb",
+    "network": "contractor-off",
+    "browser": "studio",
+    "containment": "app"
+  },
+  "model": {
+    "requested": "claude-opus-5-5",
+    "main": "claude-opus-5-5",
+    "served": [
+      {
+        "id": "claude-opus-5-5",
+        "role": "main",
+        "tokens": { "uncachedInput": 1000, "cacheWrite": 2000, "cacheRead": 30000, "output": 400, "reasoning": 100 }
+      },
+      { "id": "claude-haiku-4-5", "role": "auxiliary", "tokens": null }
+    ],
+    "effort": "high",
+    "effortServed": "high"
+  },
+  "pins": {
+    "run": {
+      "appSha": "47f7e286",
+      "buildId": "47f7e286",
+      "harnessSeedDigest": "aaaaaaaaaaaa",
+      "cliVersion": "2.1.284",
+      "laneWrapperDigest": "unpinned",
+      "containmentDigest": "bbbbbbbbbbbb",
+      "instructionSha": "cccccccccccc"
+    },
+    "grading": {
+      "proberVersion": "genex-prober/6+desktop.1",
+      "soakMs": { "na": true },
+      "graderPromptSha": "dddddddddddd",
+      "graderModels": ["claude-sonnet-5-5", "gpt-6.1-sol"],
+      "pairwiseRubricSha": { "unavailable": true, "reason": "not-recorded" },
+      "shimMode": "none",
+      "rendererMode": "gpu",
+      "endpointsSha": "eeeeeeeeeeee"
+    },
+    "recorded": {
+      "evalSha": "865bd131",
+      "appDirty": false,
+      "os": "darwin-25.6.0",
+      "hardwareClass": "apple-silicon",
+      "concurrency": "1-per-provider",
+      "coRunLane": "raw-codex",
+      "interleaveSeed": "7",
+      "accountExclusive": "attested"
+    }
+  },
+  "outcome": {
+    "endedHow": "agent-finished",
+    "harnessFailure": null,
+    "noBuild": null,
+    "questionsAsked": 1,
+    "answersGiven": 1,
+    "traceComplete": { "parseFailures": 0, "truncatedTail": false },
+    "providerNoise": { "apiErrors": 0, "retries": 1, "apiErrorStatus": null }
+  },
+  "time": {
+    "wallMs": 3912000,
+    "toDoneMs": 3912000,
+    "firstBootMs": 1080000,
+    "firstPlayableMs": 1260000,
+    "firstPlayableResolutionMs": 30000,
+    "firstPreviewMs": 1190000,
+    "delegationP50Ms": 640000,
+    "builds": [{ "kind": "facet", "ms": 640000 }],
+    "coverage": "full"
+  },
+  "tokens": {
+    "uncachedInput": 1000,
+    "cacheWrite": 2000,
+    "cacheRead": 30000,
+    "output": 400,
+    "reasoning": 100,
+    "byRole": {
+      "lead": { "uncachedInput": 1000, "cacheWrite": 2000, "cacheRead": 30000, "output": 400, "reasoning": 100 }
+    },
+    "byModel": {
+      "claude-opus-5-5": { "uncachedInput": 1000, "cacheWrite": 2000, "cacheRead": 30000, "output": 400, "reasoning": 100 }
+    },
+    "coverage": "partial-judges"
+  },
+  "context": {
+    "leadPeakPct": 80.5,
+    "leadPeakTokens": 161000,
+    "workersPeakPct": 62,
+    "compactions": 1,
+    "coverage": "full"
+  },
+  "calls": {
+    "modelCalls": 214,
+    "tools": { "total": 30, "byCategory": { "read": 10, "edit": 12, "build": 8 } },
+    "blindEditStreak": 4,
+    "subagents": 0,
+    "verifiedBeforeDone": true,
+    "coverage": "full"
+  },
+  "cost": {
+    "apiEquivalentUsd": 38.4,
+    "priceTable": "2026-09-25",
+    "cliReportedUsd": null,
+    "billed": null,
+    "quota": [
+      {
+        "windowId": "five-hour",
+        "before": 22,
+        "after": 31,
+        "resetsAtBefore": "2026-10-02T15:00:00Z",
+        "resetsAtAfter": "2026-10-02T15:00:00Z",
+        "resetInside": false
+      }
+    ]
+  },
+  "output": { "files": 12, "bytes": 48000, "loc": 1500, "hasEntry": true, "buildScript": true, "validate": "pass" },
+  "probe": {
+    "l1Gate": "pass",
+    "l2Gate": "unknown",
+    "rows": { "l1.builds_and_boots": "pass", "l2.enterable": "unknown" },
+    "firstRenderMs": 900,
+    "fpsMedian": 58.5,
+    "consoleErrors": 0,
+    "soakMs": { "na": true },
+    "quick": true
+  },
+  "checklist": {
+    "scoreAllRuns": 0.44,
+    "scoreGraded": 0.5,
+    "byFamily": {
+      "claude": { "passed": 5, "graded": 9, "inconclusive": 0 },
+      "gpt": { "passed": 4, "graded": 9, "inconclusive": 1 }
+    },
+    "inconclusiveRate": 0.11,
+    "judgeSkipped": false,
+    "graderVoid": null
+  },
+  "inApp": {
+    "mode": "autopilot-until-satisfied",
+    "launch": "start_autopilot",
+    "budgets": { "completionPolicy": "goal", "wallClockMs": null, "untilSatisfied": true },
+    "permissionMode": "auto",
+    "victory": true,
+    "executionStatus": "completed",
+    "stopCode": null,
+    "livenessMax": 17,
+    "scoreboard": { "passing": 9, "total": 11, "regressions": 0 },
+    "judgeCalls": null,
+    "judgeTokens": null,
+    "inAppRubricDigest": "ffffffffffff"
+  },
+  "digests": {
+    "streamSha256": "0000000000000000000000000000000000000000000000000000000000000001",
+    "transcriptSha256": null,
+    "snapshotSha256": null,
+    "evidenceSha256": null
+  },
+  "notes": ["answered-question"]
+}

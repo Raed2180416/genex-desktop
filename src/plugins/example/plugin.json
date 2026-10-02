@@ -1,0 +1,84 @@
+{
+  "apiVersion": 2,
+  "id": "example",
+  "version": "1.0.0",
+  "name": "Plugin SDK example",
+  "publisher": "Studio development",
+  "description": "Local SDK example: tool, skill, settings, isolated panel, a confirmed tool and a toolbar button.",
+  "backend": "backend.mjs",
+  "capabilities": ["settings"],
+  "tools": [
+    {
+      "name": "greet",
+      "description": "Return a greeting using the plugin setting.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": ["name"]
+      }
+    },
+    {
+      "name": "shout",
+      "description": "Return the given text in capitals. Asks the user first: it demonstrates a tool that needs consent.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": ["text"]
+      },
+      "confirmation": "The example plugin wants to shout your text back."
+    }
+  ],
+  "skills": [
+    {
+      "name": "greeting",
+      "text": "Use example__greet to demonstrate a plugin tool. No external service or spending is involved. example__shout asks the user for consent before it runs; do not repeat a declined request."
+    }
+  ],
+  "panels": [
+    {
+      "id": "demo",
+      "title": "SDK demo",
+      "file": "panel.html",
+      "placement": "settings"
+    }
+  ],
+  "settings": [
+    {
+      "key": "greeting",
+      "label": "Greeting",
+      "type": "string",
+      "default": "Hello"
+    }
+  ],
+  "actions": [
+    {
+      "name": "hello",
+      "label": "Try example"
+    },
+    {
+      "name": "count",
+      "label": "Calls this session"
+    }
+  ],
+  "toolbar": [
+    {
+      "id": "demo",
+      "label": "Example",
+      "ariaLabel": "Example plugin demo",
+      "requiresProject": false,
+      "target": {
+        "kind": "panel",
+        "id": "demo"
+      },
+      "status": "count"
+    }
+  ]
+}

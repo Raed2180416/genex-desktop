@@ -1,0 +1,7 @@
+{
+  "name": "studio-harness",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The self-improving studio harness. Zero dependencies by design: the harness reaches the outside world only through the substrate RPC, so a snapshot restore is a pure git checkout with nothing to reinstall."
+}

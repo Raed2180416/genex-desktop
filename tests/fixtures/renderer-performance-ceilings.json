@@ -1,0 +1,8 @@
+{
+  "retainedHistoryIdReadsPerAppend": 4,
+  "foldsWithCompleteLifecycle": 1,
+  "foldsWithHiddenWorkers": 1,
+  "gestureMidCommitCount": 0,
+  "gesturePaintsPerFrame": 1,
+  "gestureSettleCommitCount": 1
+}

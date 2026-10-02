@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Calibration: empty canvas</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #1d2430;
+      }
+      canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- A null agent: it boots and animates a flat fill, and has no goal, no input and no content. -->
+    <canvas id="view" width="800" height="600"></canvas>
+    <script>
+      const view = document.getElementById("view");
+      const paint = view.getContext("2d");
+      function frame(time) {
+        const shade = 40 + Math.round(8 * Math.sin(time / 900));
+        paint.fillStyle = `rgb(${shade}, ${shade + 6}, ${shade + 16})`;
+        paint.fillRect(0, 0, view.width, view.height);
+        requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+    </script>
+  </body>
+</html>

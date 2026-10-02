@@ -1,0 +1,115 @@
+<!doctype html><meta charset="utf-8"><style>
+:root{--bg:#1d1d1f;--fg:#dee0e2;--accent:#88acef;--muted:color-mix(in oklab,var(--fg) 62%,var(--bg));--line:color-mix(in oklab,var(--fg) 11%,var(--bg));--soft:color-mix(in oklab,var(--fg) 8%,var(--bg));--hover:color-mix(in oklab,var(--fg) 13%,var(--bg));--fill:color-mix(in oklab,var(--accent) 62%,#000)}
+body{margin:0;padding:24px 28px;background:var(--bg);color:var(--fg);font:14px/1.5 -apple-system,BlinkMacSystemFont,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+/* Both hosts (the Plugins page and the toolbar dialog) title the frame already: the heading stays for screen readers. */
+h2{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+body>p:first-of-type{margin:0 0 20px;max-width:62ch;color:var(--muted);font-size:13px}
+#controls{display:flex;flex-wrap:wrap;gap:8px}
+button{min-height:32px;margin:0;padding:6px 14px;border:0;border-radius:11px;background:var(--soft);color:var(--fg);font:13px/1.4 ui-monospace,"SF Mono",Menlo,monospace;letter-spacing:-.02em;cursor:pointer;transition:background-color .15s ease-out}
+button:is(:hover,:focus-visible):not(:disabled){background:var(--hover);outline:none}
+button[aria-label="Publish this game on Genex"]{background:var(--fill);color:#fff}
+button[aria-label="Publish this game on Genex"]:is(:hover,:focus-visible):not(:disabled){background:color-mix(in oklab,var(--fill) 88%,#fff)}
+button:disabled{opacity:.5;cursor:default}
+#phase:not(:empty){margin:16px 0 0;color:var(--accent);font-size:13px}
+#status{margin-top:20px;border-top:1px solid var(--line)}
+#status p{margin:0;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px;overflow-wrap:anywhere}
+#status p strong{font-weight:400;color:var(--muted)}
+#status p[role=alert],#error{color:#f08287}
+#error:not(:empty){margin:12px 0 0;font-size:13px}
+a{color:var(--accent)}
+@media (prefers-reduced-motion:reduce){button{transition:none}}
+</style><h2>Publish to Genex</h2><p>Studio exports a public copy of this game and uploads that copy. Your game folder is never changed and never carries the hosted project link.</p><div id="controls"></div><p id="phase"></p><div id="status">Loading…</div><p id="error" role="alert"></p><script>// Include this in a prebuilt panel. No credential values or arbitrary IPC are exposed.
+const waiting=new Map();let seq=0;
+window.addEventListener('message',event=>{
+  if(event.source!==parent||event.data?.type!=='studio-plugin-result')return;
+  const p=waiting.get(event.data.id);if(!p)return;waiting.delete(event.data.id);clearTimeout(p.timer);
+  event.data.error?p.reject(new Error(event.data.error)):p.resolve(event.data.result);
+});
+window.studioPlugin={call(method,name,args){const id=String(++seq);return new Promise((resolve,reject)=>{const timer=setTimeout(()=>{waiting.delete(id);reject(new Error('Studio request timed out'));},60000);waiting.set(id,{resolve,reject,timer});parent.postMessage({type:'studio-plugin-request',id,method,name,args},'*');});}};
+
+/** Small framework-free SDK primitives; custom panels can also use their own framework. */
+window.studioPlugin.ui={
+  text(tag,value){const el=document.createElement(tag);el.textContent=String(value??'Unknown');return el;},
+  status(label,value){const row=document.createElement('p');const title=document.createElement('strong');title.textContent=label+': ';row.append(title,document.createTextNode(String(value??'Unknown')));return row;},
+  error(message){const el=document.createElement('p');el.setAttribute('role','alert');el.textContent=String(message);return el;}
+};
+
+// Wear the app's own colours: the host hands its theme to every panel as context.
+studioPlugin.call('context').then(c=>{const t=c?.theme,root=document.documentElement.style;if(!t)return;if(t.background)root.setProperty('--bg',t.background);if(t.foreground)root.setProperty('--fg',t.foreground);if(t.accent)root.setProperty('--accent',t.accent);},()=>{});
+const controls=document.querySelector('#controls'),status=document.querySelector('#status'),phase=document.querySelector('#phase'),error=document.querySelector('#error');
+const ui=studioPlugin.ui;
+const call=(name,args={})=>studioPlugin.call('action',name,args);
+const PHASES={checking:'Checking this game',exporting:'Exporting a public copy',"creating-project":'Creating the hosted Genex game',uploading:'Uploading to the draft page',promoting:'Making it the public version',listing:'Uploading and making it public',done:'Finished',failed:'Upload failed','verifying-deployment':'Uploaded · Checking playable files',ready:'Ready to play',unresolved:'Uploaded · Still checking availability'};
+let running=false,timer;
+const button=(label,ariaLabel,disabled,onclick)=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.ariaLabel=ariaLabel;b.disabled=!!disabled;b.onclick=onclick;controls.append(b);return b;};
+
+const listed=state=>state.status==='published';
+const termsPending=state=>Boolean(state.terms)&&state.terms.accepted===false;
+function gameText(state){
+  if(!state.slug)return 'Not online yet';
+  return listed(state)?'Listed in the gallery':'Unlisted draft';
+}
+function phaseText(job,live){
+  if(!job)return '';
+  if(job.phase==='unresolved'&&!job.uploadedAt)return 'Upload outcome unknown · Check the deployment page';
+  const elapsed=live?' · '+Math.floor((Date.now()-Date.parse(job.startedAt))/1000)+'s elapsed':'';
+  return (PHASES[job.phase]??job.phase)+elapsed;
+}
+function renderStatus(state,job){
+  status.dataset.state=state.status||(state.slug?'draft':'none');
+  status.dataset.connected=String(state.connected===true);
+  status.replaceChildren(
+    ui.status('Genex account',state.connected?'Connected':'Not connected'),
+    ui.status('This game',gameText(state)),
+    ui.status('Draft page',state.draftUrl??'None yet'),
+    ui.status('Gallery page',listed(state)?(state.galleryUrl??'None yet'):'Not listed'),
+    ui.status('Last upload',state.lastPreviewAt??'Never'));
+  renderNotes(state,job);
+}
+function renderNotes(state,job){
+  for(const warning of state.warnings??[])status.append(ui.text('p',warning));
+  if(termsPending(state))status.append(ui.error('Review the updated Genex terms in your browser before publishing.'));
+  if(job?.error||state.lastError)status.append(ui.error(job?.error??state.lastError));
+  if(state.readyDraft&&job?.phase!=='ready')status.append(ui.text('p','Last verified revision: '+state.readyDraft.revision+'. The staging URL may change while this update is pending.'));
+  if(job?.checkError)status.append(ui.text('p',job.checkError));
+}
+function renderControls(state,job,live){
+  const unresolved=job?.phase==='unresolved';
+  controls.replaceChildren();
+  if(unresolved)button('Check again','Check deployment availability without uploading',false,()=>act('publish-status',{operation:'check'}));
+  // The host asks first (the action's confirmation): only the user can say the upload did not land.
+  if(unresolved)button('I checked — allow a new upload','Allow a new upload after checking the deployment page',false,()=>act('publish-allow-upload',{jobId:job.id}));
+  if(termsPending(state))button('Review Genex terms','Review Genex terms',false,()=>act('terms'));
+  // Publishing updates the draft and makes that build public in one press; a draft alone stays available for test builds.
+  button(listed(state)?'Update the public version':'Publish','Publish this game on Genex',!state.connected||live,()=>act('publish-gallery'));
+  button(state.slug?'Update the draft only':'Put a draft online','Put this game online as a draft',!state.connected||live,()=>act('publish-draft'));
+  openButtons(state,job);
+}
+function openButtons(state,job){
+  if(state.readyDraft&&job?.phase==='ready')button('Open playable draft','Open the verified playable draft',false,()=>act('publish-open',{target:'play'}));
+  if(state.draftUrl)button('View deployment page (may still be unavailable)','View deployment page',false,()=>act('publish-open',{target:'draft'}));
+  if(listed(state)&&state.galleryUrl)button('Open gallery page','Open the Genex gallery page',false,()=>act('publish-open',{target:'gallery'}));
+}
+function render(state){
+  const job=state.job,live=job&&(job.state==='running'||job.state==='unresolved');
+  running=!!live&&job.phase!=='unresolved';
+  renderStatus(state,job);
+  phase.textContent=phaseText(job,live);
+  renderControls(state,job,live);
+}
+
+async function refresh(){
+  try{render(await call('publish-status',{operation:'status'}));error.textContent='';}
+  catch(e){if(/timed out/i.test(String(e))){phase.textContent='Still working — Studio has not answered yet.';return;}error.textContent=String(e);}
+  finally{schedule();}
+}
+function schedule(){clearTimeout(timer);timer=setTimeout(refresh,running?2000:10000);}
+async function act(name,args={}){
+  error.textContent='';
+  try{await call(name,args);}
+  catch(e){if(/timed out/i.test(String(e)))phase.textContent='Still working — Studio has not answered yet.';else error.textContent=String(e);}
+  await refresh();
+}
+refresh();
+window.addEventListener('pagehide',()=>clearTimeout(timer));
+</script>

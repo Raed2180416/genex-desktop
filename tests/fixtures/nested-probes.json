@@ -1,0 +1,118 @@
+{
+  "probes": [
+    {
+      "id": "probe-01",
+      "refs": [
+        "state.crumple.frontDepth"
+      ],
+      "reason": "false (missing: state.crumple.frontDepth)"
+    },
+    {
+      "id": "probe-02",
+      "refs": [
+        "state.crumple.rearDepth"
+      ],
+      "reason": "false (missing: state.crumple.rearDepth)"
+    },
+    {
+      "id": "probe-03",
+      "refs": [
+        "state.crumple.detached"
+      ],
+      "reason": "false (missing: state.crumple.detached)"
+    },
+    {
+      "id": "probe-04",
+      "refs": [
+        "state.crumple.shattered"
+      ],
+      "reason": "false (missing: state.crumple.shattered)"
+    },
+    {
+      "id": "probe-05",
+      "refs": [
+        "state.contact.speedKept"
+      ],
+      "reason": "false (missing: state.contact.speedKept)"
+    },
+    {
+      "id": "probe-06",
+      "refs": [
+        "state.contact.propsMoved"
+      ],
+      "reason": "false (missing: state.contact.propsMoved)"
+    },
+    {
+      "id": "probe-07",
+      "refs": [
+        "state.contact.maxLift"
+      ],
+      "reason": "false (missing: state.contact.maxLift)"
+    },
+    {
+      "id": "probe-08",
+      "refs": [
+        "state.contact.snagged"
+      ],
+      "reason": "false (missing: state.contact.snagged)"
+    },
+    {
+      "id": "probe-09",
+      "refs": [
+        "state.dirt.mud"
+      ],
+      "reason": "false (missing: state.dirt.mud)"
+    },
+    {
+      "id": "probe-10",
+      "refs": [
+        "state.dirt.scuff"
+      ],
+      "reason": "false (missing: state.dirt.scuff)"
+    },
+    {
+      "id": "probe-11",
+      "refs": [
+        "state.post.motionBlur"
+      ],
+      "reason": "false (missing: state.post.motionBlur)"
+    },
+    {
+      "id": "probe-12",
+      "refs": [
+        "state.post.kickPeak"
+      ],
+      "reason": "false (missing: state.post.kickPeak)"
+    },
+    {
+      "id": "probe-13",
+      "refs": [
+        "state.post.sparksAlive"
+      ],
+      "reason": "false (missing: state.post.sparksAlive)"
+    }
+  ],
+  "state": {
+    "crumple": {
+      "frontDepth": 1,
+      "rearDepth": 0,
+      "detached": 2,
+      "shattered": 1
+    },
+    "contact": {
+      "speedKept": 1,
+      "propsMoved": 2,
+      "maxLift": 1,
+      "snagged": 0
+    },
+    "dirt": {
+      "mud": 0,
+      "scuff": 1
+    },
+    "post": {
+      "motionBlur": 1,
+      "kickPeak": 2,
+      "sparksAlive": 3
+    }
+  }
+}

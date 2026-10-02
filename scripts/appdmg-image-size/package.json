@@ -1,0 +1,12 @@
+{
+  "name": "appdmg-image-size",
+  "version": "1.0.0",
+  "private": true,
+  "description": "appdmg's image-size(path, callback) call answered by image-size 2; a development-only override, never packaged.",
+  "license": "MIT",
+  "type": "commonjs",
+  "main": "index.cjs",
+  "dependencies": {
+    "image-size-v2": "npm:image-size@2.0.4"
+  }
+}

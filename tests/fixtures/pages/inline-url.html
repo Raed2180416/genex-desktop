@@ -1,0 +1,24 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>One File</title>
+<style>
+  body {
+    margin: 0;
+    background: #05070d;
+  }
+</style>
+
+<!-- No import map at all: this page imports three by URL from inside its own inline module,
+     which is what a single-file example built from a CDN snippet looks like. -->
+<script type="module">
+  import * as THREE from "https://cdn.example.com/three@0.180.0/build/three.module.js";
+  import { OrbitControls } from "https://cdn.example.com/three@0.180.0/examples/jsm/controls/OrbitControls.js";
+
+  const renderer = new THREE.WebGLRenderer();
+  document.body.append(renderer.domElement);
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
+  const controls = new OrbitControls(camera, renderer.domElement);
+  const label = "three.module.js";
+  renderer.setAnimationLoop(() => renderer.render(scene, camera));
+</script>

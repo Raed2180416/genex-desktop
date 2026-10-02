@@ -1,0 +1,270 @@
+import { fork, type ChildProcess } from "node:child_process";
+import type { PluginBinding } from "../../shared/plugins.ts";
+import { errorMessage } from "../../shared/errors.ts";
+import { SECOND_MS } from "../../shared/duration.ts";
+import { windowsBaseEnv } from "../child-env.ts";
+import { envPath } from "../toolchain.ts";
+
+/** What the backend bootstrap (`plugin-sdk/backend.mjs`) and the host say to each other. Wire values. */
+const MessageKind = {
+  Call: "call",
+  Cancel: "cancel",
+  Result: "result",
+  Host: "host",
+  HostResult: "host-result",
+} as const;
+/** A message from the backend: a call's result, or a host-service request made during a call. */
+interface BackendMessage {
+  kind?: string;
+  id: number;
+  callId?: number;
+  method?: string;
+  args?: unknown;
+  result?: unknown;
+  error?: string;
+}
+const NO_INVOCATION = "No active authorized invocation";
+const STOPPED_BEFORE = "Stopped before plugin invocation";
+/** The longest stderr line forwarded to the debug sink. */
+const STDERR_LINE_CHARS = 4000;
+/** How long one plugin invocation may run unless its caller sets its own limit. */
+const DEFAULT_CALL_TIMEOUT_MS = 190 * SECOND_MS;
+/** A stopped backend gets this long after SIGTERM before SIGKILL. */
+const KILL_GRACE_MS = 3 * SECOND_MS;
+
+/**
+ * A plugin backend's whole environment, built from scratch: PATH, HOME, TMPDIR, the credential
+ * opt-out and, on Windows, what any program needs to start there. Nothing else of Studio's.
+ * `toolPath` is the user's login PATH when known: an app started from the Finder has a bare one,
+ * on which a backend finds none of the user's tools (Genex's publish needs git-lfs from Homebrew).
+ */
+export function pluginBackendEnv(
+  parent: NodeJS.ProcessEnv,
+  platform: NodeJS.Platform = process.platform,
+  toolPath?: string,
+): Record<string, string> {
+  const env: Record<string, string | undefined> = {
+    ...windowsBaseEnv(parent, platform),
+    PATH: toolPath || envPath(parent),
+    HOME: parent.HOME,
+    TMPDIR: parent.TMPDIR,
+    ELECTRON_RUN_AS_NODE: "1",
+    STUDIO_DISABLE_OS_CREDENTIALS: parent.STUDIO_DISABLE_OS_CREDENTIALS,
+  };
+  return Object.fromEntries(Object.entries(env).filter((entry): entry is [string, string] => entry[1] !== undefined));
+}
+
+/** Hand each complete stderr line to `onStderr`; a throwing sink never breaks the pipe. */
+function forwardStderrLines(child: ChildProcess, onStderr: (line: string) => void) {
+  const send = (line: string) => {
+    try {
+      onStderr(line.slice(0, STDERR_LINE_CHARS));
+    } catch {}
+  };
+  let rest = "";
+  child.stderr?.setEncoding("utf8");
+  child.stderr?.on("data", (chunk: string) => {
+    rest += chunk;
+    const lines = rest.split(/\r?\n/);
+    rest = lines.pop() ?? "";
+    for (const line of lines) if (line) send(line);
+  });
+  child.stderr?.on("end", () => {
+    if (rest) send(rest);
+    rest = "";
+  });
+}
+
+/** Crash isolation only. Installed backends remain trusted native code. Never replay a call. */
+export class PluginProcess {
+  #child: ChildProcess | undefined;
+  #sequence = 0;
+  #pending = new Map<
+    number,
+    {
+      resolve: (v: any) => void;
+      reject: (e: Error) => void;
+      cleanup: () => void;
+      context: PluginBinding | undefined;
+      method: string;
+      name: string;
+      controller: AbortController;
+    }
+  >();
+  readonly bootstrap: string;
+  readonly entry: string;
+  readonly service: (
+    method: string,
+    args: any,
+    context: PluginBinding | undefined,
+    invocation: { method: string; name: string; signal: AbortSignal },
+  ) => Promise<unknown>;
+  readonly failed: (error: string) => void;
+  /** Developer debug sink for backend stderr lines; default discards. Never a source of user-facing status. */
+  readonly onStderr: ((line: string) => void) | undefined;
+  /** The PATH the backend starts with; absent or failing, the app's own. */
+  readonly toolPath: (() => Promise<string>) | undefined;
+  constructor(
+    bootstrap: string,
+    entry: string,
+    service: (
+      method: string,
+      args: any,
+      context: PluginBinding | undefined,
+      invocation: { method: string; name: string; signal: AbortSignal },
+    ) => Promise<unknown>,
+    failed: (error: string) => void,
+    options?: { onStderr?: (line: string) => void; toolPath?: () => Promise<string> },
+  ) {
+    this.bootstrap = bootstrap;
+    this.entry = entry;
+    this.service = service;
+    this.failed = failed;
+    this.onStderr = options?.onStderr;
+    this.toolPath = options?.toolPath;
+  }
+  /** A backend's answer to one call: its result or its error. */
+  #settle(m: BackendMessage) {
+    const p = this.#pending.get(m.id);
+    if (!p) return;
+    this.#pending.delete(m.id);
+    p.cleanup();
+    if (m.error) p.reject(new Error(m.error));
+    else p.resolve(m.result);
+  }
+  /** Answer a backend's host-service request, but only on behalf of a call still in flight. */
+  async #answerHost(child: ChildProcess, m: BackendMessage) {
+    const reply = (answer: { result?: unknown; error?: string }) => {
+      if (child.connected) child.send({ kind: MessageKind.HostResult, id: m.id, ...answer });
+    };
+    const p = m.callId === undefined ? undefined : this.#pending.get(m.callId);
+    if (!p) {
+      reply({ error: NO_INVOCATION });
+      return;
+    }
+    try {
+      const result = await this.service(m.method ?? "", m.args, p.context, {
+        method: p.method,
+        name: p.name,
+        signal: p.controller.signal,
+      });
+      reply({ result });
+    } catch (e) {
+      reply({ error: errorMessage(e) });
+    }
+  }
+  /** The running backend, started with the user's PATH when this is its first call. */
+  async #started(): Promise<ChildProcess> {
+    if (this.#child) return this.#child;
+    const toolPath = await this.toolPath?.().catch(() => undefined);
+    // Another call may have started it while the PATH was read.
+    return this.#start(toolPath);
+  }
+  #start(toolPath?: string) {
+    if (this.#child) return this.#child;
+    const child = fork(this.bootstrap, [this.entry], {
+      execPath: process.execPath,
+      execArgv: [],
+      serialization: "advanced",
+      env: pluginBackendEnv(process.env, process.platform, toolPath),
+      stdio: ["ignore", "ignore", "pipe", "ipc"],
+    });
+    this.#child = child;
+    // Backend stderr may contain provider output: never surface it as sanitized account status.
+    const onStderr = this.onStderr;
+    if (!onStderr) child.stderr?.resume();
+    else forwardStderrLines(child, onStderr);
+    child.on("message", async (raw) => {
+      const m = raw as BackendMessage | undefined;
+      if (m?.kind === MessageKind.Result) this.#settle(m);
+      else if (m?.kind === MessageKind.Host) await this.#answerHost(child, m);
+    });
+    const fail = (error: string) => {
+      if (this.#child !== child) return;
+      this.#child = undefined;
+      for (const p of this.#pending.values()) {
+        p.cleanup();
+        p.reject(new Error(error));
+      }
+      this.#pending.clear();
+      this.failed(error);
+    };
+    child.on("error", (e) => fail(e.message));
+    child.on("exit", (code) => fail(`Plugin process exited (${code}); accepted remote jobs may still continue. `));
+    return child;
+  }
+  async call(
+    method: "tool" | "action" | "review" | "ping",
+    name: string,
+    args: unknown,
+    context?: PluginBinding,
+    signal?: AbortSignal,
+    timeoutMs = DEFAULT_CALL_TIMEOUT_MS,
+  ): Promise<any> {
+    if (signal?.aborted) throw new Error(STOPPED_BEFORE);
+    const child = await this.#started();
+    if (signal?.aborted) throw new Error(STOPPED_BEFORE);
+    const id = ++this.#sequence,
+      controller = new AbortController();
+    return new Promise((resolve, reject) => {
+      const cancel = () => {
+        if (child.connected) child.send({ kind: MessageKind.Cancel, id });
+        const p = this.#pending.get(id);
+        if (!p) return;
+        this.#pending.delete(id);
+        p.cleanup();
+        reject(
+          new Error("Stopped local plugin wait; accepted remote jobs may continue. Do not repeat unresolved creation."),
+        );
+      };
+      const timer = setTimeout(cancel, timeoutMs);
+      this.#pending.set(id, {
+        resolve,
+        reject,
+        context,
+        method,
+        name,
+        controller,
+        cleanup: () => {
+          controller.abort();
+          clearTimeout(timer);
+          signal?.removeEventListener("abort", cancel);
+        },
+      });
+      signal?.addEventListener("abort", cancel, { once: true });
+      child.send({ kind: MessageKind.Call, id, method, name, args, context }, (error) => {
+        if (error) {
+          const p = this.#pending.get(id);
+          if (p) {
+            this.#pending.delete(id);
+            p.cleanup();
+            reject(error);
+          }
+        }
+      });
+    });
+  }
+  cancel(binding: Partial<PluginBinding>) {
+    for (const [id, p] of this.#pending) {
+      if (binding.project && p.context?.project !== binding.project) continue;
+      if (binding.threadId && p.context?.threadId !== binding.threadId) continue;
+      if (this.#child?.connected) this.#child.send({ kind: MessageKind.Cancel, id });
+      this.#pending.delete(id);
+      p.cleanup();
+      p.reject(new Error("Stopped local plugin work; accepted remote jobs may continue."));
+    }
+  }
+  stop() {
+    for (const p of this.#pending.values()) {
+      p.cleanup();
+      p.reject(new Error("Plugin stopped locally; accepted remote jobs may continue."));
+    }
+    this.#pending.clear();
+    const c = this.#child;
+    if (!c) return;
+    c.kill("SIGTERM");
+    const timer = setTimeout(() => c.kill("SIGKILL"), KILL_GRACE_MS);
+    timer.unref();
+    c.once("exit", () => clearTimeout(timer));
+  }
+}

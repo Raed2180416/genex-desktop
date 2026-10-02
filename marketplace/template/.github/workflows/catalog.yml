@@ -1,0 +1,33 @@
+name: Catalog release validation
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # PR changes cannot replace the validator/policy used to approve their own package.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          path: trusted
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          path: candidate
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Validate metadata and public artifact bytes without executing plugins
+        env:
+          IS_PR: ${{ github.event_name == 'pull_request' }}
+        run: |
+          if [ "$IS_PR" = true ]; then
+            node trusted/scripts/check-catalog.mjs --root candidate --previous trusted --policy-root trusted --remote
+          else
+            node trusted/scripts/check-catalog.mjs --root candidate --policy-root trusted --remote
+          fi

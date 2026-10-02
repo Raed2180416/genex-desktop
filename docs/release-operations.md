@@ -1,0 +1,112 @@
+# Release operations
+
+The desktop is a prerelease. A workflow definition or local smoke pass is not acceptance of a
+signed release. [Release readiness](release-readiness.md) records the outstanding gates.
+
+## Prepare a candidate
+
+Integrate through `dev`; the owner promotes `dev` to `main`. Keep the lockfile, Node 24,
+Electron and native terminal ABI aligned. Apply compatible dependency fixes as a reviewed
+change; major toolchain upgrades get their own acceptance. Assess advisory leaf packages and
+their shipped/build exposure, rather than treating each transitive parent as a distinct CVE.
+
+Run `npm run verify`, the changed UI review and `npm run test:terminal` after native runtime
+changes. Run platform checks on every advertised OS. For a source setup check, use an owned
+fixture profile and a disposable install; do not touch normal profiles or provider credentials.
+
+Record a candidate's source SHA, lockfile digest, version, platform/architecture, signing
+identity, checks and limitations. Generate a lockfile dependency inventory with
+`npm sbom --sbom-format cyclonedx --package-lock-only`; it includes build dependencies and is
+not an assertion that every listed package ships. Inspect generated and manually maintained
+notices in `dist/resources/third-party/` and the packaged resources, including the root MIT
+license. Keep provenance for copied sources and runtime downloads.
+
+## Package and authorize
+
+`npm run package` creates a local app; `npm run make` creates installers. Use a checkout with
+its own dependencies. Check free disk first. Run `npm run test:packaged` against the exact app.
+An ad-hoc macOS package is not Developer ID/notarization acceptance. The release workflow has
+separate macOS and Windows signing paths; an unsigned artifact must be labelled unsigned.
+
+For a single-platform build without the release regression, dispatch `package.yml` on the
+desired source branch with `only=linux`, `darwin` or `win32`. It runs that platform's makers,
+packaged smoke and terminal checks, then retains installers and provenance in the Actions
+artifact `package-<platform>-<arch>`. For Linux x64, download `package-linux-x64` for the `.deb`.
+These unsigned candidates do not publish a release or establish full regression acceptance.
+Linux packaging installs locked dependencies without lifecycle scripts, installs the pinned
+Electron runtime, rebuilds the terminal, then runs `runtime:check` so the required Unix
+native addon is built before runtime validation. The separate `spawn-helper` is macOS-only;
+Linux node-pty forks through its native addon.
+
+The owner controls signing secrets, the protected release environment, tags and publication.
+Require product checks and approval on the actual release repository, including fork workflow
+restrictions. Pin and review installation/build actions before granting signing access. Keep
+certificates out of the checkout and do not give pull-request code release credentials.
+
+Retain the candidate's checksums, inventory, notices and signed-asset verification. Validate
+`codesign`, Gatekeeper and stapling on macOS, and Authenticode on Windows. The workflow validates tag/version and main ancestry before signing access, then requires full
+regression, terminal and gallery checks. Build-only dispatches use the `candidate` environment
+and receive no signing secrets. Draft upload requires verified macOS signing plus the macOS and
+Linux packaged smokes. Windows is built and tested every release, cannot hold the draft back, and
+joins it only once it is signed and its job passed (`distributionPlatforms` in `scripts/release-policy.mjs`); unsigned candidates, including
+unsigned Windows packages, remain Actions artifacts. Each packaged platform
+also exercises its terminal; Windows checks
+the installer/uninstaller and a scripted packaged chat turn. Apps and DMGs both
+need notarization/stapling. Platform provenance records the source and lock digest alongside
+artifact hashes; `SHA256SUMS` covers the final inventory. Existing public assets and drafts from
+a different source cannot be replaced. The owner creates the matching version tag; draft upload
+resolves that remote tag to the candidate commit and refuses missing or mismatched tags. A draft
+release is reviewed before publication. Maintain release notes that
+name behavior changes, migration requirements and known limitations.
+
+## Install, update and recovery acceptance
+
+Test clean install, launch, terminal, first game, upgrade from the previous supported version,
+data migration, quit during work, relaunch and uninstall on each supported platform. Back up
+owned test games/profile before migration and prove the backup restores. Verify failed or
+partial update recovery separately from a successful download.
+
+Automatic updates are on from the public launch; see
+[Automatic updates](#automatic-updates). Renamed forks fail the official-feed
+identity check; a fork must also choose its own bundle/application id, data directory, signing
+identity, catalog and service disclosures. Never publish the existing private history by changing
+visibility: use the owner's approved, independently reviewed source/history route. Current-tree
+cleanup does not erase old refs, PR diffs, Actions logs or artifacts.
+
+## Automatic updates
+
+Installed macOS and Windows copies ask update.electronjs.org hourly, which serves the newest
+published GitHub release of `UPDATE_REPO` ([auto-update](../src/main/auto-update.ts)), the
+repository `forge.config.cjs` publishes to and `package.json` names (`auto-update.test.ts`
+holds the three together). `AUTO_UPDATE_ENABLED` is on and [PRIVACY](../PRIVACY.md) discloses
+the check. Linux copies ask GitHub's `releases/latest` every six hours instead
+([release-check](../src/main/release-check.ts)) and offer the release page; nothing installs in
+place there. Settings → About and the app menu's Check for Updates ask on demand. Copies built
+before the switch (every `-rc` so far) never check: their users reinstall from a release.
+
+Rules for every release, because each mistake strands installed copies:
+
+1. Bump `package.json` `version`; tag exactly `v<version>` on `main`, in the public repository
+   (`release.yml` drafts into the repository it runs in).
+2. Publish each reviewed draft as a full release. The service skips drafts and pre-releases, so a
+   `-rc` version reaches no installed copy. Draft upload refuses a release missing what the
+   service serves: the `-darwin-arm64` zip, and Windows `RELEASES`, full `.nupkg` and installer.
+3. Never change the bundle id, the Developer ID team, the product name `Genex` (the fork
+   identity check) or `UPDATE_REPO`, and never replace a published release's assets: fix forward
+   with a new version.
+4. Accept the channel once with two signed releases: install the first from `/Applications` (Squirrel.Mac cannot
+   replace an app run from the disk image), publish the second, relaunch, and check Restart to
+   update, the prompt during an active run, and an install at a plain quit. On Linux, check
+   that the sidebar offers the second release's download and Check for Updates finds it.
+
+For an incident, stop further distribution, preserve candidate/evidence identifiers, use the
+private [security channel](../SECURITY.md), and publish corrected release notes only after the
+owner approves the replacement. Do not claim a rollback restores remote side effects.
+
+## Repository controls
+
+Configure required Linux `gate`, documentation and relevant platform/rig checks on `dev` and
+`main`, restrict direct updates, and require an owner review before main promotion. Protect the
+`release` environment with required reviewers and approved main/tag deployment rules; disable
+administrator bypass where supported. Workflow code alone does not configure these controls.
+Check the live settings and exact candidate CI before calling a release cycle accepted.

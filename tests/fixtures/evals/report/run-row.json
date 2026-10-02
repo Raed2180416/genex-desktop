@@ -1,0 +1,154 @@
+{
+  "schema": "genex-evals/run/1",
+  "runId": "20261001T120000-genex-claude-case-one-r1",
+  "campaignId": "20261001T120000-fixture",
+  "recordedAt": "2026-10-01T12:00:00Z",
+  "gradeSeq": 1,
+  "gradeId": "a1b2c3d4e5f6",
+  "kind": "build",
+  "campaignVoid": null,
+  "supersededBy": null,
+  "case": {
+    "id": "case-one",
+    "version": "0a1b2c3d4e5f",
+    "checklistVersion": "1a2b3c4d5e6f",
+    "exposure": "none",
+    "visibility": "public"
+  },
+  "lane": {
+    "id": "genex-claude",
+    "agent": "genex-app",
+    "engine": "claude-code",
+    "mode": "product-default",
+    "modeServed": "autopilot-until-satisfied",
+    "harnessPin": "b0b1b2b3b4b5",
+    "network": "contractor-off",
+    "browser": "studio",
+    "containment": "app"
+  },
+  "model": {
+    "requested": "claude-opus-5-5",
+    "main": "claude-opus-5-5",
+    "served": [{ "id": "claude-opus-5-5", "role": "main", "tokens": null }],
+    "effort": "high",
+    "effortServed": "high"
+  },
+  "pins": {
+    "run": {
+      "appSha": "1111111111111111111111111111111111111111",
+      "buildId": "c0c1c2c3c4c5",
+      "harnessSeedDigest": "d0d1d2d3d4d5",
+      "cliVersion": "2.1.300",
+      "laneWrapperDigest": "e0e1e2e3e4e5",
+      "containmentDigest": "f0f1f2f3f4f5",
+      "instructionSha": "a0a1a2a3a4a5"
+    },
+    "grading": {
+      "proberVersion": "1.0.0",
+      "soakMs": 60000,
+      "graderPromptSha": "abababababab",
+      "graderModels": ["gpt-6.1-sol", "claude-sonnet-5-5"],
+      "pairwiseRubricSha": "cdcdcdcdcdcd",
+      "shimMode": "none",
+      "rendererMode": "gpu",
+      "endpointsSha": "efefefefefef"
+    },
+    "recorded": {
+      "evalSha": "2222222222222222222222222222222222222222",
+      "appDirty": false,
+      "os": "darwin-25.0.0",
+      "hardwareClass": "apple-silicon",
+      "concurrency": "1-per-provider",
+      "coRunLane": null,
+      "interleaveSeed": "seed-one",
+      "accountExclusive": "unattested"
+    }
+  },
+  "outcome": {
+    "endedHow": "agent-finished",
+    "harnessFailure": null,
+    "noBuild": null,
+    "questionsAsked": 0,
+    "answersGiven": 0,
+    "traceComplete": { "parseFailures": 0, "truncatedTail": false },
+    "providerNoise": { "apiErrors": 0, "retries": 0, "apiErrorStatus": null }
+  },
+  "time": {
+    "wallMs": 1800000,
+    "toDoneMs": 1800000,
+    "firstBootMs": 300000,
+    "firstPlayableMs": 600000,
+    "firstPlayableResolutionMs": 30000,
+    "firstPreviewMs": 240000,
+    "delegationP50Ms": 420000,
+    "builds": [{ "kind": "chat-delegation", "ms": 420000 }],
+    "coverage": "full"
+  },
+  "tokens": {
+    "uncachedInput": 20000,
+    "cacheWrite": 100000,
+    "cacheRead": 2000000,
+    "output": 50000,
+    "reasoning": 10000,
+    "byRole": {
+      "lead": { "uncachedInput": 20000, "cacheWrite": 100000, "cacheRead": 2000000, "output": 50000, "reasoning": 10000 }
+    },
+    "byModel": {
+      "claude-opus-5-5": {
+        "uncachedInput": 20000,
+        "cacheWrite": 100000,
+        "cacheRead": 2000000,
+        "output": 50000,
+        "reasoning": 10000
+      }
+    },
+    "coverage": "full"
+  },
+  "context": {
+    "leadPeakPct": 42,
+    "leadPeakTokens": 84000,
+    "workersPeakPct": null,
+    "compactions": 0,
+    "coverage": "full"
+  },
+  "calls": {
+    "modelCalls": 120,
+    "tools": { "total": 90, "byCategory": { "read": 30, "edit": 40, "shell": 20 } },
+    "blindEditStreak": 3,
+    "subagents": 0,
+    "verifiedBeforeDone": true,
+    "coverage": "full"
+  },
+  "cost": {
+    "apiEquivalentUsd": 3.5,
+    "priceTable": "2026-09-25",
+    "cliReportedUsd": null,
+    "billed": null,
+    "quota": []
+  },
+  "output": { "files": 12, "bytes": 40000, "loc": 900, "hasEntry": true, "buildScript": true, "validate": "pass" },
+  "probe": {
+    "l1Gate": "pass",
+    "l2Gate": "pass",
+    "rows": { "l1.builds_and_boots": "pass", "l2.enterable": "pass", "l2.input_changes_state": "pass" },
+    "firstRenderMs": 800,
+    "fpsMedian": 60,
+    "consoleErrors": 0,
+    "soakMs": 60000,
+    "quick": false
+  },
+  "checklist": {
+    "scoreAllRuns": 0.75,
+    "scoreGraded": 0.8,
+    "byFamily": {
+      "claude": { "passed": 6, "graded": 7, "inconclusive": 1 },
+      "gpt": { "passed": 5, "graded": 8, "inconclusive": 0 }
+    },
+    "inconclusiveRate": 0.0625,
+    "judgeSkipped": false,
+    "graderVoid": null
+  },
+  "inApp": null,
+  "digests": { "streamSha256": null, "transcriptSha256": null, "snapshotSha256": null, "evidenceSha256": null },
+  "notes": []
+}

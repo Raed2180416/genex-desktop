@@ -1,0 +1,4 @@
+{
+  "about": "Frozen list for scripts/check-boundaries.ts: import cycles in src that are allowed to remain. It is empty and may only stay so: break a new cycle (import a type with `import type`, or move what both sides need into a module neither imports) instead of listing it. A cycle not listed here fails `npm run verify:architecture`; an entry the code no longer has is reported as stale. Runtime imports of src/harness-seed from the app have no allowlist: every one fails.",
+  "cycles": []
+}

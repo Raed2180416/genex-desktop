@@ -1,0 +1,33 @@
+#!/usr/bin/env node
+/**
+ * Stands in for the Codex CLI in a raw fixture lane (C): `--version`, or `exec --json` with the
+ * prompt on stdin, which writes the session's rollout under `$CODEX_HOME/sessions` (only when that
+ * variable names a home) and replays the recorded build with its timing, writing the recorded game
+ * into the working folder. No network, no model.
+ */
+import { randomUUID } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { exitOnTerm, nowIso, readStdin, recording, replay } from "./replay.mjs";
+
+const VERSION = "0.159.0-fixture";
+const args = process.argv.slice(2);
+if (args.includes("--version")) {
+  process.stdout.write(`codex-cli ${VERSION}\n`);
+  process.exit(0);
+}
+exitOnTerm();
+await readStdin();
+const cwd = process.cwd();
+const threadId = randomUUID();
+const home = process.env.CODEX_HOME;
+if (home) {
+  const now = nowIso();
+  const [date] = now.split("T");
+  const dir = path.join(home, "sessions", ...date.split("-"));
+  const rollout = await recording("codex-rollout.jsonl", { CWD: cwd, THREAD_ID: threadId, VERSION, CODEX_HOME: home, NOW: now });
+  await mkdir(dir, { recursive: true });
+  const stamp = now.slice(0, 19).replace(/:/g, "-");
+  await writeFile(path.join(dir, `rollout-${stamp}-${threadId}.jsonl`), `${rollout.map((line) => JSON.stringify(line)).join("\n")}\n`);
+}
+await replay(await recording("codex-stream.jsonl", { CWD: cwd, THREAD_ID: threadId }), { cwd });

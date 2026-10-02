@@ -1,0 +1,19 @@
+{"receivedAt":1790000000200,"line":"{\"type\":\"thread.started\",\"thread_id\":\"thr-main\"}"}
+{"receivedAt":1790000000250,"line":"{\"type\":\"turn.started\"}"}
+{"receivedAt":1790000001000,"line":"{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"Starting.\"}}"}
+{"receivedAt":1790000001200,"line":"{\"type\":\"item.started\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'npm install three'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}"}
+{"receivedAt":1790000004200,"line":"{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'npm install three'\",\"aggregated_output\":\"\",\"exit_code\":0,\"status\":\"completed\"}}"}
+{"receivedAt":1790000005000,"line":"{\"type\":\"item.started\",\"item\":{\"id\":\"item_2\",\"type\":\"file_change\",\"changes\":[{\"path\":\"src/a.ts\",\"kind\":\"add\"}],\"status\":\"in_progress\"}}"}
+{"receivedAt":1790000005100,"line":"{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"file_change\",\"changes\":[{\"path\":\"src/a.ts\",\"kind\":\"add\"}],\"status\":\"completed\"}}"}
+{"receivedAt":1790000006000,"line":"{\"type\":\"item.started\",\"item\":{\"id\":\"item_3\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"npm run build\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}"}
+{"receivedAt":1790000009000,"line":"{\"type\":\"item.completed\",\"item\":{\"id\":\"item_3\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"npm run build\\\"\",\"aggregated_output\":\"\",\"exit_code\":2,\"status\":\"failed\"}}"}
+{"receivedAt":1790000009500,"line":"{\"type\":\"item.started\",\"item\":{\"id\":\"item_4\",\"type\":\"mcp_tool_call\",\"server\":\"playwright\",\"tool\":\"browser_navigate\",\"arguments\":{\"url\":\"http://127.0.0.1:5173/\"},\"result\":null,\"error\":null,\"status\":\"in_progress\"}}"}
+{"receivedAt":1790000009600,"line":"{\"type\":\"item.completed\",\"item\":{\"id\":\"item_4\",\"type\":\"mcp_tool_call\",\"server\":\"playwright\",\"tool\":\"browser_navigate\",\"arguments\":{\"url\":\"http://127.0.0.1:5173/\"},\"result\":null,\"error\":{\"message\":\"refused\"},\"status\":\"failed\"}}"}
+{"receivedAt":1790000010000,"line":"{\"type\":\"item.started\",\"item\":{\"id\":\"item_5\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'look-at-page http://127.0.0.1:5173/'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}"}
+{"receivedAt":1790000012000,"line":"{\"type\":\"item.completed\",\"item\":{\"id\":\"item_5\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'look-at-page http://127.0.0.1:5173/'\",\"aggregated_output\":\"\",\"exit_code\":0,\"status\":\"completed\"}}"}
+{"receivedAt":1790000012500,"line":"{\"type\":\"item.completed\",\"item\":{\"id\":\"item_6\",\"type\":\"web_search\",\"query\":\"example\"}}"}
+{"receivedAt":1790000012600,"line":"{\"type\":\"item.started\",\"item\":{\"id\":\"item_7\",\"type\":\"todo_list\",\"items\":[{\"text\":\"step\",\"completed\":false}]}}"}
+{"receivedAt":1790000012700,"line":"{\"type\":\"item.updated\",\"item\":{\"id\":\"item_7\",\"type\":\"todo_list\",\"items\":[{\"text\":\"step\",\"completed\":true}]}}"}
+{"receivedAt":1790000012800,"line":"{\"type\":\"item.completed\",\"item\":{\"id\":\"item_8\",\"type\":\"reasoning\",\"text\":\"\"}}"}
+{"receivedAt":1790000013000,"line":"{\"type\":\"error\",\"message\":\"Reconnecting... 1/5\"}"}
+{"receivedAt":1790000020000,"line":"{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":50000,\"cached_input_tokens\":40000,\"cache_write_input_tokens\":0,\"output_tokens\":1200,\"reasoning_output_tokens\":300}}"}

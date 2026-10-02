@@ -1,0 +1,332 @@
+/**
+ * Auto-update from GitHub Releases through update.electronjs.org (`update-electron-app`).
+ *
+ * That free service reads only public repositories, serves only macOS and Windows, and skips
+ * drafts and pre-releases; Squirrel.Mac installs only a build signed like the running one. So
+ * updates check only from a packaged, released build; developer, fixture and test launches never
+ * do. Copies built before the switch was turned on never check (docs/release-operations.md).
+ *
+ * Linux has no in-place installer: a released Linux build asks GitHub for the newest published
+ * release instead (`./release-check.ts`) and offers its download page.
+ *
+ * A downloaded update is announced in the studio window, whose sidebar offers the restart
+ * (`UiEvent.UpdateReady`); before the studio is up (the sandbox setup screen) it is one
+ * notification that restarts when clicked. Either way it installs at the next quit. A Linux
+ * release is announced the same way, as a download. Check for Updates (Settings, the app menu)
+ * asks now (`createUpdateChecker`).
+ */
+import { SECOND_MS } from "../shared/duration.ts";
+import { type ReadyUpdate, UpdateAction, type UpdateCheckResult, UpdateCheckStatus } from "../shared/app-update.ts";
+import type { PublishedRelease, ReleaseCheck } from "./release-check.ts";
+import { ReleaseCheckKind } from "./release-check.ts";
+
+/** The release switch, on since the public launch; PRIVACY.md discloses the check. */
+export const AUTO_UPDATE_ENABLED = true;
+/**
+ * The GitHub repository whose releases update.electronjs.org serves. `forge.config.cjs`
+ * publishes to it and `package.json` names it (`auto-update.test.ts` holds the three together).
+ */
+export const UPDATE_REPO = "genex-games/genex-desktop";
+/** How often an installed copy asks for a newer release (the `ms` syntax the library parses). */
+const UPDATE_CHECK_INTERVAL = "1 hour";
+/** The platforms update.electronjs.org serves. */
+const UPDATE_PLATFORMS: ReadonlySet<NodeJS.Platform> = new Set(["darwin", "win32"]);
+/** The platforms told about a release they download themselves. */
+const NOTIFY_PLATFORMS: ReadonlySet<NodeJS.Platform> = new Set(["linux"]);
+/** How long Check for Updates waits on the installer's answer. */
+const INSTALL_CHECK_TIMEOUT_MS = 30 * SECOND_MS;
+/** A semantic version inside a release name: "Genex 0.2.0", "v0.2.0", "0.3.0-rc.2". */
+const RELEASE_VERSION = /\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?/;
+
+/** Why a launch does not check for updates. */
+export const UpdateSkip = {
+  Disabled: "disabled",
+  Unpackaged: "unpackaged",
+  Platform: "platform",
+  DeveloperLaunch: "developer-launch",
+  TestLaunch: "test-launch",
+  Identity: "identity",
+} as const;
+export type UpdateSkip = (typeof UpdateSkip)[keyof typeof UpdateSkip];
+
+/** The facts about this launch that decide whether it checks for updates. */
+export interface UpdateLaunch {
+  /** The release switch (`AUTO_UPDATE_ENABLED`). */
+  enabled: boolean;
+  /** `app.isPackaged`. */
+  packaged: boolean;
+  platform: NodeJS.Platform;
+  /** A `studio:dev` launch, fixture profiles included. */
+  developerLaunch: boolean;
+  /** A smoke or self-test run. */
+  testLaunch: boolean;
+  /** Renamed forks must configure their own feed before enabling updates. */
+  productName: string;
+}
+
+/** How a released build updates. */
+export const UpdateMode = {
+  /** macOS and Windows: download in the background, install on a restart. */
+  Install: "install",
+  /** Linux: tell the person about a newer release to download. */
+  Notify: "notify",
+} as const;
+export type UpdateMode = (typeof UpdateMode)[keyof typeof UpdateMode];
+
+export type UpdateDecision = { start: true; mode: UpdateMode } | { start: false; reason: UpdateSkip };
+
+const MESSAGE = {
+  title: "Update ready — restart",
+  namedBody: (version: string) =>
+    `Genex ${version} is downloaded. Click to restart now, or it installs the next time you quit.`,
+  unnamedBody: "A new version of Genex is downloaded. Click to restart now, or it installs the next time you quit.",
+  availableTitle: (version: string) => `Genex ${version} is available`,
+  availableBody: "Click to open its download page.",
+  current: (version: string) => `Genex ${version} is the latest version.`,
+  downloading: "A new version of Genex is downloading.",
+  downloadingDetail: "It installs when you relaunch; Genex tells you when it's ready.",
+  readyToRestart: (version: string) => `Genex ${version} is ready to install.`,
+  readyDetail: "Relaunch now, or it installs the next time you quit.",
+  available: (version: string) => `Genex ${version} is available.`,
+  availableDetail: "Download it from the release page and install it over this version.",
+  off: "This build of Genex doesn't check for updates.",
+  offDetail: "Development builds and builds packaged under another name update from source.",
+  failed: "Genex couldn't check for updates.",
+  failedDetail: "Check your connection and try again.",
+  newVersion: "the new version",
+} as const;
+
+/** Whether this launch checks for updates, and the first reason it does not. */
+export function autoUpdateDecision(launch: UpdateLaunch): UpdateDecision {
+  if (!launch.enabled) return { start: false, reason: UpdateSkip.Disabled };
+  if (!launch.packaged) return { start: false, reason: UpdateSkip.Unpackaged };
+  if (!UPDATE_PLATFORMS.has(launch.platform) && !NOTIFY_PLATFORMS.has(launch.platform))
+    return { start: false, reason: UpdateSkip.Platform };
+  if (launch.developerLaunch) return { start: false, reason: UpdateSkip.DeveloperLaunch };
+  if (launch.testLaunch) return { start: false, reason: UpdateSkip.TestLaunch };
+  if (launch.productName !== "Genex") return { start: false, reason: UpdateSkip.Identity };
+  return { start: true, mode: UPDATE_PLATFORMS.has(launch.platform) ? UpdateMode.Install : UpdateMode.Notify };
+}
+
+/**
+ * The version a release's name carries, or null. update.electronjs.org passes on the GitHub
+ * release's title ("Genex 0.2.0", as release.yml names it); Squirrel.Windows the bare version.
+ */
+export function releaseVersion(releaseName: string): string | null {
+  return RELEASE_VERSION.exec(releaseName)?.[0] ?? null;
+}
+
+/** The notification for a downloaded update, naming its version when the release gave one. */
+function updateReadyNote(version: string | null): { title: string; body: string } {
+  return { title: MESSAGE.title, body: version ? MESSAGE.namedBody(version) : MESSAGE.unnamedBody };
+}
+
+/** What announcing and installing a downloaded update needs from main. */
+export interface UpdateAnnouncerDeps {
+  /** The studio's core is up, so its window shows the prompt (now, or when it next opens). */
+  studioUp(): boolean;
+  /** Tells the studio window (`UiEvent.UpdateReady`). */
+  announce(update: ReadyUpdate): void;
+  /** Shows a notification; `onClick` runs when the person clicks it. */
+  notify(note: { title: string; body: string }, onClick: () => void): void;
+  /** Asks before a restart would end an active run; resolves true when nothing runs. */
+  confirmRestart(): Promise<boolean>;
+  /** Quits and relaunches into the downloaded version (`autoUpdater.quitAndInstall`). */
+  quitAndInstall(): void;
+  /** Opens a release page (already checked by `releasePageUrl`) in the browser. */
+  openRelease(url: string): void;
+}
+
+/** Main's side of a downloaded update: what the window reads, and the restart it asks for. */
+export interface UpdateAnnouncer {
+  /** The update waiting for the person (a restart or a download), or null. */
+  ready(): ReadyUpdate | null;
+  /** The updater finished a download: remember it and tell the person. */
+  downloaded(releaseName: string): void;
+  /** A newer release this copy cannot install in place: remember it and tell the person once. */
+  available(release: PublishedRelease): void;
+  /** Restart into the downloaded update; false when there is none, one is already asking, or a run is kept. */
+  restart(): Promise<boolean>;
+  /** Open the waiting release's download page; false when no downloadable release waits. */
+  download(): boolean;
+}
+
+export function createUpdateAnnouncer(deps: UpdateAnnouncerDeps): UpdateAnnouncer {
+  let ready: ReadyUpdate | null = null;
+  let releaseUrl: string | null = null;
+  let asking = false;
+  const restart = async (): Promise<boolean> => {
+    if (ready?.action !== UpdateAction.Restart || asking) return false;
+    asking = true;
+    try {
+      if (!(await deps.confirmRestart())) return false;
+      deps.quitAndInstall();
+      return true;
+    } finally {
+      asking = false;
+    }
+  };
+  const download = (): boolean => {
+    if (ready?.action !== UpdateAction.Download || !releaseUrl) return false;
+    deps.openRelease(releaseUrl);
+    return true;
+  };
+  return {
+    ready: () => ready,
+    downloaded(releaseName) {
+      const update = { version: releaseVersion(releaseName), action: UpdateAction.Restart };
+      ready = update;
+      releaseUrl = null;
+      if (deps.studioUp()) deps.announce(update);
+      else deps.notify(updateReadyNote(update.version), () => void restart());
+    },
+    available(release) {
+      const known = ready?.action === UpdateAction.Download && ready.version === release.version;
+      if (known || ready?.action === UpdateAction.Restart) return;
+      const update = { version: release.version, action: UpdateAction.Download };
+      ready = update;
+      releaseUrl = release.url;
+      if (deps.studioUp()) deps.announce(update);
+      else deps.notify({ title: MESSAGE.availableTitle(release.version), body: MESSAGE.availableBody }, download);
+    },
+    restart,
+    download,
+  };
+}
+
+/** What Electron's autoUpdater answered one check. */
+export const InstallCheck = {
+  None: "none",
+  Found: "found",
+  Downloaded: "downloaded",
+  Failed: "failed",
+} as const;
+export type InstallCheck = (typeof InstallCheck)[keyof typeof InstallCheck];
+
+/** The part of Electron's autoUpdater one check uses. */
+export interface CheckableUpdater {
+  once(event: string, listener: () => void): unknown;
+  removeListener(event: string, listener: () => void): unknown;
+  checkForUpdates(): void;
+}
+
+/** The autoUpdater's events, and what each answers. */
+const INSTALL_ANSWERS: readonly (readonly [string, InstallCheck])[] = [
+  ["update-not-available", InstallCheck.None],
+  ["update-available", InstallCheck.Found],
+  ["update-downloaded", InstallCheck.Downloaded],
+  ["error", InstallCheck.Failed],
+];
+
+/** Ask the autoUpdater once: its first answer, or failed on a throw or after `timeoutMs`. */
+export function askUpdater(
+  updater: CheckableUpdater,
+  { timeoutMs = INSTALL_CHECK_TIMEOUT_MS }: { timeoutMs?: number } = {},
+): Promise<InstallCheck> {
+  return new Promise((resolve) => {
+    const listeners = INSTALL_ANSWERS.map(([event, answer]) => [event, () => finish(answer)] as const);
+    const timer = setTimeout(() => finish(InstallCheck.Failed), timeoutMs);
+    function finish(answer: InstallCheck): void {
+      clearTimeout(timer);
+      for (const [event, listener] of listeners) updater.removeListener(event, listener);
+      resolve(answer);
+    }
+    for (const [event, listener] of listeners) updater.once(event, listener);
+    try {
+      updater.checkForUpdates();
+    } catch {
+      finish(InstallCheck.Failed);
+    }
+  });
+}
+
+/** What Check for Updates needs: this launch's decision, the announcer, and the two ways to ask. */
+export interface UpdateCheckerDeps {
+  decision: UpdateDecision;
+  /** The running version (`app.getVersion()`). */
+  current: string;
+  updates: Pick<UpdateAnnouncer, "ready" | "available">;
+  /** macOS/Windows: ask the installer (`askUpdater(autoUpdater)`). */
+  askInstaller(): Promise<InstallCheck>;
+  /** Linux: ask GitHub for the newest published release (`latestRelease`). */
+  latestRelease(): Promise<ReleaseCheck>;
+}
+
+/** The status an installer answer means. */
+const INSTALL_STATUS = {
+  [InstallCheck.None]: UpdateCheckStatus.Current,
+  [InstallCheck.Found]: UpdateCheckStatus.Downloading,
+  [InstallCheck.Downloaded]: UpdateCheckStatus.Waiting,
+  [InstallCheck.Failed]: UpdateCheckStatus.Failed,
+} as const satisfies Record<InstallCheck, UpdateCheckStatus>;
+
+/** Check for Updates: one check at a time; a found release announces itself like a periodic one. */
+export function createUpdateChecker(deps: UpdateCheckerDeps): { check(): Promise<UpdateCheckResult> } {
+  const { decision, current, updates } = deps;
+  let running: Promise<UpdateCheckResult> | null = null;
+  const result = (status: UpdateCheckStatus): UpdateCheckResult => {
+    const update = updates.ready();
+    return status === UpdateCheckStatus.Waiting && update
+      ? { status, current, update }
+      : {
+          status: status === UpdateCheckStatus.Waiting ? UpdateCheckStatus.Downloading : status,
+          current,
+          update: null,
+        };
+  };
+  const ask = async (): Promise<UpdateCheckResult> => {
+    if (updates.ready()?.action === UpdateAction.Restart) return result(UpdateCheckStatus.Waiting);
+    if (!decision.start) return result(UpdateCheckStatus.Off);
+    if (decision.mode === UpdateMode.Install) return result(INSTALL_STATUS[await deps.askInstaller()]);
+    const found = await deps.latestRelease();
+    if (found.kind === ReleaseCheckKind.Failed) return result(UpdateCheckStatus.Failed);
+    if (found.kind === ReleaseCheckKind.Newer) updates.available(found.release);
+    return result(updates.ready() ? UpdateCheckStatus.Waiting : UpdateCheckStatus.Current);
+  };
+  return {
+    check() {
+      running ??= ask().finally(() => {
+        running = null;
+      });
+      return running;
+    },
+  };
+}
+
+/** The app menu's answer to Check for Updates: what it says, and the one step it offers, if any. */
+export function updateCheckNote(result: UpdateCheckResult): {
+  message: string;
+  detail: string;
+  act: UpdateAction | null;
+} {
+  const version = result.update?.version ?? MESSAGE.newVersion;
+  if (result.status === UpdateCheckStatus.Current)
+    return { message: MESSAGE.current(result.current), detail: "", act: null };
+  if (result.status === UpdateCheckStatus.Downloading)
+    return { message: MESSAGE.downloading, detail: MESSAGE.downloadingDetail, act: null };
+  if (result.status === UpdateCheckStatus.Off) return { message: MESSAGE.off, detail: MESSAGE.offDetail, act: null };
+  if (result.status === UpdateCheckStatus.Failed)
+    return { message: MESSAGE.failed, detail: MESSAGE.failedDetail, act: null };
+  if (result.update?.action === UpdateAction.Download)
+    return { message: MESSAGE.available(version), detail: MESSAGE.availableDetail, act: UpdateAction.Download };
+  return { message: MESSAGE.readyToRestart(version), detail: MESSAGE.readyDetail, act: UpdateAction.Restart };
+}
+
+/** What starting the updater needs from main: the log, and where a finished download goes. */
+export interface AutoUpdateDeps {
+  log(line: string): void;
+  /** A new version finished downloading; `releaseName` is the feed's name for it. */
+  downloaded(releaseName: string): void;
+}
+
+/** Starts the periodic update checks; call only when `autoUpdateDecision` says start. */
+export async function startAutoUpdate({ log, downloaded }: AutoUpdateDeps): Promise<void> {
+  const { UpdateSourceType, updateElectronApp } = await import("update-electron-app");
+  updateElectronApp({
+    updateSource: { type: UpdateSourceType.ElectronPublicUpdateService, repo: UPDATE_REPO },
+    updateInterval: UPDATE_CHECK_INTERVAL,
+    logger: { log, info: log, warn: log, error: log },
+    notifyUser: true,
+    onNotifyUser: ({ releaseName }) => downloaded(releaseName ?? ""),
+  });
+}
