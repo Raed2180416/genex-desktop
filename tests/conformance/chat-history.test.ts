@@ -535,8 +535,13 @@ test("the transcript window lays rows out, mounts those near the viewport and ke
     "an unmeasured row counts as 100 px",
   );
   const hundreds = Array.from({ length: 31 }, (_, i) => i * 100);
-  assert.deepEqual(mountedRange(hundreds, { top: 1500, height: 400 }), { start: 7, end: 26 }, "700 px either side");
-  assert.deepEqual(mountedRange(hundreds, { top: 0, height: 900 }), { start: 0, end: 16 });
+  assert.deepEqual(
+    mountedRange(hundreds, { top: 1500, height: 400 }),
+    { start: 3, end: 30 },
+    "three screens either side",
+  );
+  assert.deepEqual(mountedRange(hundreds, { top: 9000, height: 400 }), { start: 30, end: 30 }, "past the end, none");
+  assert.deepEqual(mountedRange(hundreds, { top: 0, height: 900 }), { start: 0, end: 30 });
   assert.deepEqual(mountedRange([0], { top: 0, height: 900 }), { start: 0, end: 0 });
 
   const before = { ids: ["a", "b", "c"], offsets: [0, 100, 200, 300] };

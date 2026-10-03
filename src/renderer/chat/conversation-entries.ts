@@ -3,6 +3,7 @@ import { type Entry, EntryKind } from "../chat-entries.ts";
 import type { ToolChipRow } from "../ui/ToolChips.tsx";
 import { toolFailed, ToolState } from "../ui/tool-state.ts";
 import { USING_A_TOOL } from "../words.ts";
+import type { RowSize } from "./transcript-window.ts";
 
 /** What one line of a work group is: a tool row, an activity note or a thought. */
 export const ActivityItemKind = {
@@ -53,6 +54,15 @@ export function conversationEntries(entries: Entry[]): ConversationEntry[] {
       );
   }
   return result;
+}
+
+/** Characters on about one line of the chat: a short message still takes a whole line. */
+const LINE_CHARS = 80;
+
+/** What a row's height is guessed from before it is measured (`heightEstimate`): text by its length, the rest by kind. */
+export function entrySize(entry: ConversationEntry): RowSize {
+  const text = "text" in entry ? entry.text : "";
+  return { kind: entry.kind, weight: text ? LINE_CHARS + text.length : 1 };
 }
 
 export function activitySummary(items: ActivityItem[]): string {
