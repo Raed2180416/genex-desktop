@@ -474,6 +474,9 @@ export interface SelfChangePayload {
   snapshot_id: string;
   post_snapshot_id: string;
   bytes: number;
+  /** What the agent will do differently, in plain words for the person; absent on older records. */
+  title?: string;
+  summary?: string[];
 }
 
 export interface CustomEventMap {

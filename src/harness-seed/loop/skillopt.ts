@@ -625,6 +625,15 @@ const TASK_MINERS: Partial<Record<string, TaskMiner>> = {
   }),
 };
 
+/** How a proposal is described for the person who uses the app: the analyst's and the describer's rules. */
+const PLAIN_WORDS_RULES = [
+  "They are not technical and never read this file. `title`: at most eight plain words starting with a verb,",
+  "saying what the agent will do differently (for example \"Check the player's view before finishing a",
+  'scene"). `summary`: one to three short plain sentences about the same change. No file, skill, tool or',
+  "camera names, no jargon.",
+];
+const DESCRIBE_REPLY = 'Reply with JSON only: {"title":"…","summary":["…"]}';
+
 async function analyse(
   ctx: HarnessCtx,
   {
@@ -659,10 +668,8 @@ async function analyse(
     '  {"op":"delete","anchor":"exact existing substring"}',
     "Anchors must be exact substrings of the current file. Never edit inside a SLOW_UPDATE region.",
     "",
-    "Also describe the change for the person who uses the app. They are not technical and never read",
-    "this file. `title`: at most eight plain words starting with a verb, saying what the agent will do",
-    'differently (for example "Check the player\'s view before finishing a scene"). `summary`: one to',
-    "three short plain sentences about the same change. No file, skill, tool or camera names, no jargon.",
+    "Also describe the change for the person who uses the app.",
+    ...PLAIN_WORDS_RULES,
     "",
     'Reply with JSON only: {"edits":[…],"rationale":"…","title":"…","summary":["…"]}',
   ].join("\n");
@@ -703,14 +710,62 @@ async function analyse(
     messages: [{ role: "user", content: userContent }],
   });
   const parsed = parseVerdict(response.message?.content ?? "");
-  return {
+  const proposal: Proposal = {
     edits: Array.isArray(parsed.edits) ? parsed.edits : [],
     rationale: parsed.rationale ?? "",
+    ...describedIn(parsed),
+  };
+  // A card without its own words reads "Change how Harness plans a build": ask once more for them.
+  const described = Boolean(proposal.title) && proposal.summary.length > 0;
+  const needsWords = proposal.edits.length > 0 && !described && !ctx.cancelled;
+  if (!needsWords) return proposal;
+  return { ...proposal, ...(await describeEdits(ctx, { engine, model, skill, proposal })) };
+}
+
+/** A reply's plain title and summary lines, bounded; empty where it wrote none. */
+function describedIn(parsed: AnyRecord): Pick<Proposal, "title" | "summary"> {
+  return {
     title: plainWords(parsed.title, PROPOSAL_TITLE_CHARS),
     summary: (Array.isArray(parsed.summary) ? parsed.summary : [parsed.summary])
       .map((line: unknown) => plainWords(line, CLIP_DETAIL))
       .filter(Boolean)
       .slice(0, SUMMARY_LINES),
+  };
+}
+
+/** One light call for the plain words an analyst left out; nothing is changed when it writes none either. */
+async function describeEdits(
+  ctx: HarnessCtx,
+  { engine, model, skill, proposal }: { engine: string; model?: string; skill: Skill; proposal: Proposal },
+): Promise<Partial<Pick<Proposal, "title" | "summary">>> {
+  const systemPrompt = [
+    "You describe a proposed change to an agent's instructions for the person who uses the app.",
+    ...PLAIN_WORDS_RULES,
+    "",
+    DESCRIBE_REPLY,
+  ].join("\n");
+  const userContent = [
+    `PROPOSED EDITS to ${skill.slug}.md:`,
+    JSON.stringify(proposal.edits, null, 2),
+    "",
+    proposal.rationale ? `WHY: ${proposal.rationale}` : "",
+    "",
+    DESCRIBE_REPLY,
+  ]
+    .filter(Boolean)
+    .join("\n");
+  const response = await ctx.call(HostMethod.EngineComplete, {
+    engine,
+    model,
+    systemPrompt,
+    stream: false,
+    effort: LIGHT_EFFORT,
+    messages: [{ role: "user", content: userContent }],
+  });
+  const words = describedIn(parseVerdict(response.message?.content ?? ""));
+  return {
+    ...(words.title ? { title: words.title } : {}),
+    ...(words.summary.length ? { summary: words.summary } : {}),
   };
 }
 

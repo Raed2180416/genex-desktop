@@ -279,6 +279,25 @@ describe("the agent changes its own files only through the host (B7)", () => {
     await assert.rejects(readFile(file, "utf8"), { code: "ENOENT" }, "undoing a new skill removes it");
   });
 
+  it("a self-change keeps the plain title and summary the agent wrote for the person, bounded", async () => {
+    const lite = await coreLite();
+    const result = await run(lite, "write_skill", {
+      slug: "camera-rules",
+      contents: SKILL,
+      reason: "facets collided on the HUD three times",
+      title: "Give the scoreboard   one owner",
+      summary: ["One part now owns the scoreboard.", "", 42, "x".repeat(600)],
+    });
+    assert.equal(result.ok, true, result.content);
+    const [record] = await selfChanges(lite, "skill_edited");
+    assert.equal(record!.title, "Give the scoreboard one owner");
+    assert.deepEqual(
+      (record!.summary as string[]).map((line) => line.length),
+      [33, 200],
+      "blank and non-text lines are dropped; a line is clipped",
+    );
+  });
+
   it("write_own_file on a prompt is recorded by the host with the file it wrote", async () => {
     const lite = await coreLite();
     const result = await run(lite, "write_own_file", {

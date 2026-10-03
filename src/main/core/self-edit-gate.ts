@@ -79,6 +79,10 @@ const MESSAGE = {
 
 /** The longest reason a self-change keeps in its snapshot and record. */
 const MAX_REASON_CHARS = 2_000;
+/** The plain words a self-change keeps for Activity: a title, and at most this many summary lines of this length. */
+const MAX_TITLE_CHARS = 90;
+const MAX_SUMMARY_LINES = 3;
+const MAX_SUMMARY_LINE_CHARS = 200;
 /** A skill's file: `skills/<slug>.md`, one level down. */
 const SKILL_FILE = /^skills\/([^/]+)\.md$/;
 /** Where the agent's own tools live. */
@@ -302,21 +306,13 @@ export class SelfEditGateService {
    * snapshots, and the host records it (`self_edit`, `skill_edited`, `tool_installed`) where
    * Activity and Undo read it. Serialized with the gate, so a write never lands mid-validation.
    */
-  writeSelf(p: { file: string; contents: string; reason: string }): Promise<SelfWriteResult> {
+  writeSelf(p: SelfWriteParams): Promise<SelfWriteResult> {
     const run = this.#chain.then(() => this.#writeSelf(p));
     this.#chain = run.catch(() => undefined);
     return run;
   }
 
-  async #writeSelf({
-    file,
-    contents,
-    reason,
-  }: {
-    file: string;
-    contents: string;
-    reason: string;
-  }): Promise<SelfWriteResult> {
+  async #writeSelf({ file, contents, reason, title, summary }: SelfWriteParams): Promise<SelfWriteResult> {
     const ws = this.#core.layout.harnessWs;
     const rel = checkedRel(file);
     const notYours: SelfWriteResult = { ok: false, stage: "refused", message: MESSAGE.notYours(file) };
@@ -340,6 +336,7 @@ export class SelfEditGateService {
     await this.#core.append([
       selfChangeRecord(rel, existed, {
         reason: why,
+        ...plainWordsOf(title, summary),
         snapshot_id: before.snapshot_id,
         post_snapshot_id: after.snapshot_id,
         bytes: Buffer.byteLength(contents),
@@ -385,6 +382,23 @@ export class SelfEditGateService {
  * The log record of a self-change, named for what it changed: a skill (`skills/<slug>.md`), a
  * tool that was not there before (`tools/…`), or any other file of the agent's own.
  */
+/** What `guardian.write_self` is asked: the change, why, and the agent's plain words for the person. */
+type SelfWriteParams = { file: string; contents: string; reason: string; title?: unknown; summary?: unknown };
+
+/** One line of plain words: whitespace folded, clipped; empty for anything but text. */
+const plainLine = (value: unknown, max: number): string =>
+  typeof value === "string" ? value.replace(/\s+/g, " ").trim().slice(0, max) : "";
+
+/** The title and summary a self-change keeps for Activity, bounded; each left out when the agent wrote none. */
+function plainWordsOf(title: unknown, summary: unknown): Pick<SelfChangePayload, "title" | "summary"> {
+  const heading = plainLine(title, MAX_TITLE_CHARS);
+  const lines = (Array.isArray(summary) ? summary : [])
+    .map((line) => plainLine(line, MAX_SUMMARY_LINE_CHARS))
+    .filter(Boolean)
+    .slice(0, MAX_SUMMARY_LINES);
+  return { ...(heading ? { title: heading } : {}), ...(lines.length ? { summary: lines } : {}) };
+}
+
 function selfChangeRecord(rel: string, existed: boolean, payload: SelfChangePayload): EventData {
   const skill = SKILL_FILE.exec(rel)?.[1];
   if (skill && SKILL_SLUG.test(skill)) return customEventData(CustomEvent.SkillEdited, { slug: skill, ...payload });

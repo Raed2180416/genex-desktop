@@ -159,7 +159,7 @@ async function completeFixture(id: EngineId, request: CompleteRequest) {
   }
   const latestUser = request.messages.findLast((message) => message.role === "user")?.content ?? "";
   if (latestUser.includes(PENDING_MARKER)) await pending(request.signal, id);
-  if (request.systemPrompt?.startsWith("You are the Studio assistant")) return studioReply(id, request, latestUser);
+  if (request.systemPrompt?.startsWith("You are the Harness assistant")) return studioReply(id, request, latestUser);
   const transcript = JSON.stringify(request.messages);
   const asksForPlan = request.systemPrompt?.includes("planning-only") && transcript.includes("fixture:plan");
   if (asksForPlan) return planReply(id, transcript);

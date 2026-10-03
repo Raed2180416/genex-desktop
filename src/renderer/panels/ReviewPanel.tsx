@@ -21,18 +21,12 @@ import { GameAvatar } from "../ui/GameAvatar.tsx";
 import { Icon } from "../ui/icons.tsx";
 import { Switch } from "../ui/switch.tsx";
 import { EmptyState } from "../ui/EmptyState.tsx";
-import {
-  type DiffLine,
-  DiffTone,
-  DisclosureBody,
-  ExactEdit,
-  SuggestionReview,
-  TurningChevron,
-} from "../ui/ProposalsTable.tsx";
+import { DisclosureBody, ExactEdit, SuggestionReview, TurningChevron } from "../ui/ProposalsTable.tsx";
+import { patchDiff } from "../edit-diff.ts";
 import { SECOND_MS } from "../../shared/duration.ts";
 import { plural } from "../../shared/skill-words.ts";
 import { UiEvent } from "../../shared/ui-events.ts";
-import { problemWords } from "../words.ts";
+import { ACTIVITY_WORDS, problemWords } from "../words.ts";
 import { Pending } from "../ui/Pending.tsx";
 
 /** How many runs the list shows at first, and how many more each "Show earlier runs" adds. */
@@ -379,15 +373,15 @@ function ActivityHeader({
 }): JSX.Element {
   return (
     <header className="titlebar-drag window-controls-end sticky top-0 z-10 flex h-12 shrink-0 items-center justify-between gap-3 border-b border-line bg-canvas px-4">
-      <h1 className="text-title font-medium">Activity</h1>
+      <h1 className="text-title font-medium">{ACTIVITY_WORDS.title}</h1>
       {learning !== null && (
         <label
           data-learning-switch
-          title="When off, Harness stops learning from your builds and never changes how it works."
+          title={ACTIVITY_WORDS.learningHint}
           className="no-drag flex cursor-pointer items-center gap-2 text-chat-sub text-ink-2"
         >
-          Self-improvement
-          <Switch checked={learning} onCheckedChange={onLearning} aria-label="Self-improvement" />
+          {ACTIVITY_WORDS.learning}
+          <Switch checked={learning} onCheckedChange={onLearning} aria-label={ACTIVITY_WORDS.learning} />
         </label>
       )}
     </header>
@@ -479,18 +473,6 @@ const APPROVED_BY: Record<NonNullable<StudioActivityItem["approvedBy"]>, string>
   human: "You approved",
 };
 
-/** A change's diff as the exact-edit view reads it: its first lines, each an addition, a deletion or context. */
-function diffLines(diff: string): DiffLine[] {
-  const tone = (line: string): DiffTone => {
-    if (line.startsWith("+")) return DiffTone.Add;
-    return line.startsWith("-") ? DiffTone.Del : DiffTone.Ctx;
-  };
-  return diff
-    .split("\n")
-    .slice(0, DIFF_LINES_SHOWN)
-    .map((line) => ({ text: line.replace(/^[+-]/, ""), tone: tone(line) }));
-}
-
 /** What a learned change says about itself: its summary lines, or why it is undone. */
 function LearnedStory({ item }: { item: StudioActivityItem }): JSX.Element | null {
   if (item.summary?.length)
@@ -540,7 +522,7 @@ function LearnedRow({
             inline={plain}
             file={change.file}
             notes={item.detail !== change.reason ? item.detail : undefined}
-            lines={diffLines(change.diff)}
+            lines={patchDiff(change.diff, DIFF_LINES_SHOWN)}
           />
         )}
         {plainDetail && <p className="text-ink-2 [overflow-wrap:anywhere]">{plainDetail}</p>}

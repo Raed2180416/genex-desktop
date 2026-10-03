@@ -197,7 +197,8 @@ async function stageSuggestions(core: StudioCore): Promise<void> {
       ...appendSuggestion(
         "facet-decomposition",
         currentText,
-        "Fixture review: judge markers from eye:here as well as the default camera.",
+        // One long line, as real suggestions are: the exact edit must wrap it, never scroll sideways.
+        "Fixture review: judge on-screen markers from eye:here as well as from the default camera, and when a request says something vague like slightly thicker or a bit brighter, turn it into a measured target in the check before the facet starts.",
       ),
       rationale: "The trajectories repeat overlay markers judged only from the default camera.",
       title: "Check the player’s view before finishing a scene",

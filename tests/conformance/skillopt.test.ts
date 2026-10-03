@@ -512,6 +512,8 @@ describe("skillopt: the gate", () => {
               },
             };
           }
+          // The analyst wrote no plain words, so one call asks for them; it is not a gate vote.
+          if (text.includes("PROPOSED EDITS")) return { message: { content: "{}" } };
           gateSaw.push(text);
           const rubricSha = createHash("sha256").update(String(params.systemPrompt)).digest("hex");
           gateProvenance.push([params.provenance, rubricSha]);

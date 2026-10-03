@@ -881,29 +881,47 @@
     box-shadow: none;
     transform: none;
   }
-  /* A diff in review: a sign gutter, then the line; additions and removals carry their tint. */
+  /*
+   * A diff in review: a sign gutter, then the line, wrapped to the width it has so the review
+   * scrolls only down. Text stays ink; the tint and the sign say what changed.
+   */
   .diff-lines {
-    overflow-x: auto;
     padding-block: 4px;
   }
   .diff-line {
-    display: flex;
-    gap: 8px;
+    display: grid;
+    grid-template-columns: 12px minmax(0, 1fr);
+    column-gap: 8px;
+    padding-block: 1px;
     padding-inline: 10px;
-    white-space: pre;
     color: var(--ink-2);
+  }
+  .diff-text {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
   }
   .diff-line[data-tone="add"] {
     background: var(--green-tint);
+    color: var(--ink);
+  }
+  .diff-line[data-tone="add"] .diff-sign {
     color: var(--green);
   }
   .diff-line[data-tone="del"] {
     background: var(--red-tint);
+    color: var(--ink);
+  }
+  .diff-line[data-tone="del"] .diff-sign {
     color: var(--red);
   }
+  .diff-line[data-tone="gap"] {
+    color: var(--ink-3);
+  }
+  /* Unchanged lines left out between two changes. */
+  .diff-line[data-tone="gap"] .diff-text::before {
+    content: "⋯";
+  }
   .diff-sign {
-    flex-shrink: 0;
-    width: 12px;
     user-select: none;
   }
   .disclosure-body {
