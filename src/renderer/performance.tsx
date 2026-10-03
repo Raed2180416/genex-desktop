@@ -1,4 +1,4 @@
-import { Profiler, type ReactNode, type ProfilerOnRenderCallback } from "react";
+import { Profiler, type ReactNode, type ProfilerOnRenderCallback, useLayoutEffect } from "react";
 import {
   type PerformanceComponent,
   PerformanceMarkName,
@@ -6,7 +6,10 @@ import {
 } from "../shared/performance.ts";
 
 declare const __STUDIO_PERFORMANCE__: boolean;
+declare const __STUDIO_COMMIT_COUNTS__: boolean;
 const enabled = typeof __STUDIO_PERFORMANCE__ !== "undefined" && __STUDIO_PERFORMANCE__;
+/** Profilers wrap the app only where checks read commit counts (`scripts/renderer-build.mjs`). */
+const counting = typeof __STUDIO_COMMIT_COUNTS__ !== "undefined" && __STUDIO_COMMIT_COUNTS__;
 const counts: Partial<Record<PerformanceComponent, { commits: number; durationMs: number }>> = {};
 let firstCommit = false;
 
@@ -15,12 +18,18 @@ declare global {
     __studioPerformance?: typeof counts;
   }
 }
-if (enabled) window.__studioPerformance = counts;
+if (counting) window.__studioPerformance = counts;
 
 /** Fixed-name journey marks are emitted only by an owned diagnostics build. */
 export function markPerformance(name: MarkName): void {
   if (!enabled) return;
   void window.studio.performanceMark({ name, at: performance.now() }).catch(() => {});
+}
+
+function markFirstCommit(): void {
+  if (firstCommit) return;
+  firstCommit = true;
+  markPerformance(PerformanceMarkName.FirstCommit);
 }
 
 const committed: ProfilerOnRenderCallback = (id, _phase, duration) => {
@@ -29,19 +38,25 @@ const committed: ProfilerOnRenderCallback = (id, _phase, duration) => {
   entry.commits++;
   entry.durationMs += duration;
   counts[component] = entry;
-  if (!firstCommit) {
-    firstCommit = true;
-    markPerformance(PerformanceMarkName.FirstCommit);
-  }
+  markFirstCommit();
 };
 
-/** Zero instrumentation in ordinary builds; fixture snapshots expose bounded commit totals. */
+/** Marks the first commit where no Profiler reports it. */
+function FirstCommit({ children }: { children: ReactNode }) {
+  useLayoutEffect(markFirstCommit, []);
+  return children;
+}
+
+/**
+ * Zero instrumentation in ordinary builds; owned builds mark the first commit, and fixture
+ * builds also count commits, which snapshots expose as bounded totals.
+ */
 export function PerformanceBoundary({ id, children }: { id: PerformanceComponent; children: ReactNode }) {
-  return enabled ? (
-    <Profiler id={id} onRender={committed}>
-      {children}
-    </Profiler>
-  ) : (
-    children
-  );
+  if (counting)
+    return (
+      <Profiler id={id} onRender={committed}>
+        {children}
+      </Profiler>
+    );
+  return enabled ? <FirstCommit>{children}</FirstCommit> : children;
 }

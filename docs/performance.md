@@ -41,8 +41,10 @@ A journey that is "not yet" instrumented gets its marks before anyone optimizes 
 - **Field time** stays on the person's Mac: Studio sends no analytics ([privacy](../PRIVACY.md)).
   A launch with `--studio-diagnostics` turns the main-process recorder (marks, IPC histograms,
   event-loop delay) on in any build, including a packaged one; Settings → Copy diagnostics
-  carries its snapshot. Renderer marks and Profiler counts exist only in owned builds. The owner's own long sessions are the
-  field sample.
+  carries its snapshot. Renderer marks exist only in owned builds, and Profiler counts only in
+  owned fixture builds (`--commit-counts`): development React logs every render inside a Profiler
+  with a diff of its props, which took most of a live session's main thread. The owner's own long
+  sessions are the field sample.
 
 ## How a performance change is made
 
