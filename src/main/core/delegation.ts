@@ -803,7 +803,7 @@ export class DelegationService {
         planning: () => this.#x.planning(session.threadId),
       });
       await this.#settled(p, engineId, session, result, tools);
-      this.#core.budget.recordUsage(workClass, result.usage);
+      this.#core.budget.recordUsage(workClass, result.usage, engineId);
       return result;
     } catch (err) {
       throw await this.#failed(engineId, session, err);

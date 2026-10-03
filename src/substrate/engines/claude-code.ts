@@ -962,6 +962,8 @@ export class ClaudeCodeEngine implements Engine {
       settingSources: [],
       mcpServers: {},
       strictMcpConfig: true,
+      // No built-in tool at all: refusing them below still sent every definition on each verdict.
+      tools: [],
       allowedTools: [],
       ...(this.#skills.judge !== undefined ? { skills: this.#skills.judge } : {}),
       disallowedTools: [...JUDGE_DISALLOWED_TOOLS],

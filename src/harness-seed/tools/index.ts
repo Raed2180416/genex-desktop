@@ -219,8 +219,12 @@ export async function createToolRegistry(ctx: HarnessCtx, options: RegistryOptio
         parameters: tool.parameters ?? { type: "object", properties: {} },
       })),
 
+    /**
+     * What the tool schemas cannot say: the plugins' and connectors' guidance and the modules
+     * that failed to load. Each tool's own description travels once, with its schema.
+     */
     summary: () => {
-      const lines = [...byName.values()].map((tool) => `- ${tool.name}: ${tool.description ?? ""}`);
+      const lines: string[] = [];
       if (host.pluginGuidance) lines.push(host.pluginGuidance);
       if (host.connectorGuidance) lines.push(host.connectorGuidance);
       if (broken.length) {

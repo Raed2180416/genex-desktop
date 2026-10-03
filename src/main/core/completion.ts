@@ -96,7 +96,7 @@ export class CompletionService {
       if (p.threadId && isAppliedRevision(p.toolRegistryRevision, this.#x.toolRegistryRevision))
         await this.#x.recordToolRevision(p.threadId, engineId, p.toolRegistryRevision);
       const response = await engine.complete(request);
-      this.#core.budget.recordUsage(workClass, response.usage);
+      this.#core.budget.recordUsage(workClass, response.usage, engineId);
       if (stream) this.#endStream(stream, false);
       await this.#recordCall(call, response, null);
       return response;
