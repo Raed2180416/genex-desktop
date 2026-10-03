@@ -23,6 +23,7 @@ import { DEFAULT_COMPACTION_PERCENT, interruption } from "./common.ts";
 import { checkpointCut, type LocalCheckpoint, summarizeLocalCheckpoint } from "./local-checkpoint.ts";
 import {
   LOCAL_NOTE,
+  localBudgetNote,
   localSystemPrompt,
   modeChangedNote,
   noProgressNote,
@@ -221,8 +222,6 @@ export class LocalSessions {
       .then((p) => readFile(p, "utf8"))
       .catch(() => "");
     run.system = localSystemPrompt({
-      maxTurns: request.maxTurns ?? LOCAL_SESSION_LIMITS.maxTurns,
-      timeoutMs: request.timeoutMs,
       readonly: run.readonly,
       ownership: request.ownership,
       instructions,
@@ -268,7 +267,11 @@ export class LocalSessions {
     const sessionFile = path.join(this.options.root, `${id}.json`);
     const saved = await this.#loadSaved(request, sessionFile, { cwd, model });
     const messages = saved.messages;
-    const requirements = continueHistory(saved, messages, request);
+    const budget = localBudgetNote({
+      maxTurns: request.maxTurns ?? LOCAL_SESSION_LIMITS.maxTurns,
+      timeoutMs: request.timeoutMs,
+    });
+    const requirements = continueHistory(saved, messages, request, budget);
     const save = () => atomicWriteText(sessionFile, JSON.stringify(saved), { mode: 0o600 });
     const { readRoots, forbidden, deniedWrites } = await this.#fileBounds(request, cwd);
     const readonly = isReadOnlySession(request);
@@ -567,9 +570,10 @@ function launchToolNames(request: DelegateRequest): string[] {
 
 /**
  * The history a turn continues: the requirements in order (a repeated brief is not appended
- * twice), an answer for every call whose result was never saved, and the new prompt.
+ * twice), an answer for every call whose result was never saved, and the new prompt with this
+ * request's budget (`localBudgetNote`).
  */
-function continueHistory(saved: SavedSession, messages: Message[], request: DelegateRequest): string[] {
+function continueHistory(saved: SavedSession, messages: Message[], request: DelegateRequest, budget: string): string[] {
   // Exact ordered instructions are separate from action history. Identical repeated
   // briefs need not be concatenated at every continuation. Oversized fixed requirements
   // fail explicitly below instead of silently deleting the user's original request.
@@ -585,7 +589,7 @@ function continueHistory(saved: SavedSession, messages: Message[], request: Dele
         messages.push({ role: "tool", tool_call_id: call.id, content: LOCAL_NOTE.interrupted });
   messages.push({
     role: "user",
-    content: request.prompt,
+    content: `${request.prompt}\n\n${budget}`,
     ...(request.images?.length ? { images: request.images } : {}),
   });
   return requirements;

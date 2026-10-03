@@ -3,7 +3,10 @@
  *
  * The prompt is a *projection of the event log*, rebuilt from scratch every round. Nothing about
  * the conversation lives in memory, so the studio can be killed at any instant and resume with
- * exactly the same mind.
+ * exactly the same mind. What the system prompt stands on — identity, rules, skills, memory, the
+ * game's notes and file list — is read once per turn (`readStanding`): a local model re-reads
+ * everything after the first changed token, so a fact remembered or a file written mid-turn made
+ * the next round re-read the whole turn. The next turn reads them afresh.
  *
  * Three things the plan leaves to implementation, decided here:
  *  - **Skills are injected by name + description every turn, bodies on demand** (Exo's
@@ -24,10 +27,22 @@ import type { Message } from "../types/host-api.d.ts";
 import { HostMethod } from "./host-methods.ts";
 import { EventKind, RunEvent } from "./run-events.ts";
 
+/** What the system prompt stands on besides the tools and the turn's briefing: read once per turn. */
+export interface StandingContext {
+  skills: Skill[];
+  identity: string;
+  rules: string;
+  memory: AnyRecord;
+  notes: string | null;
+  inventory: string | null;
+}
+
 /** What a prompt is built from: the thread, the tools of this round, and the turn's own options. */
 export interface PromptOptions {
   threadId: string;
   tools?: { summary(): string } | null;
+  /** The turn's standing context; read here when the caller has none. */
+  standing?: StandingContext;
   project?: string | null;
   projectDir?: string;
   extraReads?: unknown;
@@ -43,6 +58,8 @@ export interface MaterializedPrompt {
   systemPrompt: string;
   messages: Message[];
   skills: Skill[];
+  /** What the system prompt stood on: handed to the turn's next round, it starts from the same prefix. */
+  standing: StandingContext;
   tokens: { system: number; conversation: number; full: number; budget: number | null; contextWindow: number | null };
 }
 
@@ -73,16 +90,27 @@ export function estimateMessagesTokens(messages: readonly Pick<Message, "content
   return total;
 }
 
-export async function materializePrompt(ctx: HarnessCtx, options: PromptOptions): Promise<MaterializedPrompt> {
-  const { threadId, tools } = options;
-  const events = await ctx.call(HostMethod.EventsList, { threadId });
-  const messages = eventsToMessages(events);
+/** Identity, rules, skills, memory and the game's notes and files, as this turn starts. */
+export async function readStanding(
+  ctx: HarnessCtx,
+  options: Pick<PromptOptions, "project" | "projectDir" | "extraReads">,
+): Promise<StandingContext> {
   const skills = await loadSkills(ctx.workspace);
   const identity = await readPromptFile(ctx, "prompts/identity.md");
   const rules = await readPromptFile(ctx, "prompts/operating-rules.md");
   const memory = (await ctx.call(HostMethod.ArtifactRead, { artifactId: "memory" }).catch(() => null)) ?? {};
   const notes = options.project ? await readGameNotes(ctx, options.project) : null;
   const inventory = options.project ? await readProjectInventory(ctx, options.project, options) : null;
+  return { skills, identity, rules, memory, notes, inventory };
+}
+
+export async function materializePrompt(ctx: HarnessCtx, options: PromptOptions): Promise<MaterializedPrompt> {
+  const { threadId, tools } = options;
+  const events = await ctx.call(HostMethod.EventsList, { threadId });
+  const messages = eventsToMessages(events);
+  const standing = options.standing ?? (await readStanding(ctx, options));
+  const { skills, identity, rules, memory, notes, inventory } = standing;
+  const toolNotes = tools?.summary() ?? "";
 
   const systemPrompt = [
     identity,
@@ -91,7 +119,7 @@ export async function materializePrompt(ctx: HarnessCtx, options: PromptOptions)
     formatMemory(memory),
     notes ? `## Notes for the game "${options.project}" (NOTES.md — keep it current)\n${notes}` : "",
     inventory ?? "",
-    tools ? `## Tools available this round\n${tools.summary()}` : "",
+    toolNotes ? `## About your tools\n${toolNotes}` : "",
     options.extraSystem ?? "",
   ]
     .filter(Boolean)
@@ -115,6 +143,7 @@ export async function materializePrompt(ctx: HarnessCtx, options: PromptOptions)
     systemPrompt,
     messages: windowed,
     skills,
+    standing,
     tokens: {
       system: systemTokens,
       conversation: estimateMessagesTokens(windowed),

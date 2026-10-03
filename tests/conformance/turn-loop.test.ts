@@ -117,6 +117,68 @@ describe("turn loop", () => {
     assert.ok(result.result.content.length < 2_000);
   });
 
+  it("holds the system prompt still for a whole turn, so a local model reuses its cached prefix", async () => {
+    // A local model re-reads everything after the first changed token. The system prompt used to
+    // be re-read every round (memory, notes, the file list, every tool's description), so one
+    // fact remembered or one tool installed mid-turn made the next round re-read the whole turn.
+    const rig = await turnRig([
+      {
+        toolCalls: [
+          { id: "c1", name: "remember", arguments: { key: "favourite_genre", value: "racing games" } },
+          {
+            id: "c2",
+            name: "install_tool",
+            arguments: {
+              filename: "lap-tools.mjs",
+              reason: "I keep timing laps by hand",
+              contents: `export const tools = [{
+                 name: "time_lap",
+                 description: "time the current lap",
+                 parameters: { type: "object", properties: {} },
+                 async execute() { return "41.2 s"; },
+               }];`,
+            },
+          },
+        ],
+        text: "Noting that and adding a tool.",
+      },
+      { text: "Done." },
+    ]);
+    await rig.core.sendUserMessage("remember I like racing games and add a lap timer");
+    await waitForLog(rig.core, (log) => log.some((e) => e.data.type === "turn_ended"), 45_000, "turn_ended");
+
+    const completions = rig.server.requests.filter((r) => r.path.startsWith("/v1/chat/completions"));
+    assert.equal(completions.length, 2);
+    const system = (round: number) =>
+      String(
+        (completions[round]!.body as { messages: Array<{ role: string; content?: unknown }> }).messages.find(
+          (m) => m.role === "system",
+        )?.content ?? "",
+      );
+    assert.equal(system(1), system(0), "round 2 starts from the same system prompt as round 1");
+    const second = completions[1]!.body as { tools?: Array<{ function: { name: string; description?: string } }> };
+    assert.ok(
+      (second.tools ?? []).some((tool) => tool.function.name === "time_lap"),
+      "the new tool is still offered",
+    );
+    const described = (second.tools ?? []).find((tool) => tool.function.name === "list_games")?.function.description;
+    assert.ok(described && !system(1).includes(described), "a tool's description is sent once, with its schema");
+
+    // The next turn reads them afresh.
+    rig.server.pushReply({ text: "Racing it is." });
+    await rig.core.sendUserMessage("what do I like?");
+    await waitForLog(
+      rig.core,
+      (log) => log.filter((e) => e.data.type === "turn_ended").length >= 2,
+      30_000,
+      "second turn_ended",
+    );
+    const next = rig.server.requests.filter((r) => r.path.startsWith("/v1/chat/completions")).at(-1)!.body as {
+      messages: Array<{ role: string; content?: unknown }>;
+    };
+    assert.match(String(next.messages.find((m) => m.role === "system")?.content ?? ""), /racing games/);
+  });
+
   it("keeps the log as the only state: a restart resumes the same conversation", async () => {
     const rig = await turnRig([{ text: "Noted." }]);
     await rig.core.sendUserMessage("remember that I like fast games");

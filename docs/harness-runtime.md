@@ -375,8 +375,14 @@ because this machine has no isolated Codex home and a silent zero is indistingui
 in a game folder, and the ones that ran in a scratch folder the studio named under the temp root
 (`studio-playtest-`, `studio-judge-` — a playtester and every judge call run there, in nobody's
 game, and filtering on the game roots alone emptied those rows silently). What the filter drops is
-said in the where-I-looked line, not swallowed. `--baseline <json>` adds the change against an earlier run — run it before a diet and
-again after.
+said in the where-I-looked line, not swallowed. `--system-claude` does the same for `~/.claude`,
+where a chat signed in with this Mac's own Claude Code writes the studio's transcripts beside the
+owner's. Every request is priced at its own model's row of `evals/prices.json` and reported by
+billing type (fresh input, cache write, cache read, output), with the share of cache writes at the
+1-hour TTL, each role's largest single-request context (`peak input max`, what a long session
+re-reads on every turn) and each tool's failed results (Claude marks them; Codex does not); a
+request on a model the table has no price for is counted, never guessed. `--baseline <json>` adds
+the change against an earlier run, cost included — run it before a diet and again after.
 
 Milestone 4's own suites, all in `npm test`: `page-serve.test.ts` (where the studio's tags land in
 a page it did not write), `page-shim.test.ts` (the clock, the seed, the merging facade, and the
@@ -400,7 +406,8 @@ runs the existing scripted worker/playtester checks against the packaged applica
 `Options.skills` is a CONTEXT FILTER, not a sandbox. The studio's judge sessions run with
 `skills: []` (`ClaudeCodeEngineOptions.skills.judge`, default `[]`): a bundled skill's frontmatter
 is prompt weight a judge pays on every verdict, and it can only make two verdicts that should be
-the same differ. Delegations send no `skills` key at all unless one is set, so a builder keeps the
+the same differ. For the same reason a judge runs with `tools: []`: refusing the built-in tools
+(`disallowedTools`) still sent every one's definition on each verdict. Delegations send no `skills` key at all unless one is set, so a builder keeps the
 CLI's own behaviour and a project skill still earns its keep.
 
 ## Build outcome reporting acceptance
