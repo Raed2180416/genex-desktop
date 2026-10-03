@@ -14,7 +14,7 @@ import { Presence, type PresenceChild } from "../ui/Presence.tsx";
 import { PLAN_WORDS } from "../words.ts";
 import type { ChatHistory } from "./chat-panel-props.ts";
 import { ChatWork } from "./ChatWork.tsx";
-import type { ConversationEntry } from "./conversation-entries.ts";
+import { type ConversationEntry, entrySize } from "./conversation-entries.ts";
 import { JumpToLatest } from "./JumpToLatest.tsx";
 import { SendPlacement } from "./pending-sends.ts";
 import { StreamingReply } from "./StreamingReply.tsx";
@@ -212,6 +212,7 @@ const ConversationContent = memo(function ConversationContent({
             entrance={(entry, appended) => rowEntrance(entry, appended, view)}
             still={loading}
             renderItem={renderItem}
+            sizeOf={entrySize}
           />
           <PendingBubbles key={`pending:${threadId}`} sends={sends} />
           <StreamingReply threadId={threadId} events={view.events} onShowing={onStreaming} />

@@ -44,7 +44,11 @@ if (release && (watch || devId)) throw new Error("Release builds cannot watch or
 // owned build timed for docs/performance.md asks for production React (`STUDIO_REACT=production`):
 // development React times every render and overstates what a packaged app costs.
 const timedBuild = Boolean(devId) && process.env.STUDIO_REACT === "production";
-const rendererMode = { release, development: watch || (Boolean(devId) && !timedBuild) };
+// An owned fixture profile's checks read React commit counts (`renderer/performance.tsx`); a timed
+// build's production React has no Profiler to count them.
+if (process.argv.includes("--commit-counts") && !devId) throw new Error("--commit-counts needs --dev-build");
+const commitCounts = process.argv.includes("--commit-counts") && !timedBuild;
+const rendererMode = { release, development: watch || (Boolean(devId) && !timedBuild), commitCounts };
 
 /**
  * Kept out of the bundle: Electron itself, and packages that resolve their own binaries.
