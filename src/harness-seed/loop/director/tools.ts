@@ -31,6 +31,7 @@ import { finalJudgeQuestion } from "./close-prompts.ts";
 import { plainly } from "./rules.ts";
 import { DirectorTool, headSynced } from "./tool-specs.ts";
 import { passDeadline } from "./wake-schedule.ts";
+import { workingGoal } from "../goal-prompts.ts";
 import type { LastJudge, Night, Worker } from "./night.ts";
 import type { CheckResult } from "../checks.ts";
 import type { Evidence, Shot } from "../evidence.ts";
@@ -660,7 +661,7 @@ export async function judgeTheLanding(night: Night, head: string | null): Promis
   const comparable = !state.fromScratch && Boolean(state.startEvidence);
   const ask = comparable
     ? { target: BuildTarget.Integration, against: Against.Start }
-    : { target: BuildTarget.Integration, against: Against.None, question: finalJudgeQuestion(run.goal) };
+    : { target: BuildTarget.Integration, against: Against.None, question: finalJudgeQuestion(workingGoal(run)) };
   const options = { borrow: true, final: true, until: Date.now() + FINAL_JUDGE_MS };
   await judge(night, ask, options).catch((err: unknown) =>
     note(

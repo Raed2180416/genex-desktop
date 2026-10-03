@@ -223,3 +223,55 @@ describe("the requested state — setup and its probe", () => {
     assert.equal(setupVerifyExpr(undefined), null);
   });
 });
+
+describe("computer tool — a playtester's clock (golden-boot-glory)", () => {
+  /** The computer on a fake window that records what reached the game, for one screen role. */
+  async function playOn(role: "playtester" | "builder") {
+    const { computerTools } = await import("../../src/main/core/computer-tools.ts");
+    const { tmpDir } = await import("../helpers/tmp.ts");
+    const reached: string[] = [];
+    const port = {
+      studioCall: async (method: string) => {
+        reached.push(method);
+        return true;
+      },
+      input: async () => {
+        reached.push("input");
+        return { ok: true, applied: 1, width: 960, height: 600 };
+      },
+      studioState: async () => ({ frame: 1 }),
+      pointer: () => ({ x: 480, y: 300 }),
+      viewSize: () => ({ width: 960, height: 600 }),
+      consoleEntries: () => [],
+    };
+    const previews = {
+      loadServed: async () => ({ problem: null, note: null }),
+      applySetup: async () => null,
+      openScreen: () => {},
+      frame: async () => {},
+    };
+    const sessionPort = { get: async () => port, handle: () => null, loaded: null };
+    const tools = computerTools(
+      previews as never,
+      { project: "golden-boot-glory", role } as never,
+      "/nonexistent/build",
+      await tmpDir("computer-clock-"),
+      sessionPort as never,
+    );
+    await tools.onLiveTool("computer", { action: "key", text: "d" });
+    await tools.onLiveTool("computer", { action: "wait", duration: 0.01 });
+    return { reached, prompt: String(tools.liveTools[0]?.description) };
+  }
+
+  it("one key press ran four match minutes while the playtester looked: its game stands still between moves and runs only during them", async () => {
+    const played = await playOn("playtester");
+    assert.deepEqual(played.reached, ["pause", "start", "input", "pause", "start", "pause"]);
+    assert.match(played.prompt, /stands still between your actions/);
+  });
+
+  it("a builder's game keeps running between actions, as before", async () => {
+    const built = await playOn("builder");
+    assert.deepEqual(built.reached, ["input"]);
+    assert.match(built.prompt, /keeps running between actions/);
+  });
+});

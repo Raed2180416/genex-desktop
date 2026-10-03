@@ -29,7 +29,7 @@ import { CAMERA_SETTLE_MS, DEFAULT_SHOT_QUALITY, captureSurface, requestedSurfac
 import type { PreviewService } from "./previews.ts";
 import { iterationDir, safePathSegment } from "./run-shots.ts";
 import type { SessionPort } from "./session-port.ts";
-import { CaptureSurface } from "../../shared/preview-contract.ts";
+import { CaptureSurface, GameClock } from "../../shared/preview-contract.ts";
 
 /** How long an input settles before the state is read back. */
 const INPUT_SETTLE_MS = 120;
@@ -48,6 +48,12 @@ const TOOL_ROLE: Record<AgentScreenRole, ComputerToolRole> = {
   playtester: "playtester",
   judge: "playtester",
 };
+
+/**
+ * The roles that play a build to judge it: they take seconds to look and decide, so the game's clock
+ * stands still between their moves (golden-boot-glory: one key press ran four match minutes).
+ */
+const PACED_ROLES: ReadonlySet<AgentScreenRole> = new Set(["playtester", "judge"]);
 
 /** Who holds the computer, and on which build: a playtest grant with any screen role. */
 export type ComputerGrant = Omit<NonNullable<DelegateRequest["playtest"]>, "role"> & { role?: AgentScreen["role"] };
@@ -100,6 +106,8 @@ interface ComputerSession {
   readonly stateText: (port: PreviewPort, max?: number) => Promise<string>;
   readonly saveFrame: (jpeg: Buffer, name: string) => Promise<string>;
   readonly frame: (port: PreviewPort, jpeg: Buffer | null, caption: string, act: ScreenAct) => Promise<void>;
+  /** Run the game's clock for one move, then stand it still again when the session is paced. */
+  readonly moving: <T>(port: PreviewPort, move: () => Promise<T>) => Promise<T>;
 }
 
 async function look(ctx: ActionContext): Promise<LiveToolResult> {
@@ -153,7 +161,7 @@ async function zoom(ctx: ActionContext): Promise<LiveToolResult> {
 
 async function wait(ctx: ActionContext): Promise<LiveToolResult> {
   const seconds = ctx.request.duration ?? 1;
-  await sleep(Math.round(seconds * SECOND_MS));
+  await ctx.session.moving(ctx.port, () => sleep(Math.round(seconds * SECOND_MS)));
   await ctx.session.frame(ctx.port, null, ctx.caption, ctx.act);
   return `waited ${seconds}s — ${await ctx.session.stateText(ctx.port, STATE_CHARS.afterAction)}${ctx.noteLine}`;
 }
@@ -195,12 +203,19 @@ async function input(ctx: ActionContext): Promise<LiveToolResult> {
   const { port, session, caption } = ctx;
   const actions = computerToInput(ctx.request, session.cursor(port, ctx.size));
   if (!actions.length) return `${ctx.request.action}: nothing to do (${caption})`;
-  await port.input(actions);
-  await sleep(INPUT_SETTLE_MS);
+  await session.moving(port, async () => {
+    await port.input(actions);
+    await sleep(INPUT_SETTLE_MS);
+  });
   await session.frame(port, null, caption, ctx.act);
   const c = session.cursor(port, ctx.size);
   const state = await session.stateText(port, STATE_CHARS.afterAction);
   return `OK — ${caption}; cursor at ${c.x},${c.y}. ${state}${ctx.noteLine}\nScreenshot to see the result.`;
+}
+
+/** Stand the game's clock still; a page with no clock to pause keeps running. */
+async function stillClock(port: PreviewPort): Promise<void> {
+  await port.studioCall(GameClock.Pause).catch(() => null);
 }
 
 /** One computer call: parsed, the build loaded (reloaded when asked), then answered by its action. */
@@ -259,7 +274,8 @@ function sharedLoad(load: (force: boolean) => Promise<ComputerLoad>): (force?: b
 /**
  * The computer on one session's window — the builder's worktree, the playtester's build under
  * test, the scout's live folder. Loaded once through the served entry, the setup script applied,
- * then kept running between actions so a map the worker switched to stays switched.
+ * then kept running between actions so a map the worker switched to stays switched — except for a
+ * playtester's or judge's, whose clock runs only during its moves (`PACED_ROLES`).
  */
 export function computerTools(
   previews: PreviewService,
@@ -270,6 +286,7 @@ export function computerTools(
 ): ComputerTools {
   let root = initialRoot;
   const role: AgentScreen["role"] = grant.role ?? "builder";
+  const paced = PACED_ROLES.has(role);
   const label = grant.label ?? grant.facetId ?? grant.project;
   const iterDir = iterationDir(outDir, grant.iteration);
   let shots = 0;
@@ -293,6 +310,7 @@ export function computerTools(
       return { port: window, problem: `the build failed to load: ${loaded.problem}`, note: null };
     }
     const applied = await previews.applySetup(window, grant.setup);
+    if (paced) await stillClock(window);
     const note = [loaded.note, applied].filter(Boolean).join("; ") || null;
     sessionPort.loaded = { root, at: Date.now() };
     loadedAt = Date.now();
@@ -302,6 +320,15 @@ export function computerTools(
     return { port: window, problem: null, note };
   };
   const ensureLoaded = sharedLoad(loadOnce);
+  const moving = async <T>(window: PreviewPort, move: () => Promise<T>): Promise<T> => {
+    if (!paced) return move();
+    await window.studioCall(GameClock.Start).catch(() => null);
+    try {
+      return await move();
+    } finally {
+      await stillClock(window);
+    }
+  };
   const session: ComputerSession = {
     root: () => root,
     loadedAt: () => loadedAt,
@@ -321,6 +348,7 @@ export function computerTools(
       return file;
     },
     frame: (window, jpeg, caption, act) => previews.frame(window, screen(), jpeg, caption, act),
+    moving,
   };
   return {
     liveTools: [computerToolDefinition({ role: Object.hasOwn(TOOL_ROLE, role) ? TOOL_ROLE[role] : "playtester" })],

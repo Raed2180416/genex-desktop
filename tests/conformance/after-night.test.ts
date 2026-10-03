@@ -419,22 +419,36 @@ describe("the chat's own session after a finished build, with Loop on (reopen-ru
     recorded?: Recorded[];
     ok?: boolean;
     engine?: string;
+    /** The session changed the game's sources in its turn. */
+    edits?: boolean;
   }
 
   /**
    * One turn of the chat's own session after its night, in folder `plaza`, resuming its session: the
    * request it was handed, what the turn gave back, and every call the turn made.
    */
-  async function sessionTurn({ night, commission = null, recorded = [], ok = true, engine = "codex" }: SessionTurn) {
+  async function sessionTurn({
+    night,
+    commission = null,
+    recorded = [],
+    ok = true,
+    engine = "codex",
+    edits = false,
+  }: SessionTurn) {
     const requests: Handed[] = [];
+    let stamps = 0;
     const recorder = ctxRecorder({
       threadId: THREAD,
       unknown: { value: null },
       handlers: {
         "events.messages": () => [{ role: "user", content: "add enemies" }],
         "game.list": () => [{ name: "plaza", title: "Plaza" }],
-        // The folder did not change: the turn takes no preview pass.
-        "game.contentStamp": () => ({ all: "same", source: "same" }),
+        // The folder did not change, unless the session edits the game: then a preview pass looks at it.
+        "game.contentStamp": () =>
+          edits && stamps++ > 0 ? { all: "edited", source: "edited" } : { all: "same", source: "same" },
+        "preview.ready": () => ({ ready: true }),
+        "preview.status": () => ({}),
+        "preview.console": () => [],
         "engine.delegate": (params) => {
           requests.push(params as Handed);
           return {
@@ -611,6 +625,23 @@ describe("the chat's own session after a finished build, with Loop on (reopen-ru
       said(recorder).join("\n"),
     );
     assert.deepEqual(recorder.sequence("preview."), [], "no preview pass: the reply edits nothing");
+  });
+
+  it("A12b. a contained change Loop could have sent to the finished build, made by the session itself: the chat says it was made directly, with no build", async () => {
+    const direct = await sessionTurn({ night: finished, commission: { hours: 3 }, edits: true });
+    assert.deepEqual(direct.outcome.details ?? null, null, "nothing reopens");
+    assert.ok(
+      said(direct.recorder).some((words) => /made directly, no build/.test(words)),
+      said(direct.recorder).join("\n"),
+    );
+
+    const loopOff = await sessionTurn({ night: finished, edits: true });
+    assert.ok(
+      !said(loopOff.recorder).some((words) => /made directly/.test(words)),
+      "Loop off: nothing to say about a build",
+    );
+    const answered = await sessionTurn({ night: finished, commission: { hours: 3 } });
+    assert.ok(!said(answered.recorder).some((words) => /made directly/.test(words)), "an answer changed nothing");
   });
 
   it("A12. the note after a finished build: the session's own work with Loop off, the reopen with it on; a paused build's is unchanged", () => {

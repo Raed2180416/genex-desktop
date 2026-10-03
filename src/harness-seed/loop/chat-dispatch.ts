@@ -444,7 +444,8 @@ async function coordinatorAnswer(
   await runCoordinatorTurn(ctx, { ...action, turnId, run: existing, ...(steer ? { steer } : {}), reopen });
   const followup = ctx.cancelled ? null : await followupFor(host, action, existing);
   if (!followup) return undefined;
-  if (reopen) return reopenOutcome(reopen.hours, reopenRequest(followup.text, steer));
+  // A contained change is one builder turn, Loop or not: only more work reopens the build.
+  if (reopen && !followup.contained) return reopenOutcome(reopen.hours, reopenRequest(followup.text, steer));
   return runTurn(turnCtx, followupOptions(action, turnId, followup, existing, steer));
 }
 
@@ -633,7 +634,7 @@ async function followupFor(
   host: Host,
   action: QueueAction,
   existing: RunRecord,
-): Promise<{ text: string; plan: unknown } | null> {
+): Promise<{ text: string; plan: unknown; contained: boolean } | null> {
   const events = await host.call(HostMethod.EventsList, { threadId: action.threadId });
   // The latest request for this message: the coordinator may have restated it after a steer.
   const followup = events
@@ -645,7 +646,7 @@ async function followupFor(
   if (!followup) return null;
   const journal = await readJournal(host, action.threadId, existing.runId);
   const plan = journal?.director?.plan ?? journal?.plan ?? lastReviewedPlan(events);
-  return { text: followup.text, plan };
+  return { text: followup.text, plan, contained: followup.build === false };
 }
 
 function lastReviewedPlan(events: readonly HarnessEvent[]): unknown {

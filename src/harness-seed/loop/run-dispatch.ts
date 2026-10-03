@@ -303,13 +303,28 @@ async function conductRun(
   // A finished run is the richest evidence there is — mine it while it is fresh. A stop
   // means stop, so a cancelled run skips the pass; so does Self-improvement switched off.
   const pass = passCtx(ctx, active);
-  if (await wantsToLearn(pass, inbox)) await learnFromRun(host, pass, run);
+  if (await wantsToLearn(pass, inbox, report)) await learnFromRun(host, pass, run);
 }
 
-/** Learn from the run: nobody stopped it — before or while asking — nor asked it to finish, and learning is on. */
-async function wantsToLearn(pass: HarnessCtx, inbox: RunInbox): Promise<boolean> {
-  if (pass.cancelled || (await inbox.finishing())) return false;
+/**
+ * Learn from the run: nobody stopped it — before or while asking — nor asked it to finish, it kept
+ * new rounds, and learning is on.
+ */
+async function wantsToLearn(pass: HarnessCtx, inbox: RunInbox, report: AnyRecord): Promise<boolean> {
+  if (pass.cancelled || (await inbox.finishing()) || !keptNewRounds(report)) return false;
   return (await learningOn(pass)) && !pass.cancelled;
+}
+
+/**
+ * Did this session keep rounds of its own? A resumed or reopened night that kept none — the user's
+ * quick fix, made by its lead — has nothing the pass after its earlier session did not already mine
+ * (golden-boot-glory: such a fix was learned from as a call made without the user).
+ */
+export function keptNewRounds(report: AnyRecord | null | undefined): boolean {
+  const earlier = report?.earlier?.rounds;
+  if (typeof earlier !== "number") return true;
+  const rounds = Array.isArray(report?.iterations) ? report.iterations.length : 0;
+  return rounds > earlier;
 }
 
 /** The self-improvement pass over a finished run, with its state on the run's thread. */
