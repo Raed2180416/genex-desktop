@@ -1,8 +1,11 @@
 import { appendedEntryIds } from "./transcript-motion.ts";
 import {
   anchorShift,
+  heightEstimate,
   INITIAL_VIEWPORT,
   mountedRange,
+  type RowRange,
+  type RowSize,
   retainedViewport,
   rowOffsets,
   type TranscriptLayout,
@@ -10,8 +13,10 @@ import {
 import {
   type AnimationEvent,
   type CSSProperties,
+  memo,
   type ReactNode,
   type RefObject,
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -27,7 +32,9 @@ const OPEN_SLACK_MS = 200;
 const ROW_OPENING = "chat-row-open";
 
 /**
- * Variable-height window. Only the viewport and a small reading buffer mount rich replies.
+ * Variable-height window. Rich replies mount a few screens around the viewport and stay a little
+ * longer as the reader scrolls away (`mountedRange`); `sizeOf` lets rows not yet measured be
+ * guessed from those that were. Rows re-render only when their item or `renderItem` changes.
  * `entrance` says how a row that mounts arrives: how far into its opening it starts (0 for a new
  * row, more for one taking over a placeholder mid-opening), or null when it is simply there.
  * `appended` says it arrived after the rows before it (history and earlier pages never are).
@@ -39,6 +46,7 @@ export function VirtualTranscript<T extends { id: string }>({
   scroller,
   follow,
   renderItem,
+  sizeOf,
   entrance,
   still = false,
 }: {
@@ -46,6 +54,8 @@ export function VirtualTranscript<T extends { id: string }>({
   scroller: RefObject<HTMLDivElement | null>;
   follow: RefObject<boolean>;
   renderItem: (item: T) => ReactNode;
+  /** What an unmeasured row's height is guessed from (stable: a module-level function). */
+  sizeOf?: (item: T) => RowSize;
   entrance?: (item: T, appended: boolean) => number | null;
   still?: boolean;
 }) {
@@ -56,14 +66,14 @@ export function VirtualTranscript<T extends { id: string }>({
   useLayoutEffect(() => {
     previousIds.current = still ? null : ids;
   });
-  const heights = useRef(new Map<string, number>());
-  const [revision, resize] = useState(0);
+  const { offsets, onMeasure } = useRowHeights(items, sizeOf);
+  const renderedOf = useRowElements(renderItem);
   const [viewport, setViewport] = useState(INITIAL_VIEWPORT);
   const oldPositions = useRef<TranscriptLayout | null>(null);
   const viewportRef = useRef(viewport);
-  const offsets = useMemo(() => rowOffsets(items, heights.current), [items, revision]);
   const offsetsRef = useRef(offsets);
   offsetsRef.current = offsets;
+  const mounted = useRef<RowRange | undefined>(undefined);
   useEffect(() => {
     const element = scroller.current;
     if (!element) return;
@@ -75,7 +85,8 @@ export function VirtualTranscript<T extends { id: string }>({
         : 0;
       const next = { top: Math.max(0, element.scrollTop - top), height: element.clientHeight };
       viewportRef.current = next;
-      setViewport((previous) => retainedViewport(offsetsRef.current, previous, next));
+      const rows = mounted.current;
+      setViewport((previous) => (rows ? retainedViewport(offsetsRef.current, previous, next, rows) : next));
     };
     const scroll = () => {
       if (!frame) frame = requestAnimationFrame(measure);
@@ -107,7 +118,11 @@ export function VirtualTranscript<T extends { id: string }>({
     if (entrance) return entrance(item, appended);
     return appended ? 0 : null;
   };
-  const { start, end } = mountedRange(offsets, viewport);
+  const range = mountedRange(offsets, viewport, mounted.current);
+  useLayoutEffect(() => {
+    mounted.current = range;
+  });
+  const { start, end } = range;
   return (
     <div
       ref={host}
@@ -119,22 +134,46 @@ export function VirtualTranscript<T extends { id: string }>({
     >
       <div aria-hidden style={{ height: offsets[start] }} />
       {items.slice(start, end).map((item) => (
-        <MeasuredRow
-          key={item.id}
-          id={item.id}
-          enterFrom={enterFrom(item)}
-          onMeasure={(height) => {
-            if (Math.abs((heights.current.get(item.id) ?? 0) - height) < 1) return;
-            heights.current.set(item.id, height);
-            resize((value) => value + 1);
-          }}
-        >
-          {renderItem(item)}
+        <MeasuredRow key={item.id} id={item.id} enterFrom={enterFrom(item)} onMeasure={onMeasure}>
+          {renderedOf(item)}
         </MeasuredRow>
       ))}
       <div aria-hidden style={{ height: (offsets.at(-1) ?? 0) - (offsets[end] ?? 0) }} />
     </div>
   );
+}
+
+/**
+ * The rows' measured heights and where each row starts: a row not yet measured is guessed from
+ * the measured ones (`sizeOf`, which is stable), and every new height lays the rows out again.
+ */
+function useRowHeights<T extends { id: string }>(items: T[], sizeOf: ((item: T) => RowSize) | undefined) {
+  const heights = useRef(new Map<string, number>());
+  const [revision, resize] = useState(0);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a measured height (`revision`) moves the rows; `sizeOf` is stable
+  const offsets = useMemo(
+    () => rowOffsets(items, heights.current, sizeOf && heightEstimate(items, heights.current, sizeOf)),
+    [items, revision],
+  );
+  const onMeasure = useCallback((id: string, height: number) => {
+    if (Math.abs((heights.current.get(id) ?? 0) - height) < 1) return;
+    heights.current.set(id, height);
+    resize((value) => value + 1);
+  }, []);
+  return { offsets, onMeasure };
+}
+
+/** One element per item while `renderItem` holds, so a row whose item is unchanged skips its render. */
+function useRowElements<T extends { id: string }>(renderItem: (item: T) => ReactNode): (item: T) => ReactNode {
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new renderItem draws every row anew
+  const rendered = useMemo(() => new WeakMap<T, ReactNode>(), [renderItem]);
+  return (item) => {
+    const known = rendered.get(item);
+    if (known !== undefined) return known;
+    const node = renderItem(item);
+    rendered.set(item, node);
+    return node;
+  };
 }
 
 /**
@@ -157,30 +196,35 @@ function useHostAnchor(
   });
 }
 
+/** Props of one measured row. */
+interface MeasuredRowProps {
+  id: string;
+  /** How far into its opening the row starts (ms), or null when it is simply there. Read once, at mount. */
+  enterFrom: number | null;
+  onMeasure: (id: string, height: number) => void;
+  children: ReactNode;
+}
+
 /**
  * One row, measured for the window. A row that arrives opens in place (theme.css
  * `.chat-entry-arriving`); while it opens its height is the opening's, so it is measured once open.
+ * It renders again only for new content: `enterFrom` counts at mount alone.
  */
-function MeasuredRow({
-  id,
-  onMeasure,
-  children,
-  enterFrom,
-}: {
-  id: string;
-  /** How far into its opening the row starts (ms), or null when it is simply there. */
-  enterFrom: number | null;
-  onMeasure: (height: number) => void;
-  children: ReactNode;
-}) {
+const MeasuredRow = memo(
+  MeasuredRowContent,
+  (before: MeasuredRowProps, after: MeasuredRowProps) =>
+    before.id === after.id && before.children === after.children && before.onMeasure === after.onMeasure,
+);
+
+function MeasuredRowContent({ id, onMeasure, children, enterFrom }: MeasuredRowProps) {
   const ref = useRef<HTMLDivElement>(null);
   // Fixed at mount: changing a running opening's delay would jump it.
   const [entered] = useState(enterFrom);
   const [arriving, setArriving] = useState(() => enterFrom !== null && !prefersReducedMotion());
   const opening = useRef(arriving);
   opening.current = arriving;
-  const measure = useRef(onMeasure);
-  measure.current = onMeasure;
+  const measure = useRef((height: number) => onMeasure(id, height));
+  measure.current = (height: number) => onMeasure(id, height);
   useLayoutEffect(() => {
     const element = ref.current;
     if (!element) return;

@@ -51,9 +51,9 @@ request to wait for the remaining workers.
   planning and applied execution revisions.
 - After a night its lead led, the chat goes on in that same session with its hands back
   ([after the build](#after-the-build-the-same-session)): it answers, after a finished night does
-  requested work itself (Loop off) or, with Loop on, reopens the same run with fresh time (a new run
-  only when asked to start over; the [coordinator](#the-coordinator-a-fallback)'s `continue_build`
-  reopens one it answers for too), resumes a paused one with the latest instruction, and shows or
+  requested work itself (Loop off, or a contained change with Loop on) or, with Loop on, reopens the
+  same run for more work, until the ask is checked (a new run only when asked to start over; the
+  [coordinator](#the-coordinator-a-fallback)'s `continue_build` reopens one it answers for too), resumes a paused one with the latest instruction, and shows or
   lands the build. Questions alone do not restart builders. Sending a message needs no Keep going
   button.
   Optional **Resume** also keeps the journal; a run interrupted by a quit or a crash is repaired
@@ -331,7 +331,10 @@ it builds…" instead of "Sends when the build finishes…" (renderer `chat/live
 - **Close and Stop.** The chat waits for a run's close (`ActiveRun.closed`, `done`, set when its
   runner returns), not for the learning pass that follows: the chat answers during that pass (a
   coordinator's `continue_build` is taken for a finished run), and a new build or a reopen — the
-  chat's own session's or the coordinator's — waits the pass out.
+  chat's own session's or the coordinator's — waits the pass out. A resumed or reopened night's
+  report carries its earlier sessions' workers, rounds, verdicts and notes (`setup.ts`
+  `nightReport`, from the last `run_finished`), its `judge_N`/`play_N` folders number on from the
+  journal, and a session that kept no new round skips the pass (`run-dispatch.ts` `keptNewRounds`).
   Stop pauses the queue — a cancelled night takes no more messages — and hands over to the oldest
   queued message
   once the night has closed. What the lead never heard when its night ended (a Stop, a limit, a
@@ -409,18 +412,23 @@ message on another engine is another session's; it and anything else are
   no build is the chat's (`loop-setting.ts` `reportCommissions`), a typed message after a finished
   one too (`loopCommissions`). The session is handed `reopen_run {text}` first, then the Loop's
   launch tool and `ask_user` (`sessionTools`); after any other night no launch tool is bridged. Its
-  note words the rules (`reopenRules`, `loop/reopen-run-prompts.ts`): work of any size records
-  `reopen_run` once, last, editing nothing; a question is answered and reopens nothing; only an
-  explicit start over calls the launch tool, which launches a new run from the folder; an unclear
-  ask is a question. A question recorded beside it wins, and a reopen beats a launch. Once the reply
+  note words the rules (`reopenRules`, `loop/reopen-run-prompts.ts`): Loop allows the build to go
+  on and never orders it. A contained change (a fix, a tweak, one feature) is the session's own edit,
+  and its report ends "Small change — made directly, no build." (`delegated-turn.ts` `reportBuild`);
+  more work records `reopen_run` once, last, editing nothing; a question is answered and reopens
+  nothing; only an explicit start over calls the launch tool, which launches a new run from the
+  folder; an unclear ask is a question with the session's estimate in each choice. A question recorded beside it wins, and a reopen beats a launch. Once the reply
   ends the chat reopens (`reopenAfterReply`): it reads the journal, waits out the finished night's
   learning pass, then refuses — "The build was not reopened: …" — on a Stop since (it stays
   finished), a run under way, no journal, or a log whose latest run is not this one finished
   (`finishedClose`; the journal is not asked, since a rewound reopen leaves it paused on withdrawn
   work). Otherwise it rewrites the journal (`director/reopen.ts` `reopenedJournal`). The run takes
-  the Loop's budgets and completion policy as a launch gives them, never the finished build's
-  (`reopenBudgets`: the hours held to the run limits, `duration`; ∞ the day's ceiling until
-  satisfied, `goal`), and the message's picks as a launch from it takes them (`reopenedRun`): the
+  the Loop's time as a launch gives it, never the finished build's, always as a `goal` commission
+  (`reopenBudgets`: the hours held to the run limits, or ∞ the day's ceiling until satisfied): it
+  works until the ask is checked and the lead may finish then. The ask goes on the run as `asks`,
+  the latest first, and the lead, judges and playtester read it ahead of the commission, winning
+  where they conflict (`goal-prompts.ts` `workingGoal`); `goal` stays what the Builds graph shows.
+  It takes the message's picks as a launch from it takes them (`reopenedRun`): the
   finished run's stamps (`model`, `roles`, `rolesApplied`, `builderEngine`, `judgeEngine`,
   `judgeModel`, `effort`, `preferences`, `readiness`) dropped, `model-roles.ts` `withRoles` resolves
   the model the session answers on, the Loop's roles (`reopenAsked`: the message's commission, or
@@ -504,7 +512,8 @@ boolean: a lead of its own, or the chat's own session when the message went to a
 kept after-night part left it to the coordinator), the message keeps its Loop when its coordinator
 answers in a session and the coordinator's parts serve it (`chat-dispatch.ts` `coordinatorReopens`;
 `reopen-run.ts` `finishedNight`, model null). Its prompt carries `coordinatorReopenRules`
-(`reopen-run-prompts.ts`): `continue_build` reopens the same build for the Loop's time with the
+(`reopen-run-prompts.ts`): `continue_build` with `build: false` hands a contained change to one
+builder turn; otherwise it reopens the same build for the Loop's time with the
 models it was built with — the one clock it may set going again; a question continues nothing;
 the stills it was shown go in `continue_build`'s words, as the build reads its ask as text.
 Once the reply ends, a recorded `continue_build` (`run_followup_requested`) reopens the same run

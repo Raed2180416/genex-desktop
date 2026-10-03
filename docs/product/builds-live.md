@@ -16,19 +16,18 @@ closed, with Show in Finder for files in the game folder.
 
 ## The two views
 
-**Live** plays the browser game in a separate native view. Live and worker previews
-support WebGL and WebGPU; hidden unobserved previews pause. The stage strip holds
-Live/Builds/Assets, an icon Reload beside them, then the sound switch (⌥⌘M; only a shown Live in
-front is heard) and plugin actions such as Publish. Any
-load shows a shimmering “Loading game” until the page and requests settle. An empty
-scaffold shows “Ready for your first idea” (a turning cube), or “Building your game” (a crane) with
-Watch progress while a run works in its own copies, Play latest once it has a build ready; the first
-healthy build then shows itself. Otherwise only the user changes Live (opening a game, Reload,
-Play, Make live, a chat request while Live is hidden). A newer healthy build, a changed game folder
-(checkpoint, landing, rewind), a chat's show or landing, or a shown build found broken lights Reload with an accent dot
-and a tooltip naming it; Reload brings it in. While Live is hidden, all but a new build go in at
-once. A loaded page alone is not a successful build. The preview reaches
-only public library CDNs; Open Game names other hosts.
+**Live** plays the browser game in a native view (WebGL and WebGPU); hidden unobserved previews
+pause. The strip holds Live/Builds/Assets, Play/Stop, Reload, the sound switch (⌥⌘M; only a shown
+Live in front is heard), Full screen (hold Esc to leave) and plugin actions such as Publish (accent
+until listed). Stop halts the game until Play or Reload. Slow loads show a halftone loader and a
+shimmering “Loading game”. An empty scaffold shows “Ready for your first idea” (a cube), or
+“Building your game” (a crane) with Watch progress while a run works, Play latest once a build is
+ready; the first healthy build then shows itself. Otherwise only the user changes Live (opening a
+game, Reload, Play, Make live, a chat request while Live is hidden). A newer healthy build, a
+changed game folder (checkpoint, landing, rewind), a chat's show or landing, or a shown build found
+broken lights Reload (accent dot, a tooltip naming it), which brings it in. While Live is hidden and
+not stopped, all but a new build go in at once. A loaded page alone is not a successful build. The
+preview reaches only public library CDNs; Open Game names other hosts.
 
 **Builds** is a graph: You asked, a row per part, Your build, then the lead while no part
 works. Tries at one step fold into one node; what reached the build forms the line, the rest
@@ -46,9 +45,9 @@ and Studio report missing checks, coverage limits, counts and revisions.
 ## Continuation and interruption
 
 After a chat-led night, its session takes follow-ups: editing the game, resuming a paused run
-with its time left, starting over only when asked. With Loop on, asking for work reopens a finished
-build with fresh time. One the chat cannot continue, like Ollama's, is answered as with Loop off,
-noting it once; no timed build can follow it. **Stop** interrupts work immediately, preserving finished
+with its time left, starting over only when asked. With Loop on, a small change is made directly;
+more work reopens the build until checked. One the chat cannot continue, like Ollama's, is answered
+as with Loop off, noting it once. **Stop** interrupts work immediately, preserving finished
 work; a stopped Loop run shows one Stopped line with Resume, and Builds or a chat request makes its
 build live. A crash or restart settles abandoned activity from persisted state; stopped, failed,
 incomplete and delivered outcomes stay distinct.

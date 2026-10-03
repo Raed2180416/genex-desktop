@@ -29,6 +29,7 @@ import { runProgress, useBuildsModel, useNow, useRunStills } from "./run-graph/u
 import { GLIDE_MS, useGraphCamera } from "./run-graph/use-graph-camera.ts";
 import { Inspector, Lightbox, type LightItem, type Reply } from "./RunInspector.tsx";
 import { type ReferenceFrame, useReferenceFrames } from "./run-stills.ts";
+import { StageLoading } from "./stage/LiveLoaderArt.tsx";
 
 export { gateWords } from "./run-graph/gates.tsx";
 export { assetsStatus } from "./run-graph/nodes.tsx";
@@ -220,11 +221,15 @@ function useBuildActions(
   return { hasBuild, play, openJob };
 }
 
-/** Said over the hidden canvas until the run's recorded outcome arrives. */
+/** Over the hidden canvas until the run's recorded outcome arrives: the stage's loader. */
 function OutcomePending(): JSX.Element {
   return (
-    <div className="absolute left-4 top-4 text-xs text-ink-3" style={{ visibility: "visible" }} role="status">
-      Recorded outcome pending — totals unavailable.
+    <div
+      data-builds-loading
+      className="stage-loader-late absolute inset-0 grid place-items-center p-8"
+      style={{ visibility: "visible" }}
+    >
+      <StageLoading label="Loading builds" />
     </div>
   );
 }

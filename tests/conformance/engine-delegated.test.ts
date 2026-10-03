@@ -952,6 +952,9 @@ describe("claude code delegated engine", () => {
     const call = seen[0] as Record<string, unknown>;
     assert.equal(call.maxTurns, 1);
     assert.deepEqual(call.allowedTools, []);
+    // Refusing tools is not removing them: without `tools: []` every built-in tool's definition
+    // (TodoWrite, NotebookEdit, ToolSearch…) still rode along on each verdict's request.
+    assert.deepEqual(call.tools, [], "no built-in tool's definition is sent to a judge");
     assert.deepEqual(call.mcpServers, {});
     assert.equal(call.strictMcpConfig, true);
     // A judge answers one question about one picture with no tools and no shell (M4.8b).

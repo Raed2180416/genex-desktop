@@ -24,7 +24,7 @@ import { directorTalk } from "../../src/harness-seed/loop/director.ts";
 import * as nightFunctions from "../../src/harness-seed/loop/director/night.ts";
 import * as toolFunctions from "../../src/harness-seed/loop/director/tools.ts";
 import * as workerFunctions from "../../src/harness-seed/loop/director/workers.ts";
-import { wrapReserveMs } from "../../src/harness-seed/loop/director/budgets.ts";
+import { timedWorkRemaining, wrapReserveMs } from "../../src/harness-seed/loop/director/budgets.ts";
 import {
   defaultWorkerId,
   JOURNAL_BRIEF_CHARS,
@@ -1051,20 +1051,22 @@ describe("a finished build reopened (director/reopen.ts)", () => {
     }
   });
 
-  it("K24. a Loop ∞ build reopened with hours spends them on the ask: the finished night's verified outcomes neither stop its workers nor gate its finish", async () => {
+  it("K24. a finished build reopened with hours works to its ask, the hours its ceiling: its outcomes come from the plan for the ask, and no working time holds its finish (golden-boot-glory)", async () => {
     const journal = reopenedWith(finishedGoalJournal(), 2);
-    assert.equal(journal.run.budgets.completionPolicy, CompletionPolicy.Duration);
+    assert.equal(journal.run.budgets.completionPolicy, CompletionPolicy.Goal);
+    assert.equal(journal.run.budgets.wallClockMs, 2 * HOUR_MS, "the Loop's hours are its ceiling");
     assert.equal(journal.director.goals, null);
     for (const key of EARNED_ANEW) assert.equal(key in journal.director, false, `${key} is earned anew`);
     const host = fakeHost();
-    const night = workerNight(host, journal, Date.now(), journal.run);
+    const now = Date.now();
+    const night = workerNight(host, journal, now, journal.run);
     assert.equal(night.state.goals, undefined);
+    assert.equal(timedWorkRemaining(journal.run, now + HOUR_MS, now), false, "finish is never refused for time left");
     const start = workerStart(night);
-    assert.equal((await start({ id: "enemies" })).started, "enemies", "the plan it finished on goes on");
-    const answer = await night.setPlan(ENEMIES);
-    assert.doesNotMatch(answer, /acceptance/, answer);
+    assert.match(String(await start({ id: "enemies" })), /call plan/, "workers wait for the plan for the ask");
+    assert.match(await night.setPlan(ENEMIES), /Required acceptance is frozen: enemies\./);
     assert.equal(planCards(host).length, 1, "the new plan is in the chat");
-    assert.equal(night.state.goals, undefined, "a timed build has no required outcomes");
+    assert.equal((await start({ id: "enemies" })).started, "enemies");
     await Promise.all(
       [...night.state.workers.values()].map((worker: { promise?: Promise<unknown> }) => worker.promise),
     );

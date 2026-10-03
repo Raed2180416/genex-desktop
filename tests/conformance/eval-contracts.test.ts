@@ -186,6 +186,15 @@ describe("price table", () => {
     assert.ok(fs.readFileSync(path.join(root, PRICE_TABLE_FILE), "utf8").endsWith("\n"));
   });
 
+  it("prices a Claude cache write at the 1-hour rate, the only TTL Claude Code writes on a subscription", () => {
+    // Every cache write in 195 in-app Claude Code sessions (4.4M tokens) was `ephemeral_1h`, which
+    // bills at 2x input; the 5-minute 1.25x rate under-priced every lane's writes by 37.5%.
+    for (const [model, price] of Object.entries(table.models)) {
+      if ("unknown" in price || !model.startsWith("claude-")) continue;
+      assert.equal(price.cacheWrite, price.input * 2, `${model}: a cache write is 2x input`);
+    }
+  });
+
   it("costs a usage at the published price and gives null, never a number, for an unknown one", () => {
     const usage = { uncachedInput: 1_000_000, cacheWrite: 0, cacheRead: 1_000_000, output: 100_000, reasoning: 20_000 };
     const opus = table.models["claude-opus-5-5"];

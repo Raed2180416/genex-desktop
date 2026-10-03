@@ -10,8 +10,8 @@ game's controls and viewpoints, replace `phase: "empty"`. Five rules; tables in 
    the recipes that apply. Work identity checks first.
 2. **Keep `window.__studio` working.** `installStudio({ scene, renderer, camera, player, … })`
    from `src/studio.js` — never remove a method. A build the harness cannot inspect is a loss.
-3. **One screen, one input path.** All UI through `__studio.hud` (drawn into the canvas; no DOM,
-   no second HUD); all input from `ctx.keys` / `ctx.look` / `ctx.wheel` inside `update()`.
+3. **One screen, one input path.** UI through `__studio.hud` (in the canvas; no DOM, no second HUD;
+   a player's name is a sprite on the player); input from `ctx.keys`/`ctx.look`/`ctx.wheel` in `update()`.
 4. **Tag everything, make it measurable.** `obj.userData.tag = "<tag>"` on every object (a group
    tag covers its children), a probe in `probes()` per mechanic, a camera that shows it, a demo in
    `config.demos` when the generic walk cannot reach it. What cannot be measured does not exist.

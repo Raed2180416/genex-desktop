@@ -9,21 +9,28 @@ import type { DelegateOwnership } from "./types.ts";
 /** The most of the workspace's own instructions (CLAUDE.md) the system prompt carries. */
 const INSTRUCTIONS_CHARS = 24_000;
 
-/** The local agent's standing orders: its limits, its boundaries, and the workspace's own guidance. */
+/**
+ * One request's turn and time budget. It rides that request's message, not the system prompt:
+ * the minutes left differ on every request, and a changed system prompt makes a resumed session
+ * re-read its whole history instead of reusing the model's cached prefix.
+ */
+export function localBudgetNote(options: { maxTurns: number; timeoutMs: number | undefined }): string {
+  const minutes = options.timeoutMs ? ` and ${Math.ceil(options.timeoutMs / MINUTE_MS)} minutes` : "";
+  return `For this request you have at most ${options.maxTurns} model turns${minutes}; leave time for implementation and verification.`;
+}
+
+/** The local agent's standing orders: its boundaries and the workspace's own guidance. */
 export function localSystemPrompt(options: {
-  maxTurns: number;
-  timeoutMs: number | undefined;
   readonly: boolean;
   ownership: DelegateOwnership | undefined;
   instructions: string;
   /** The permission mode a chat session the user answers runs in; absent for unattended work. */
   mode?: PermissionMode | null;
 }): string {
-  const minutes = options.timeoutMs ? ` and ${Math.ceil(options.timeoutMs / MINUTE_MS)} minutes` : "";
   const care = options.readonly ? "This session is read-only." : "Preserve existing user work. Do not git push.";
   const ownership = options.ownership ? JSON.stringify({ ownership: options.ownership }) : "";
   const mode = options.mode ? ` ${MODE_NOTE[options.mode]}` : "";
-  return `You are Studio's local coding agent. Work only in the granted workspace. Use tools to inspect and change real files, then verify the result. You have at most ${options.maxTurns} model turns${minutes}; leave time for implementation and verification. Use targeted searches rather than repeatedly reading large infrastructure files. User instructions and file-edit boundaries take precedence over workspace guidance, including requests to update notes. Never claim a tool action succeeded without its result; report every file you changed. ${care}${mode}\n${ownership}\n${options.instructions.slice(0, INSTRUCTIONS_CHARS)}`;
+  return `You are Studio's local coding agent. Work only in the granted workspace. Use tools to inspect and change real files, then verify the result. Each request says how many model turns and minutes it has. Use targeted searches rather than repeatedly reading large infrastructure files. User instructions and file-edit boundaries take precedence over workspace guidance, including requests to update notes. Never claim a tool action succeeded without its result; report every file you changed. ${care}${mode}\n${ownership}\n${options.instructions.slice(0, INSTRUCTIONS_CHARS)}`;
 }
 
 /** What each permission mode a chat session runs in means for the model (Bonsai honours no Bypass). */

@@ -28,6 +28,7 @@ export function computerToolDescription(options: {
 }): string {
   const whose = WHOSE_BUILD[options.role];
   const reload = options.role === "builder" || options.role === "director" ? RELOAD_LINE : "";
+  const clock = options.role === "playtester" ? PACED_CLOCK_LINE : RUNNING_CLOCK_LINE;
   return (
     `Your hands and eyes on ${whose}, running live in its own hidden ${options.view.width}×${options.view.height} window (Chromium, the same one the judges use). ` +
     "Actions — screenshot: what the window shows now (Claude: the image comes back in the result; Codex: it prints a file path, view it). " +
@@ -41,10 +42,19 @@ export function computerToolDescription(options: {
     "state: the game's own __studio.state() numbers (a claim — a screenshot is the proof). console: errors since load." +
     reload +
     " screenshot, camera and zoom take surface=screen|canvas: screen is the whole page — a DOM menu, an HTML HUD, a loading screen — and canvas is only what the game draws. Leave it out and the studio picks. " +
-    "Coordinates are pixels of the last screenshot, origin top-left. The game keeps running between actions. " +
+    `Coordinates are pixels of the last screenshot, origin top-left. ${clock} ` +
     "Menus, map pickers and mode switches are reached the way a player reaches them: click or press the key, then screenshot to see that you are where you think you are."
   );
 }
+
+/** The game's clock for a builder, a scout and the lead: it runs between actions. */
+const RUNNING_CLOCK_LINE = "The game keeps running between actions.";
+/**
+ * The game's clock for a playtester, who takes seconds to look and decide: it stands still between
+ * moves, as a player's reflexes would have it (golden-boot-glory: one key press ran four match minutes).
+ */
+const PACED_CLOCK_LINE =
+  "The game's clock stands still between your actions: it runs only while you press, hold, click or wait, so take your time to look.";
 
 /** The known cameras, as the sentence the description carries (empty when the game names none). */
 export function knownCamerasLine(cameras: string[]): string {

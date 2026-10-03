@@ -24,6 +24,7 @@
 import { CompletionPolicy } from "./completion-policy.ts";
 import { clampRunHours, MAX_RUN_HOURS } from "./config.ts";
 import { reopenedJournal } from "./director/reopen.ts";
+import { runAsks } from "./goal-prompts.ts";
 import { HostMethod } from "./host-methods.ts";
 import { runUnderWay } from "./live-chat.ts";
 import { RoleKey, roleEngine, withRoles } from "./model-roles.ts";
@@ -42,6 +43,8 @@ type RunBudgets = RunSpec["budgets"];
 
 /** The model an engine picks for itself: a lead that names no model runs on it. */
 const ENGINE_DEFAULT = "default";
+/** The asks a reopened build keeps ahead of its commission (goal-prompts.ts `workingGoal`), the latest first. */
+const MAX_REOPEN_ASKS = 4;
 
 /** Does every part a reopen depends on serve it (`SERVES_REOPEN`)? */
 export function servesReopen(parts: readonly Readonly<Record<string, unknown>>[]): boolean {
@@ -178,10 +181,15 @@ export function loopBudgets(hours: number | null): RunBudgets {
   };
 }
 
-/** The run's budgets with the Loop's new time: its other knobs kept, its time, its ∞ and its policy replaced. */
+/**
+ * The run's budgets with the Loop's new time: its other knobs kept, its time, its ∞ and its policy
+ * replaced. A reopened build has an ask to finish, not hours to spend, so it is always a goal
+ * commission: the Loop's hours are its ceiling, and the lead finishes once the ask is checked
+ * (golden-boot-glory: a seventy-second fix was refused `finish` for 159 working minutes).
+ */
 export function reopenBudgets(saved: Partial<RunBudgets> | undefined, hours: number | null): RunBudgets {
   const { wallClockMs: _spent, untilSatisfied: _before, completionPolicy: _old, ...knobs } = saved ?? {};
-  return { ...knobs, ...loopBudgets(hours) };
+  return { ...knobs, ...loopBudgets(hours), completionPolicy: CompletionPolicy.Goal };
 }
 
 /**
@@ -225,6 +233,15 @@ export function reopenedRun(
   return { ...resolved, budgets, roles: { ...resolved.roles, planner } };
 }
 
+/**
+ * The asks a reopened build is judged by, the latest first, ahead of its commission (goal-prompts.ts
+ * `workingGoal`); a replayed message's ask is not kept twice.
+ */
+export function withAsk(saved: AnyRecord, text: string): string[] {
+  const earlier = runAsks(saved).filter((ask) => ask !== text);
+  return (text ? [text, ...earlier] : earlier).slice(0, MAX_REOPEN_ASKS);
+}
+
 /** How the chat starts a reopened night (chat-dispatch.ts: `handleRunStart`, resumed, keeping a Stop). */
 export type StartReopened = (run: RunSpec & AnyRecord, reopen: RunReopen) => Promise<void>;
 
@@ -258,13 +275,14 @@ export async function reopenAfterReply(
     if (ctx.cancelled) throw new Error(MESSAGE.stoppedFirst);
     const events = await host.call(HostMethod.EventsList, { threadId });
     const { close, closeAt } = finishedClose(events, night.runId);
-    const run = reopenedRun(journal.run, reopenBudgets(journal.run.budgets, ask.hours), ask.models);
+    const text = (ask.text ?? ask.words).trim();
+    const reopened = reopenedRun(journal.run, reopenBudgets(journal.run.budgets, ask.hours), ask.models);
+    const run = { ...reopened, asks: withAsk(journal.run, text) };
     const finishedHead = isCommit(close.integrationHead) ? close.integrationHead : null;
     const at = new Date(now()).toISOString();
     await writeJournal(host, threadId, night.runId, reopenedJournal(journal, run, { at, finishedHead }));
     // The reopened night hears from its ask on — the one recorded now, or the one a turn replayed after
     // a restart finds recorded since the close — and nothing before it, an ask a Stop left behind included.
-    const text = (ask.text ?? ask.words).trim();
     const after = await askTheBuild(host, threadId, { events, closeAt }, night, { text, at });
     studio.moodBoards.delete(threadId);
     await tell(host, threadId, {

@@ -105,6 +105,8 @@ export interface PreviewStatus {
 export interface PreviewLiveStatus {
   project: string | null;
   navigating: boolean;
+  /** The person stopped the game: its page is gone until Play (`resume`) brings it back. */
+  stopped: boolean;
   loadError: string | null;
   crashed: boolean;
   page: { complete: boolean; resources: number; state: Record<string, unknown> | null } | null;
@@ -128,6 +130,8 @@ export interface GamePreviewOptions {
 }
 
 const SCHEME = "game";
+/** What a stopped game's view holds: an empty page, allowed by the game partition (`data:`). */
+const STOPPED_PAGE = "data:text/html;charset=utf-8,";
 /** The pause before the one compositor retry a failed capture gets. */
 const COMPOSITOR_RETRY_MS = 250;
 /** The longest a capture waits for the page to present two frames. */
@@ -176,6 +180,10 @@ export class GamePreview {
   /** Whether the speakers are off: from the start for an agent's window, as `setAudioMuted` says for Live. */
   #audioMuted: boolean;
   #requestedBounds: Electron.Rectangle | null = null;
+  /** Full screen: the whole window, whatever the stage's slot measures. */
+  #fill: Electron.Rectangle | null = null;
+  /** The stopped game's address, kept for `resume`; null while the game runs. */
+  #stoppedUrl: string | null = null;
   #visibleBounds: Electron.Rectangle = { x: 0, y: 0, width: 960, height: 600 };
   /** The stage's slot as last measured, and the window size it was measured in. */
   #slot: { bounds: Electron.Rectangle; viewport: Electron.Size | null } | null = null;
@@ -398,7 +406,18 @@ export class GamePreview {
     this.#applyBounds();
   }
 
+  /** Full screen: cover `bounds` (the window's content) until called with null, then the slot again. */
+  fill(bounds: Electron.Rectangle | null): void {
+    this.#fill = bounds;
+    if (bounds) this.#view?.setBounds(bounds);
+    else this.#applyBounds();
+  }
+
   #applyBounds(): void {
+    if (this.#fill) {
+      this.#view?.setBounds(this.#fill);
+      return;
+    }
     const bounds = this.#requestedBounds;
     if (!bounds) return;
     const observingHidden = this.#observed && (bounds.width === 0 || bounds.height === 0);
@@ -611,6 +630,7 @@ export class GamePreview {
   ): Promise<string> {
     this.#nativeDelivery = null;
     this.#pageSurfaceNoted = false;
+    this.#stoppedUrl = null;
     this.#entryPath = String(entry ?? "index.html").split(/[?#]/)[0] ?? "index.html";
     this.#shimLoad = options.shim ?? null;
     this.#reach = { reach: "none", hooked: {} };
@@ -639,7 +659,46 @@ export class GamePreview {
     return url;
   }
 
+  /**
+   * Stop the game: a blank page takes its place, so none of its scripts, frames or sound run, and
+   * its address is kept for `resume`. The view, its session and its place on the stage stay.
+   */
+  async stop(): Promise<void> {
+    const wc = this.#view?.webContents;
+    if (!wc || wc.isDestroyed() || this.#stoppedUrl !== null) return;
+    this.#stoppedUrl = wc.getURL();
+    await this.#profiler.invalidate("preview stopped");
+    this.#navigating = true;
+    try {
+      await wc.loadURL(STOPPED_PAGE);
+    } finally {
+      this.#navigating = false;
+    }
+  }
+
+  /** Play a stopped game again: its page from the top, as it was served. Nothing to do while it runs. */
+  async resume(): Promise<void> {
+    const url = this.#stoppedUrl;
+    const wc = this.#view?.webContents;
+    if (url === null || !wc || wc.isDestroyed()) return;
+    this.#stoppedUrl = null;
+    this.#nativeDelivery = null;
+    this.#pageSurfaceNoted = false;
+    this.#console = [];
+    this.#blockedNoted.clear();
+    this.#consoleAvailable = false;
+    this.#loadError = null;
+    this.#navigating = true;
+    try {
+      await wc.loadURL(url);
+    } finally {
+      this.#navigating = false;
+    }
+  }
+
   async reload(): Promise<void> {
+    // Reload on a stopped game plays it: reloading the blank page would show nothing.
+    if (this.#stoppedUrl !== null) return this.resume();
     this.#nativeDelivery = null;
     this.#pageSurfaceNoted = false;
     await this.#profiler.invalidate("preview reloaded");
@@ -1019,7 +1078,12 @@ export class GamePreview {
    */
   async liveStatus(): Promise<PreviewLiveStatus> {
     const wc = this.#view?.webContents;
-    const base = { project: this.#project, loadError: this.#loadError, crashed: this.#crashed };
+    const base = {
+      project: this.#project,
+      loadError: this.#loadError,
+      crashed: this.#crashed,
+      stopped: this.#stoppedUrl !== null,
+    };
     if (!wc || wc.isDestroyed()) return { ...base, navigating: false, page: null };
     if (this.#navigating || wc.isLoading()) return { ...base, navigating: true, page: null };
     const probe = `(() => { let state = null; try { const full = window.__studio ? window.__studio.state() : null; state = full ? { phase: full.phase, drawCalls: full.drawCalls } : null; } catch {} return { complete: document.readyState === "complete", resources: performance.getEntriesByType("resource").length, state }; })()`;

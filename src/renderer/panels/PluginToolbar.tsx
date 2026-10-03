@@ -48,6 +48,8 @@ const TONE_CLASS: Record<NonNullable<PluginToolbarStatus["tone"]>, string> = {
 interface Props {
   plugins: PluginInfo[];
   project: string | null;
+  /** The game has nothing in it yet: no button's action can be due, so none takes the accent. */
+  emptyGame: boolean;
   onNotice: Notify;
   /** A panel dialog is on screen — the stage zeroes the native view while it is. */
   onOpenChange: (open: boolean) => void;
@@ -167,23 +169,31 @@ function ToolbarIcon({ icon }: { icon: string | undefined }): JSX.Element | null
   return icon ? <span aria-hidden="true">{icon}</span> : null;
 }
 
+/**
+ * A plugin's button: the accent while its status says its action is due (Publish with something
+ * to publish), the quiet pill otherwise — two looks only.
+ */
 function ToolbarButton({
   entry,
   status,
   project,
   busy,
+  due,
   onPress,
 }: {
   entry: PluginToolbarEntry;
   status: PluginToolbarStatus | undefined;
   project: string | null;
   busy: boolean;
+  due: boolean;
   onPress: () => void;
 }): JSX.Element {
   const needsGame = entry.item.requiresProject !== false && !project;
   const disabled = Boolean(status?.disabled) || needsGame || busy;
   return (
     <Button
+      variant={due ? "default" : "pill"}
+      data-due={due ? "" : undefined}
       data-plugin-toolbar={entry.key}
       aria-label={entry.item.ariaLabel}
       title={status?.title}
@@ -270,17 +280,17 @@ function useStudioPublish(plugins: PluginInfo[], project: string | null, genexPu
   return { shown, setup: setup && shown, open, close, handOff };
 }
 
-/** Studio's own Publish, dressed as Genex's. */
+/** Studio's own Publish, dressed as Genex's: quiet, since whoever turned Genex off is not publishing yet. */
 function StudioPublishButton({ onPress }: { onPress: () => void }): JSX.Element {
   return (
-    <Button data-studio-publish aria-label={GENEX_WORDS.publish.buttonLabel} onClick={onPress}>
+    <Button variant="pill" data-studio-publish aria-label={GENEX_WORDS.publish.buttonLabel} onClick={onPress}>
       <Icon name="globe" />
       <span>{GENEX_WORDS.publish.button}</span>
     </Button>
   );
 }
 
-export function PluginToolbar({ plugins, project, onNotice, onOpenChange }: Props): JSX.Element {
+export function PluginToolbar({ plugins, project, emptyGame, onNotice, onOpenChange }: Props): JSX.Element {
   const entries = useMemo(() => toolbarItems(plugins, project), [plugins, project]);
   const entriesRef = useRef(entries);
   entriesRef.current = entries;
@@ -343,6 +353,7 @@ export function PluginToolbar({ plugins, project, onNotice, onOpenChange }: Prop
           status={status[entry.key]}
           project={project}
           busy={busy === entry.key}
+          due={Boolean(status[entry.key]?.attention) && !emptyGame}
           onPress={() => void press(entry)}
         />
       ))}

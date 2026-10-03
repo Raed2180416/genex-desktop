@@ -42,6 +42,7 @@ export function toolbarStatusFrom(value: unknown): PluginToolbarStatus | null {
   if (badge !== undefined) status.badge = badge;
   if (title !== undefined) status.title = title;
   if (raw.disabled !== undefined) status.disabled = Boolean(raw.disabled);
+  if (raw.attention !== undefined) status.attention = Boolean(raw.attention);
   if (typeof raw.tone === "string" && TONES.has(raw.tone)) status.tone = raw.tone as PluginToolbarStatus["tone"];
   return status;
 }

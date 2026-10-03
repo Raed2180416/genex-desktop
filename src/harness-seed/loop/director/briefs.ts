@@ -18,6 +18,7 @@ import { MAX_DIRECTOR_MEMORY } from "./memory.ts";
 import { DIRECTOR_TOOLS } from "./tool-specs.ts";
 import { WAKE_BRIEF, wakeTools } from "./wake-prompts.ts";
 import { DirectorLoop } from "./wake-schedule.ts";
+import { workingGoal } from "../goal-prompts.ts";
 import type { AnyRecord, Run } from "../../types/harness.d.ts";
 // Type-only: erased at runtime, so this module still imports no part of the night.
 import type { Worker } from "./night.ts";
@@ -56,7 +57,7 @@ export function contractBrief({
   return [
     `You are making the game "${projectLabel}" judgeable for run ${run.runId}, in an isolated copy of it (this folder). This is your only job: nothing in this game can be looked at, checked or compared until its page loads the studio contract.`,
     ``,
-    `GAME GOAL (context — not this run's work): ${run.goal}`,
+    `GAME GOAL (context — not this run's work): ${workingGoal(run)}`,
     ``,
     `THIS GAME HAS ITS OWN SHAPE — it is not the studio's template. Its entry is ${entryMain}${shape?.build ? `, its page is built with \`${shape.build}\`` : ""} and the studio serves ${shape?.entry ?? "index.html"}. Keep all of it: no second entry, do not replace index.html, do not rewrite the game, do not restyle or "clean up" anything.`,
     ``,
@@ -240,7 +241,7 @@ export function directorBrief({
   return joinLines([
     openingLine(run, leads),
     ``,
-    `GAME GOAL: ${run.goal}`,
+    `GAME GOAL: ${workingGoal(run)}`,
     referenceLine(run),
     shapeLine(ownShape, shape),
     requestedStateLine(run.setup),
@@ -381,7 +382,7 @@ export function singleWorkerBrief({
   return joinLines([
     `You are a BUILDER for run ${run.runId} on the game "${run.project}", working in an isolated copy of the game (this folder). The run's director wrote your brief; build exactly that, then stop.`,
     ``,
-    `GAME GOAL (context): ${run.goal}`,
+    `GAME GOAL (context): ${workingGoal(run)}`,
     ``,
     `YOUR BRIEF FROM THE DIRECTOR — ${worker.title}:`,
     worker.brief,

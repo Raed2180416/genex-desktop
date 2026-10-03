@@ -114,8 +114,44 @@ async function loadPriorLedger(ctx: HarnessCtx, threadId: string, run: Run, game
   return priorLedger;
 }
 
-/** The report a night leaves behind, as it starts. */
-function nightReport(run: Run): AnyRecord {
+/**
+ * The record a resumed or reopened night's earlier session closed with (its last `run_finished`),
+ * or null: the night goes on with it rather than writing over it (golden-boot-glory: a reopen's
+ * report kept none of the thirteen workers and 31 rounds of the night it continued).
+ */
+async function earlierReport(ctx: HarnessCtx, threadId: string, runId: string): Promise<AnyRecord | null> {
+  const events = await ctx.call(HostMethod.EventsList, { threadId }).catch(() => []);
+  const close = events.findLast(
+    (event) => event.data?.event_type === RunEvent.RunFinished && event.data.payload?.runId === runId,
+  );
+  return close?.data.payload ?? null;
+}
+
+/** A list from an earlier record, or none. */
+const listOf = (value: unknown): unknown[] => (Array.isArray(value) ? [...value] : []);
+
+/**
+ * The report a night leaves behind, as it starts: a resumed or reopened night's carries its earlier
+ * sessions' workers, rounds, verdicts and notes, and how many rounds they kept (`earlier`), so the
+ * close adds to the record and the learning pass knows what is new.
+ */
+export function nightReport(run: Run, earlier: AnyRecord | null = null): AnyRecord {
+  const report = freshReport(run);
+  if (!earlier) return report;
+  const iterations = listOf(earlier.iterations);
+  const workers = earlier.workers && typeof earlier.workers === "object" ? { ...earlier.workers } : {};
+  return {
+    ...report,
+    workers,
+    iterations,
+    notes: listOf(earlier.notes),
+    verdicts: listOf(earlier.verdicts),
+    earlier: { rounds: iterations.length },
+  };
+}
+
+/** A night's report with nothing in it yet. */
+function freshReport(run: Run): AnyRecord {
   return {
     runId: run.runId,
     project: run.project,
@@ -505,7 +541,7 @@ export async function prepareNight(
   const priorLedger = await loadPriorLedger(ctx, threadId, run, gameKind);
   const gameLessons = await loadGameLessons(ctx.workspace, run.project).catch(() => []);
   run.gameLessons = gameLessons;
-  const report = nightReport(run);
+  const report = nightReport(run, resume ? await earlierReport(ctx, threadId, run.runId) : null);
   await announceRunStart(ctx, threadId, run, { resume, liveChat }, capacity);
 
   // A game that came with its own shape is photographed BEFORE the studio touches it: the

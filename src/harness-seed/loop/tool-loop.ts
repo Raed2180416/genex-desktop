@@ -4,7 +4,7 @@
  * before anything acts on it, and each tool call is logged on both sides.
  */
 import { createToolRegistry, type ToolRegistry } from "../tools/index.ts";
-import { materializePrompt } from "./prompt.ts";
+import { materializePrompt, type StandingContext } from "./prompt.ts";
 import { compactThread, DEFAULT_THRESHOLD_PERCENT } from "./compact.ts";
 import { EngineId } from "./model-roles.ts";
 import { EngineFailure, StopReason } from "./outage.ts";
@@ -87,6 +87,8 @@ interface LoopState {
   contextWindow: number | null;
   /** Pixels stay out of the event log (same rule as the judge). Kept for this turn only. */
   images: MessageImage[];
+  /** What the system prompt stands on, as the turn's first prompt read it (prompt.ts). */
+  standing?: StandingContext;
 }
 
 /** A completion: the engine's answer, the outcome that ends the turn, or neither (try again). */
@@ -168,15 +170,20 @@ async function promptThatFits(
   const percent = (
     policy?.policy?.mode === ContextPolicyMode.Custom ? policy.policy.thresholdPercent : DEFAULT_THRESHOLD_PERCENT
   ) as number;
-  const materialize = (preserveHistory: boolean) =>
-    materializePrompt(ctx, {
+  const materialize = async (preserveHistory: boolean) => {
+    const built = await materializePrompt(ctx, {
       threadId,
       tools,
+      standing: state.standing,
       ...(options as Omit<TurnOptions, "threadId">),
       extraSystem,
       contextWindow,
       preserveHistory,
     });
+    // Every later round of this turn stands on what the first one read, so its prefix holds.
+    state.standing ??= built.standing;
+    return built;
+  };
   const prompt = await materialize(!!contextWindow);
   const toolsTokens = Math.ceil(JSON.stringify(tools.definitions()).length / CHARS_PER_TOKEN);
   // Only the latest pictures ride the prompt (`withTurnImages`): room for those, not for every one taken.

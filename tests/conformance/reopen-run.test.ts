@@ -175,7 +175,7 @@ const steersOf = (log: readonly Entry[]) =>
   log.filter((entry) => entry.data.event_type === "run_steering").map((entry) => entry.data.payload);
 
 describe("the Loop's working time for a reopened build", () => {
-  it("R1. the Loop's hours give a reopened build exactly the working time a launch gives; the run's other knobs are kept", async () => {
+  it("R1. the Loop's hours give a reopened build the working time a launch gives, as a ceiling on its ask; the run's other knobs are kept", async () => {
     const launch = gameTools.find((tool) => tool.name === "start_autopilot");
     assert.ok(launch);
     /** What a launch with this Loop would be given (start_autopilot, then chat-dispatch.ts intakeBudgets). */
@@ -190,7 +190,8 @@ describe("the Loop's working time for a reopened build", () => {
     for (const hours of [0.1, 0.5, 3, 24, 30, null, 0, -2, Number.NaN])
       assert.deepEqual(loopBudgets(hours), await launchedWith(hours), `hours ${hours}`);
 
-    // The finished build's completion policy is the old Loop's: the new Loop's replaces it.
+    // A reopened build has an ask to finish, not hours to spend: the new Loop's hours are its
+    // ceiling, whatever policy the finished build had (golden-boot-glory).
     const saved = {
       wallClockMs: 24 * HOUR_MS,
       untilSatisfied: true,
@@ -202,7 +203,7 @@ describe("the Loop's working time for a reopened build", () => {
       review: false,
       maxIterations: 9,
       wallClockMs: 2 * HOUR_MS,
-      completionPolicy: CompletionPolicy.Duration,
+      completionPolicy: CompletionPolicy.Goal,
     });
     const timed = { wallClockMs: HOUR_MS, completionPolicy: CompletionPolicy.Duration, review: false };
     assert.deepEqual(reopenBudgets(timed, null), {
@@ -213,7 +214,7 @@ describe("the Loop's working time for a reopened build", () => {
     });
     assert.deepEqual(reopenBudgets(undefined, 1), {
       wallClockMs: HOUR_MS,
-      completionPolicy: CompletionPolicy.Duration,
+      completionPolicy: CompletionPolicy.Goal,
     });
   });
 });
@@ -413,9 +414,11 @@ describe("reopening the finished build once the reply has ended", () => {
     assert.deepEqual(journal.run.budgets, {
       review: false,
       wallClockMs: 2 * HOUR_MS,
-      completionPolicy: CompletionPolicy.Duration,
+      completionPolicy: CompletionPolicy.Goal,
     });
     assert.equal(journal.run.roles.planner, "gpt-5.6-sol", "planned on the model the session answers on");
+    assert.deepEqual(journal.run.asks, ["add enemies"], "its judges read the ask ahead of the commission");
+    assert.equal(journal.run.goal, "a dusk plaza", "the commission stays what the Builds graph shows");
     assert.equal("readiness" in journal.run, false);
     for (const dropped of ["clock", "wake", "integrationHealthy"])
       assert.equal(dropped in journal.director, false, `${dropped} starts afresh`);
@@ -429,7 +432,10 @@ describe("reopening the finished build once the reply has ended", () => {
     const told = toldOf(calls);
     assert.equal(told.length, 1);
     assert.equal(told[0]?.type, "messages");
-    assert.match(String(told[0]?.words), /The build goes on until about .+ — keep the app open and the Mac awake\./);
+    assert.match(
+      String(told[0]?.words),
+      /The build goes on until your request is checked, by about .+ at the latest — keep the app open and the Mac awake\./,
+    );
 
     assert.equal(starts.length, 1);
     assert.equal(starts[0]?.run.runId, RUN);

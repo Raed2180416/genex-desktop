@@ -2,7 +2,8 @@
  * The app's one empty state: a 3D wireframe on a fading floor, a one-line title, a one-line
  * subtitle and a fixed button slot. Every part has a fixed height, so switching between states
  * never moves the art. When the stage goes from the first idea to building, the cube hands off
- * to the crane and the words swap in place (see wire-art.ts for the art's half of it).
+ * to the crane and the words swap in place (see wire-art.ts for the art's half of it); any other
+ * change of scene cross-fades the pictures while the words swap the same way, only quicker.
  */
 import { useLayoutEffect, useRef, useState, type HTMLAttributes, type JSX, type ReactNode } from "react";
 import { WireArt } from "./WireArt.tsx";
@@ -32,13 +33,27 @@ const RISE_IN: Keyframe[] = [
 const REDUCED_MS = 150;
 /** Under Reduce Motion the swap settles just after that cross-fade (ms). */
 const REDUCED_SETTLE_MS = 160;
+/** A plain change of scene settles once its cross-fade is done (ms). */
+const CROSSFADE_SETTLE_MS = 500;
+
+/** How a change of scene is drawn: the idea → building handoff, a cross-fade, or Reduce Motion's quick one. */
+const Swap = { Handoff: "handoff", Crossfade: "crossfade", Reduced: "reduced" } as const;
+type Swap = (typeof Swap)[keyof typeof Swap];
 
 /**
- * The idea → building handoff, part by part: the old words rise out, the new ones rise in, then
- * the button slot. Reduce Motion cross-fades them instead, and fades the old art out too.
+ * A change of scene, part by part. The idea → building handoff: the old words rise out, the new
+ * ones rise in, then the button slot, while the art hands off on its own. A cross-fade does the
+ * same quicker and fades the old art out over the new; Reduce Motion cross-fades everything at once.
  */
-function handoffSteps(quick: boolean): HandoffSteps {
-  if (quick)
+function handoffSteps(swap: Swap): HandoffSteps {
+  if (swap === Swap.Crossfade)
+    return {
+      outgoing: { keyframes: RISE_OUT, delay: 0, duration: 180 },
+      incoming: { keyframes: RISE_IN, delay: 140, duration: 240 },
+      slot: { keyframes: RISE_IN, delay: 220, duration: 260, easing: "ease-out" },
+      fading: { keyframes: FADE_OUT, delay: 0, duration: 260, easing: "linear" },
+    };
+  if (swap === Swap.Reduced)
     return {
       outgoing: { keyframes: FADE_OUT, delay: 0, duration: REDUCED_MS },
       incoming: { keyframes: FADE_IN, delay: 0, duration: REDUCED_MS },
@@ -54,7 +69,20 @@ function handoffSteps(quick: boolean): HandoffSteps {
 }
 
 type Words = { title: string; subtitle: string };
-type Handoff = { at: number; from: Words; reduced: boolean; settled: boolean };
+type Handoff = { at: number; from: Words & { art: WireKind }; swap: Swap; settled: boolean };
+
+/** How the scene `from` → `to` is drawn. */
+function swapFor(from: WireKind, to: WireKind): Swap {
+  if (prefersReducedMotion()) return Swap.Reduced;
+  return from === WireKind.Idea && to === WireKind.Building ? Swap.Handoff : Swap.Crossfade;
+}
+
+/** How long a swap takes before the scene is settled (ms). */
+const SETTLE_MS: Record<Swap, number> = {
+  [Swap.Handoff]: HANDOFF * SECOND_MS,
+  [Swap.Crossfade]: CROSSFADE_SETTLE_MS,
+  [Swap.Reduced]: REDUCED_SETTLE_MS,
+};
 
 export function EmptyState({
   art,
@@ -77,27 +105,19 @@ export function EmptyState({
   const slot = useRef<HTMLDivElement>(null);
   const fading = useRef<HTMLDivElement>(null);
 
-  // Only the first idea → building change is choreographed; anything else simply switches.
+  // A new scene swaps in: idea → building with its handoff, anything else with a cross-fade.
   useLayoutEffect(() => {
     const before = previous.current;
     previous.current = { art, title, subtitle };
     if (before.art === art) return;
-    if (before.art === WireKind.Idea && art === WireKind.Building) {
-      setHandoff({
-        at: performance.now(),
-        from: { title: before.title, subtitle: before.subtitle },
-        reduced: prefersReducedMotion(),
-        settled: false,
-      });
-    } else setHandoff(null);
+    setHandoff({ at: performance.now(), from: before, swap: swapFor(before.art, art), settled: false });
   }, [art, title, subtitle]);
 
   // Web Animations rather than CSS, so the 150 ms Reduce Motion cross-fade survives the app's
   // global reduced-motion override.
   useLayoutEffect(() => {
     if (!handoff || handoff.settled) return;
-    const quick = handoff.reduced;
-    const steps = handoffSteps(quick);
+    const steps = handoffSteps(handoff.swap);
     const parts: Record<keyof HandoffSteps, HTMLElement | null> = {
       outgoing: outgoing.current,
       incoming: incoming.current,
@@ -116,7 +136,7 @@ export function EmptyState({
     });
     const timer = setTimeout(
       () => setHandoff((value) => value && { ...value, settled: true }),
-      quick ? REDUCED_SETTLE_MS : HANDOFF * SECOND_MS,
+      SETTLE_MS[handoff.swap],
     );
     return () => {
       clearTimeout(timer);
@@ -125,6 +145,7 @@ export function EmptyState({
   }, [handoff]);
 
   const swapping = !!handoff && !handoff.settled;
+  const choreographed = handoff?.swap === Swap.Handoff;
   return (
     <div className={`empty-state ${className}`} {...rest}>
       <div className="empty-state-art" aria-hidden="true">
@@ -132,14 +153,15 @@ export function EmptyState({
           <path d={FLOOR} />
         </svg>
         <span className="empty-state-glow" />
-        <WireArt kind={art} handoffAt={handoff && !handoff.reduced ? handoff.at : null} />
-        {swapping && handoff.reduced && (
+        <WireArt kind={art} handoffAt={handoff && choreographed ? handoff.at : null} />
+        {swapping && !choreographed && (
           <div ref={fading} className="empty-state-art-fading">
-            <WireArt kind={WireKind.Idea} />
+            <WireArt kind={handoff.from.art} />
           </div>
         )}
       </div>
-      <div className="empty-state-copy">
+      {/* A state with no subtitle keeps no room for one: its button follows the title. */}
+      <div className="empty-state-copy" data-title-only={subtitle ? undefined : ""}>
         {swapping && (
           <div ref={outgoing} className="empty-state-words" aria-hidden="true">
             <h2 className="empty-state-title">{handoff.from.title}</h2>
@@ -148,7 +170,7 @@ export function EmptyState({
         )}
         <div ref={incoming} className="empty-state-words">
           <h2 className="empty-state-title">{title}</h2>
-          <p className="empty-state-subtitle">{subtitle}</p>
+          {subtitle ? <p className="empty-state-subtitle">{subtitle}</p> : null}
         </div>
       </div>
       <div ref={slot} className="empty-state-slot">

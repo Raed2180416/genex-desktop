@@ -81,6 +81,11 @@ local loop.
 `engines/local-session.ts` owns local session history under the engine home, separately for
 workers, directors and coordinators; its tools and path confinement live in
 `local-session-tools.ts` and the words it gives the model in `local-session-prompts.ts`. A resume validates workspace and model identity.
+The system prompt holds only what stays the same across a session's requests; each request's turn
+and time budget rides its own message (`localBudgetNote`), so a resumed session keeps the runtime's
+cached prefix instead of re-reading its whole history. The harness's own tool loop reads its system
+prompt's identity, rules, skills, memory, notes and file list once per turn (`readStanding`), and a
+tool's description travels once, with its schema.
 Interrupted tool calls receive an explicit unknown-result marker and are never replayed
 blindly. History is checkpointed atomically between tool actions. Before inference the pinned
 runtime applies its own chat template (including system instructions and tool schemas) and

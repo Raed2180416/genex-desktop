@@ -44,20 +44,22 @@ function chosenLoop(next: Choice, current: LoopSetting): LoopSetting {
 /**
  * What the menu says about the Loop: its state, its caption, and the trigger's label with the
  * compact time limit before it. Off, the trigger says Auto; on, it says ∞ Loop or, say, 2h Loop.
+ * Loop allows a build and never orders one: the agent makes a small change itself.
  */
 function loopWords(loopOn: boolean, minutes: number | null) {
   if (!loopOn) return { state: "Off", caption: "Each message runs one turn.", label: "Auto", time: null };
   if (minutes === null)
     return {
       state: "Until it passes",
-      caption: "When a message needs a build, it plans, builds and reviews until the build passes.",
+      caption:
+        "Small changes are made right away. When a message needs a build, it plans, builds and reviews until the build passes.",
       label: "Loop",
       time: null,
     };
   const limit = formatDuration(minutes);
   return {
     state: limit,
-    caption: `When a message needs a build, it stops when the build passes or after ${limit}.`,
+    caption: `Small changes are made right away. When a message needs a build, it builds for up to ${limit}.`,
     label: "Loop",
     time: shortDuration(minutes),
   };

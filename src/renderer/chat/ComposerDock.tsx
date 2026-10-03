@@ -199,7 +199,7 @@ function WaitingCards({ cards, still }: { cards: DockCard[]; still: boolean }): 
 export function ComposerDock(props: ComposerDockProps): JSX.Element {
   const { connectModel, signIn, children } = props;
   return (
-    <div data-chat-composer className="max-h-full min-w-0 shrink-0 overflow-y-auto px-3.5 pt-1 pb-3.5">
+    <div data-chat-composer className="max-h-full min-w-0 shrink-0 overflow-y-auto px-3.5 pb-3.5">
       {connectModel && (
         <div className="mb-2 text-chat-sub text-ink-3">
           Connect a model to chat with Studio.

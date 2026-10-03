@@ -194,8 +194,9 @@ Up to four per plugin, rendered beside Live/Builds:
 ```
 
 `status` names a declared action **without** confirmation that returns
-`{badge?, disabled?, title?, tone?: ok|warn|err|info}`. Studio calls it on mount, on every plugin
-change and every 30 s while a game is open; a backend can also push one with
+`{badge?, disabled?, title?, tone?: ok|warn|err|info, attention?}`; `attention: true` draws the
+button in the accent (its action is due), otherwise it wears the quiet pill. Studio calls it on
+mount, on every plugin change and every 30 s while a game is open; a backend can also push one with
 `events.emit({kind:'toolbar', item:'demo', badge:'Draft'})`.
 
 ### Reserved labels and uniqueness

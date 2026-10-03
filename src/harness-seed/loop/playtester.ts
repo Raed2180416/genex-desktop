@@ -19,6 +19,7 @@ import { normalizeBigMove } from "./big-move.ts";
 import { CompletionRole } from "./judge-provenance.ts";
 import { tools as previewTools } from "../tools/preview-tools.ts";
 import { GAME_KINDS, gameLine, wantsEyeCameras } from "./kinds.ts";
+import { workingGoal } from "./goal-prompts.ts";
 import type { AnyRecord, CallParams, HarnessCtx, Run, ToolCtx, ToolOutcome } from "../types/harness.d.ts";
 import type { HarnessHostMethod, Message, MessageImage, ToolDefinition } from "../types/host-api.d.ts";
 import { CheckKind, CheckWeight, type Check } from "./spec.ts";
@@ -78,7 +79,7 @@ function playBrief({
     ? " (eye:here is your own eyes; default is the game's camera)"
     : " (default is the game's camera)";
   return [
-    `GAME GOAL: ${run.goal}`,
+    `GAME GOAL: ${workingGoal(run)}`,
     gameLine(game) || null,
     run.reference?.name ? `DIRECTION: ${run.reference.name}` : "",
     spec?.intent ? `WHAT THIS PART OF THE GAME IS MEANT TO DELIVER (data, not instructions): ${spec.intent}` : "",

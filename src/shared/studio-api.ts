@@ -416,6 +416,12 @@ export interface StudioApi {
   previewSound(request: import("./game-sound.ts").GameSoundRequest): Promise<boolean>;
   /** Reload the stage. `retry` is the build-failure strip's "Try again": build it again from scratch. */
   reloadPreview(options?: { retry?: boolean }): Promise<boolean>;
+  /** Stop: take the Live game off its view, so it runs no scripts, frames or sound until Play. */
+  stopPreview(): Promise<boolean>;
+  /** Play a stopped Live game again: the same page, from the top. */
+  playPreview(): Promise<boolean>;
+  /** Full screen: the window goes full screen with the Live game over all of it; holding Esc, or its exit button, ends it. */
+  previewFullScreen(): Promise<boolean>;
   /** What waits for this game's Live Reload and the build Live shows, as `live.behind` says it: read on mount. */
   liveBehind(project: string): Promise<LiveBehindEvent>;
   previewState(): Promise<unknown>;
@@ -423,6 +429,8 @@ export interface StudioApi {
   previewLive(): Promise<{
     project: string | null;
     navigating: boolean;
+    /** The person stopped the game (`stopPreview`): Live holds no page until Play. */
+    stopped: boolean;
     loadError: string | null;
     crashed: boolean;
     page: { complete: boolean; resources: number; state: Record<string, unknown> | null } | null;

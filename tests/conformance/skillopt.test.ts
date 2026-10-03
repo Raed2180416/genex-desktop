@@ -549,6 +549,52 @@ describe("skillopt: the gate", () => {
     }
   });
 
+  it("golden-boot-glory: a skill serves every game, so the analyst proposes no rule for one sport or game and the gate counts one against a version", async () => {
+    const workspace = path.join(await tmpDir("skillopt-general-"), "ws");
+    await mkdir(path.join(workspace, "skills"), { recursive: true });
+    await writeFile(path.join(workspace, "skills", "camera.md"), SKILL);
+    const history = ["gap one", "gap two", "gap three", "gap four"].map((gap, i) => ({
+      id: String(i + 1),
+      data: {
+        type: "custom",
+        event_type: "run_iteration",
+        payload: { iteration: i + 1, winner: "incumbent", biggest_gap: gap },
+      },
+    }));
+    const systemPrompts = { analyst: [] as string[], gate: [] as string[] };
+    const ctx = {
+      workspace,
+      cancelled: false,
+      setStatus() {},
+      notify() {},
+      async call(method: string, params: Record<string, unknown>) {
+        if (method === "thread.list") return [];
+        if (method === "events.list") return history;
+        if (method === "artifact.read") return [];
+        if (method === "artifact.write" || method === "events.append") return true;
+        if (method === "engine.complete") {
+          const text = (params.messages as Array<{ content: string }>)[0]!.content;
+          if (text.includes("SKILL FILE")) {
+            systemPrompts.analyst.push(String(params.systemPrompt));
+            const edits = [{ op: "append", text: "- Keep the horizon level." }];
+            return { message: { content: JSON.stringify({ edits, rationale: "r" }) } };
+          }
+          // The analyst wrote no plain words, so one call asks for them; it is not a gate vote.
+          if (text.includes("PROPOSED EDITS")) return { message: { content: "{}" } };
+          systemPrompts.gate.push(String(params.systemPrompt));
+          return { message: { content: JSON.stringify({ pick: "tie", reason: "same" }) } };
+        }
+        throw new Error(`unexpected call ${method}`);
+      },
+    };
+    await runSkillOpt(ctx as never, { threadId: "t1" });
+    assert.ok(systemPrompts.analyst.length > 0 && systemPrompts.gate.length > 0);
+    for (const prompt of [...systemPrompts.analyst, ...systemPrompts.gate])
+      assert.match(prompt, /every (kind of )?game/i, "the skill is for every game");
+    assert.match(systemPrompts.analyst[0]!, /one (genre|sport)/i);
+    assert.match(systemPrompts.gate[0]!, /one (genre|sport)/i);
+  });
+
   it("a one-sided history is not enough to test a change, so nothing is asked of the analyst", async () => {
     const workspace = path.join(await tmpDir("skillopt-thin-"), "ws");
     await mkdir(path.join(workspace, "skills"), { recursive: true });

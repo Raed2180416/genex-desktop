@@ -48,6 +48,8 @@ const buttonVariants = cva(
         // Button that asks for it. Softer than `default`: it invites without
         // claiming the page's one primary action.
         "accent-tint": accentChipClass(),
+        // The prompt bar's model pill: the quiet fill of an action that is available but not due.
+        pill: "pill-quiet shadow-none",
       },
       size: {
         // `sm` is the DEFAULT size of this product (AG-893). It reads tighter

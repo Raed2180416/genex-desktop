@@ -68,21 +68,25 @@ async function saveReview(core: PlanCore, thread: string, review: PlanReview): P
 /** One tool-free completion, billed as user work, that returns the plan's text. */
 async function draftPlan(core: PlanCore, x: PlanFacts, ask: PlanAsk): Promise<string> {
   const engine = await planningEngine(core, ask.options.engine);
-  const response = await core.budget.run(WorkClass.User, async () => {
-    const context = await planRequest(core, x, engine.id, ask);
-    return engine.complete({
-      model: ask.options.model,
-      effort: ask.options.effort,
-      preferences: ask.options.preferences,
-      signal: ask.signal,
-      maxTokens: PLAN_MAX_TOKENS,
-      systemPrompt: PLAN_SYSTEM_PROMPT,
-      messages: [
-        { role: "user", content: context, ...(ask.options.frames?.length ? { images: ask.options.frames } : {}) },
-      ],
-      tools: [],
-    });
-  });
+  const response = await core.budget.run(
+    WorkClass.User,
+    async () => {
+      const context = await planRequest(core, x, engine.id, ask);
+      return engine.complete({
+        model: ask.options.model,
+        effort: ask.options.effort,
+        preferences: ask.options.preferences,
+        signal: ask.signal,
+        maxTokens: PLAN_MAX_TOKENS,
+        systemPrompt: PLAN_SYSTEM_PROMPT,
+        messages: [
+          { role: "user", content: context, ...(ask.options.frames?.length ? { images: ask.options.frames } : {}) },
+        ],
+        tools: [],
+      });
+    },
+    engine.id,
+  );
   const content = response.message.content;
   return typeof content === "string" ? content : JSON.stringify(content);
 }

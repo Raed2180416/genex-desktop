@@ -36,7 +36,9 @@ const SENTENCE_END = /[.!?。！？\n]/u;
 /** What naming needs from the core: its engines, its budget, and (for tests) its patience. */
 export interface NamingDeps {
   engines: { get(id: string): Engine; firstReady(): Promise<Engine | null> };
-  budget: { run<T extends { usage?: unknown }>(workClass: WorkClass, work: () => Promise<T>): Promise<T> };
+  budget: {
+    run<T extends { usage?: unknown }>(workClass: WorkClass, work: () => Promise<T>, engine?: string): Promise<T>;
+  };
   timeoutMs?: number;
 }
 
@@ -88,7 +90,11 @@ async function askForName(deps: NamingDeps, engine: Engine, request: GameNameReq
     messages: [{ role: "user", content: gameNameRequest(request.prompt.slice(0, REQUEST_MAX_CHARS)) }],
     tools: [],
   };
-  const answered = deps.budget.run(WorkClass.User, () => engine.complete?.(ask) as Promise<CompleteResponse>);
+  const answered = deps.budget.run(
+    WorkClass.User,
+    () => engine.complete?.(ask) as Promise<CompleteResponse>,
+    engine.id,
+  );
   // An engine that does not honour the signal still does not hold the game back.
   const timedOut = new Promise<null>((resolve) => signal.addEventListener("abort", () => resolve(null)));
   try {
