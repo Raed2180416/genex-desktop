@@ -1450,7 +1450,8 @@ button.chat-header-title:hover {
   gap: 10px;
   width: 100%;
   height: 36px;
-  padding-inline: 8px;
+  /* 6px at the start: the icons' own 2px inset then lines their ink up with the wordmark's. */
+  padding-inline: 6px 8px;
   border-radius: var(--radius-control);
   color: var(--ink-2);
   font-size: var(--label-size, 14px);
