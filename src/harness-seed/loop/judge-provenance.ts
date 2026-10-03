@@ -78,13 +78,28 @@ export function placementOf(challengerIsA: boolean): JudgePlacement {
   return challengerIsA ? JudgePlacement.ChallengerA : JudgePlacement.ChallengerB;
 }
 
+/** Every fenced block's body, in reply order. */
+const FENCED_BLOCK = /```[^\n`]*\n?([\s\S]*?)```/g;
+
 /**
  * The JSON object a judge's reply carries, tolerating prose and a fence around it, and a few stray
  * closing braces after it (golden-boot-glory: a playtester's "yes" closed with one too many and was
- * recorded as no answer); null when there is none.
+ * recorded as no answer); null when there is none. The first fence is read first, as it always
+ * was; then the whole reply, for a JSON answer whose own text carries a fence, and each later
+ * fence, for a reply that echoed a file in a fence before its answer.
  */
 export function readJudgeJson(text: string): AnyRecord | null {
-  const candidate = /```(?:json)?\s*([\s\S]*?)```/.exec(text)?.[1] ?? text;
+  const first = /```(?:json)?\s*([\s\S]*?)```/.exec(text)?.[1] ?? text;
+  const fenced = [...text.matchAll(FENCED_BLOCK)].map((match) => match[1] ?? "");
+  for (const candidate of [first, text, ...fenced]) {
+    const parsed = objectIn(candidate);
+    if (parsed) return parsed;
+  }
+  return null;
+}
+
+/** The object from the first `{` of `candidate` to its last `}`, or to one of the few before it, when that is JSON. */
+function objectIn(candidate: string): AnyRecord | null {
   const start = candidate.indexOf("{");
   let end = candidate.lastIndexOf("}");
   for (let tries = 0; start >= 0 && end > start && tries <= STRAY_BRACES; tries++) {

@@ -331,7 +331,10 @@ while the sidebar is hovered or scrolling. Hover strengthens the thumb without a
 Empty game chat is blank; the composer is its entry point. The Harness chat always starts with its
 first message, rendered like a reply (15/22 prose): ask about Harness and its improvements here;
 games are built in their own chats. While it is empty, three example questions follow as filled
-16px-radius chips that send in one click.
+16px-radius chips that send in one click. **How it works**, a quiet text button right after the
+Harness title in its chat header, opens a dialog: what Harness is, the four steps of its loop (you
+build, it looks back, the edit is tested, you decide), what its tests cannot prove, and
+**Harness settings** or **Done**.
 
 Build summaries keep delivery state, failed checks and interaction-coverage limits visible.
 In chat the outcome is the build card above: delivery, capture and Play; the card opens Builds.
@@ -367,14 +370,17 @@ improvements** button gone and the section saying so). Rows share one list-card 
 chevron that turns, and the shared `.disclosure-body` height/opacity transition (reduced motion
 keeps it static). Suggestions are one card: a check mark includes each row (green tint), the row
 expands to plain **What changes** lines and **See the exact edit** (file, proposer notes, diff);
-when a row has nothing else to read, the edit shows directly without that toggle. Reviewer vote
+when a row has nothing else to read, the edit shows directly without that toggle. The diff shows
+each change in file order with two unchanged lines around it and ⋯ for what it leaves out; lines
+wrap to the card's width in ink on their tint (the sign carries the colour), so it scrolls only down. Reviewer vote
 counts are not shown. The check mark and chevron stay aligned with the title's first line, and
 the footer counts the selection and applies or discards it. Run rows show
 the game cover, the request on one line, game · time and an outcome pill (Running, New build,
 No build, Failed, Stopped). Expanded, a run gives only its result: one plain sentence (the run's
 own report when it wrote one), before/after captures, Play build and Open game chat. Checks and
 revision reports stay in the game's Builds tab. Learned rows say who let the change land, describe
-it at reading size and keep the diff and **Undo this change**. Expanded bodies align with their
+it at reading size and keep the diff and **Undo this change**; a change the agent made to itself
+during a build shows the plain title and summary it wrote, like a suggestion. Expanded bodies align with their
 row's text and a hovered header never tints apart from its open body. Never lead with instruction-file names,
 reviewer rationale or counts of reviewed tasks; they belong behind the exact edit. **Look for
 improvements** appears once there are runs and reports on the button itself: a spinner with

@@ -512,6 +512,8 @@ describe("skillopt: the gate", () => {
               },
             };
           }
+          // The analyst wrote no plain words, so one call asks for them; it is not a gate vote.
+          if (text.includes("PROPOSED EDITS")) return { message: { content: "{}" } };
           gateSaw.push(text);
           const rubricSha = createHash("sha256").update(String(params.systemPrompt)).digest("hex");
           gateProvenance.push([params.provenance, rubricSha]);
@@ -577,6 +579,8 @@ describe("skillopt: the gate", () => {
             const edits = [{ op: "append", text: "- Keep the horizon level." }];
             return { message: { content: JSON.stringify({ edits, rationale: "r" }) } };
           }
+          // The analyst wrote no plain words, so one call asks for them; it is not a gate vote.
+          if (text.includes("PROPOSED EDITS")) return { message: { content: "{}" } };
           systemPrompts.gate.push(String(params.systemPrompt));
           return { message: { content: JSON.stringify({ pick: "tie", reason: "same" }) } };
         }

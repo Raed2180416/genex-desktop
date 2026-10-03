@@ -7773,3 +7773,70 @@ describe("a worker of its own for the UI and HUD (owner, 2026-10-02)", () => {
     assert.equal(partCritic({ ...stadium.spec, critic: "noir" }, game), "place", "an unknown critic is no critic");
   });
 });
+
+describe("suggestions that reached the Harness page as plain text or not at all (2026-10-03)", () => {
+  it("HP-1. a proposer reply with a code fence inside its JSON, or a skill echoed in a markdown fence first, read as no JSON and the suggestion vanished: the JSON is read", async () => {
+    const { readJudgeJson } = await import("../../src/harness-seed/loop/judge-provenance.ts");
+    const fenceInside = JSON.stringify({
+      edits: [{ op: "append", text: "```js\nfoo()\n```" }],
+      title: "Show the code",
+    });
+    assert.deepEqual(readJudgeJson(fenceInside), JSON.parse(fenceInside));
+    const echoedFirst = 'The file:\n```markdown\n# Skill\n- rule\n```\n```json\n{"edits":[],"title":"t"}\n```';
+    assert.deepEqual(readJudgeJson(echoedFirst), { edits: [], title: "t" });
+    assert.deepEqual(readJudgeJson('```json\n{"pick":"B"}\n```'), { pick: "B" }, "a fenced answer reads as before");
+  });
+
+  it("HP-2. a proposer reply with edits but no title or summary staged a card that read 'Change how Harness plans a build': the edits are described once more in plain words", async () => {
+    const { runSkillOpt } = await import("../../src/harness-seed/loop/skillopt.ts");
+    const { tmpDir } = await import("../helpers/tmp.ts");
+    const workspace = path.join(await tmpDir("skillopt-describe-"), "ws");
+    await mkdir(path.join(workspace, "skills"), { recursive: true });
+    await writeFile(
+      path.join(workspace, "skills", "camera.md"),
+      "---\nname: Camera\ndescription: shots\ntrainable: true\n---\n\n# Rules\n\n- Keep the camera behind the player.\n",
+    );
+    const edit = "- Keep the horizon level.";
+    const history = ["gap one", "gap two", "gap three", "gap four"].map((gap, i) => ({
+      id: String(i + 1),
+      data: {
+        type: "custom",
+        event_type: "run_iteration",
+        payload: { iteration: i + 1, winner: "incumbent", biggest_gap: gap },
+      },
+    }));
+    const described: string[] = [];
+    let staged: Array<{ title?: string; summary?: string[] }> = [];
+    const reply = (value: unknown) => ({ message: { content: JSON.stringify(value) } });
+    const ctx = {
+      workspace,
+      cancelled: false,
+      setStatus() {},
+      notify() {},
+      async call(method: string, params: Record<string, unknown>) {
+        if (method === "thread.list") return [];
+        if (method === "events.list") return history;
+        if (method === "artifact.read") return [];
+        if (method === "artifact.write") {
+          if (params.artifactId === "skillopt_staged") staged = params.value as typeof staged;
+          return true;
+        }
+        if (method === "events.append") return true;
+        if (method !== "engine.complete") throw new Error(`unexpected call ${method}`);
+        const text = (params.messages as Array<{ content: string }>)[0]!.content;
+        if (text.includes("SKILL FILE")) return reply({ edits: [{ op: "append", text: edit }], rationale: "r" });
+        if (text.includes("VERSION A:")) {
+          const sectionA = text.split("VERSION A:")[1]?.split("VERSION B:")[0] ?? "";
+          return reply({ pick: sectionA.includes(edit) ? "A" : "B", reason: "candidate" });
+        }
+        described.push(text);
+        return reply({ title: "Keep the horizon level in every shot", summary: ["The camera stays level."] });
+      },
+    };
+    await runSkillOpt(ctx as never, { threadId: "t1" });
+    assert.equal(described.length, 1, "one extra call describes the edits");
+    assert.ok(described[0]!.includes(edit), "the describer sees the edits it describes");
+    assert.equal(staged[0]?.title, "Keep the horizon level in every shot");
+    assert.deepEqual(staged[0]?.summary, ["The camera stays level."]);
+  });
+});

@@ -101,8 +101,9 @@ the agent made meanwhile, which the migration strands.
 The self-edit gate. `write_own_file`, `write_skill` and `install_tool` change the agent's own
 files only through `guardian.write_self`: the host tries the change as `guardian.validate_edit`
 does, and only a pass is written, between two host snapshots, with a record the host writes
-(`self_edit`, `skill_edited`, `tool_installed`; the harness may not append these). Activity lists
-each one until it is undone, and Undo reverts exactly its file. `prompts/` and `skills/` are
+(`self_edit`, `skill_edited`, `tool_installed`; the harness may not append these). The record
+keeps the agent's reason and, bounded by the host, the plain `title` and `summary` it wrote for the
+person. Activity lists each one until it is undone, and Undo reverts exactly its file. `prompts/` and `skills/` are
 write-denied to every agent process, like `judge/`, so nothing else changes them.
 `guardian.validate_edit`: the host makes a validation fork (a worktree of the harness at its
 current commit plus the live uncommitted files), writes the change into it, runs the vendored

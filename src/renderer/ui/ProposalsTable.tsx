@@ -6,6 +6,8 @@
 import type { JSX, ReactNode } from "react";
 import { useId, useState } from "react";
 import type { StagedProposal } from "../types.ts";
+import { type DiffLine, DiffTone, editDiff } from "../edit-diff.ts";
+import { SUGGESTION_WORDS } from "../words.ts";
 import { Button } from "./Button.tsx";
 import { Icon } from "./icons.tsx";
 import { plural, proposalTitle } from "../../shared/skill-words.ts";
@@ -19,46 +21,27 @@ function IncludedMark({ included }: { included: boolean }): JSX.Element {
   );
 }
 
-/** What a diff line is: an addition, a deletion or unchanged context. */
-export const DiffTone = {
-  Add: "add",
-  Del: "del",
-  Ctx: "ctx",
-} as const;
-export type DiffTone = (typeof DiffTone)[keyof typeof DiffTone];
+/** The mark in a diff line's gutter; a gap of unchanged lines is drawn by theme.css. */
+const DIFF_SIGN: Record<DiffTone, string> = {
+  [DiffTone.Add]: "+",
+  [DiffTone.Del]: "−",
+  [DiffTone.Ctx]: " ",
+  [DiffTone.Gap]: "",
+};
 
-/** One line of a diff as the review draws it. */
-export interface DiffLine {
-  text: string;
-  tone: DiffTone;
-}
-
-/** Enough of a diff for review: SkillOpt edits are small and anchored. */
-export function naiveDiff(
-  before: string,
-  after: string,
-): Array<{ text: string; tone: typeof DiffTone.Add | typeof DiffTone.Del }> {
-  const a = before.split("\n");
-  const b = after.split("\n");
-  const bSet = new Set(b);
-  const aSet = new Set(a);
-  const out: Array<{ text: string; tone: typeof DiffTone.Add | typeof DiffTone.Del }> = [];
-  for (const line of a) if (!bSet.has(line)) out.push({ text: line, tone: DiffTone.Del });
-  for (const line of b) if (!aSet.has(line)) out.push({ text: line, tone: DiffTone.Add });
-  return out;
-}
-
-/** The mark in a diff line's gutter. */
-const DIFF_SIGN: Record<DiffTone, string> = { [DiffTone.Add]: "+", [DiffTone.Del]: "−", [DiffTone.Ctx]: " " };
-
-/** A diff, one row per line; theme.css tints added lines green and removed ones red. */
+/**
+ * A diff, one row per line, wrapped to the width it is given so it scrolls only down; theme.css
+ * tints added lines green and removed ones red.
+ */
 export function DiffLines({ lines }: { lines: DiffLine[] }): JSX.Element {
   return (
-    <div className="diff-lines font-mono text-micro leading-[1.8]">
+    <div className="diff-lines text-chat-sub">
       {lines.map((line, index) => (
         <div key={index} className="diff-line" data-tone={line.tone}>
-          <span className="diff-sign">{DIFF_SIGN[line.tone]}</span>
-          {line.text}
+          <span aria-hidden className="diff-sign">
+            {DIFF_SIGN[line.tone]}
+          </span>
+          <span className="diff-text">{line.text}</span>
         </div>
       ))}
     </div>
@@ -115,7 +98,7 @@ export function ExactEdit({
       {notes && (
         <p className="border-b border-line px-2.5 py-2 text-chat-sub text-ink-3 [overflow-wrap:anywhere]">{notes}</p>
       )}
-      <div className="max-h-72 overflow-auto">
+      <div className="max-h-80 overflow-y-auto overflow-x-hidden">
         <DiffLines lines={lines} />
       </div>
     </div>
@@ -136,7 +119,7 @@ export function ExactEdit({
         onClick={() => setOpen((value) => !value)}
         className="chat-disclosure cursor-pointer whitespace-nowrap text-chat-sub"
       >
-        See the exact edit
+        {SUGGESTION_WORDS.seeExactEdit}
         <TurningChevron open={open} size={14} />
       </button>
       <DisclosureBody id={id} open={open}>
@@ -176,9 +159,9 @@ export function SuggestionReview({
     >
       <header className="flex flex-col gap-0.5 border-b border-line px-4 py-3">
         <h2 id={`${id}-title`} className="font-medium text-ink">
-          Harness suggests {plural(proposals.length, "change")} to how it builds
+          {SUGGESTION_WORDS.title(plural(proposals.length, "change"))}
         </h2>
-        <p className="text-chat-sub text-ink-3">Nothing changes until you apply.</p>
+        <p className="text-chat-sub text-ink-3">{SUGGESTION_WORDS.subtitle}</p>
       </header>
       {proposals.map((proposal, index) => {
         const on = !excluded.has(index);
@@ -197,7 +180,7 @@ export function SuggestionReview({
                 type="button"
                 role="checkbox"
                 aria-checked={on}
-                aria-label={`Include: ${title}`}
+                aria-label={SUGGESTION_WORDS.include(title)}
                 onClick={() => setExcluded((current) => flip(current, index))}
                 className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-control"
               >
@@ -216,7 +199,7 @@ export function SuggestionReview({
                   </span>
                   {!open && (
                     <span className="truncate text-chat-sub text-ink-3">
-                      {summary[0] ?? `Suggested after reviewing your recent builds.`}
+                      {summary[0] ?? SUGGESTION_WORDS.fallbackSummary}
                     </span>
                   )}
                 </span>
@@ -229,7 +212,7 @@ export function SuggestionReview({
               <div className="flex flex-col gap-3.5 pr-5 pb-4 pl-[52px]">
                 {summary.length > 0 && (
                   <div className="flex flex-col gap-1">
-                    <p className="text-chat-sub text-ink-3">What changes</p>
+                    <p className="text-chat-sub text-ink-3">{SUGGESTION_WORDS.whatChanges}</p>
                     <ul className="flex list-disc flex-col gap-1 pl-5 text-ink-2">
                       {summary.map((line) => (
                         <li key={line}>{line}</li>
@@ -241,7 +224,7 @@ export function SuggestionReview({
                   inline={!summary.length}
                   file={proposal.file}
                   notes={proposal.rationale}
-                  lines={naiveDiff(proposal.currentText ?? "", proposal.proposedText ?? "")}
+                  lines={editDiff(proposal.currentText ?? "", proposal.proposedText ?? "")}
                 />
               </div>
             </DisclosureBody>
@@ -249,13 +232,13 @@ export function SuggestionReview({
         );
       })}
       <footer className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5">
-        <span className="text-chat-sub text-ink-3">{`${included.length} of ${proposals.length} selected · you can undo later`}</span>
+        <span className="text-chat-sub text-ink-3">{SUGGESTION_WORDS.selected(included.length, proposals.length)}</span>
         <span className="flex items-center gap-1.5">
           <Button variant="ghost" disabled={busy || included.length === 0} onClick={() => onDiscard(included)}>
-            Discard
+            {SUGGESTION_WORDS.discard}
           </Button>
           <Button variant="default" disabled={busy || included.length === 0} onClick={() => onApply(included)}>
-            Apply {plural(included.length, "change")}
+            {SUGGESTION_WORDS.apply(plural(included.length, "change"))}
           </Button>
         </span>
       </footer>
