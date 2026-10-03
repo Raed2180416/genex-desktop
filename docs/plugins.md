@@ -231,11 +231,13 @@ tools (`delegation-prompts.ts`).
 **Status.** `status` names a declared action **without** confirmation. Studio calls it with no
 arguments (and the current project binding) when the toolbar mounts, on every `plugins.changed`,
 debounced to once per second, and every 30 s while a project is open. It returns a
-`PluginToolbarStatus` — `{badge?, disabled?, title?, tone?: ok | warn | err | info}` — sanitized by
-`toolbarStatusFrom` (badge ≤ 16 characters, title ≤ 120, unknown tones dropped). A backend can
-also push a status without being asked through `events.emit` with `{kind: "toolbar", item, badge,
-tone, title}`; the renderer applies it to that item, or re-asks the status action when the item is
-not named.
+`PluginToolbarStatus` — `{badge?, disabled?, title?, tone?: ok | warn | err | info, attention?}` —
+sanitized by `toolbarStatusFrom` (badge ≤ 16 characters, title ≤ 120, unknown tones dropped,
+`attention` a boolean). A button is drawn in the prompt bar's quiet pill fill, or in the accent while
+its status sets `attention` (the action is due) and the game is not empty; Genex's Publish uses
+only `title` and `attention`. A backend can also push a status without being asked through
+`events.emit` with `{kind: "toolbar", item, badge, tone, title, attention}`; the renderer applies it
+to that item, or re-asks the status action when the item is not named.
 
 ### MCP servers
 

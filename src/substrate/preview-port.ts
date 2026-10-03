@@ -89,6 +89,10 @@ export interface PreviewPort {
     options?: { loopback?: boolean; shim?: Partial<ShimOptions> },
   ): Promise<string>;
   reload(): Promise<void>;
+  /** Optional: the person's Stop — the page is taken off the view until `resume`. */
+  stop?(): Promise<void>;
+  /** Optional: the person's Play on a stopped page — the same page again, from the top. */
+  resume?(): Promise<void>;
   /** Optional: a line the studio itself puts on the game's console — e.g. a build that failed before the page could load. */
   note?(level: string, message: string, options?: { loadError?: boolean }): void;
   screenshot(quality?: number): Promise<Buffer>;

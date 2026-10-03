@@ -172,6 +172,8 @@ export interface PluginToolbarStatus {
   disabled?: boolean;
   title?: string;
   tone?: "ok" | "warn" | "err" | "info";
+  /** The button's action is due now: Studio draws it in the accent fill, otherwise in the quiet one. */
+  attention?: boolean;
 }
 
 /**
@@ -265,6 +267,7 @@ export interface PluginEvent {
   badge?: string;
   title?: string;
   tone?: PluginToolbarStatus["tone"];
+  attention?: boolean;
   [key: string]: unknown;
 }
 

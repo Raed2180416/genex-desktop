@@ -156,6 +156,10 @@ const FIXTURE_SAFE = [
   "studio:preview.bounds",
   "studio:preview.sound",
   "studio:preview.reload",
+  "studio:preview.stop",
+  "studio:preview.play",
+  // The app's own window over its own game view: no account, dialog or other app is reached.
+  "studio:preview.fullscreen",
   "studio:live.behind",
   "studio:preview.state",
   "studio:preview.live",

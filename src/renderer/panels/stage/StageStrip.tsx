@@ -15,10 +15,11 @@ import { Icon } from "../../ui/icons.tsx";
 import { Shortcut } from "../../ui/Shortcut.tsx";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../../ui/tooltip.tsx";
 import { ViewSwitcher } from "../../ui/view-switcher.tsx";
-import { liveBehindLabel, liveBehindWords } from "../../words.ts";
+import { liveBehindLabel, liveBehindWords, STAGE_WORDS } from "../../words.ts";
 import { besideName } from "../FileViewer.tsx";
 import type { Notify } from "../../state/toasts.ts";
 import { PluginToolbar } from "../PluginToolbar.tsx";
+import { LiveRun } from "./live-run.ts";
 
 /** A tab name longer than this is shortened in the middle, keeping this much of its start and end. */
 const TAB_NAME_MAX = 26;
@@ -90,6 +91,80 @@ function ReloadButton({ behind, onReload }: { behind: LiveBehind | null; onReloa
   );
 }
 
+/** The strip's icon buttons: a 32px glass square with a 15px glyph. */
+const STRIP_ICON_BUTTON =
+  "surface-glass grid size-8 shrink-0 cursor-pointer place-items-center rounded-lg text-muted-foreground transition-colors duration-(--duration-quick) hover:text-control-text-hover enabled:active:scale-[0.96] disabled:cursor-default disabled:opacity-50";
+
+/** What Play/Stop says for each state of the game. */
+const RUN_LABEL = {
+  [LiveRun.Running]: STAGE_WORDS.stop,
+  [LiveRun.Stopping]: STAGE_WORDS.stopping,
+  [LiveRun.Stopped]: STAGE_WORDS.play,
+  [LiveRun.Starting]: STAGE_WORDS.starting,
+} as const satisfies Record<LiveRun, string>;
+
+/** The glyph inside Play/Stop: what a press does, or a spinner while one is under way. */
+function RunGlyph({ run }: { run: LiveRun }): JSX.Element {
+  if (run === LiveRun.Running) return <Icon name="stop" size={15} />;
+  if (run === LiveRun.Stopped) return <Icon name="play" size={15} />;
+  return (
+    <span className="size-[13px] animate-spin rounded-full border-[1.5px] border-current border-t-transparent motion-reduce:animate-none" />
+  );
+}
+
+/** Play/Stop: one button that stops the game (it then costs the machine nothing) and plays it again. */
+function RunButton({ run, onToggle }: { run: LiveRun; onToggle: () => void }): JSX.Element {
+  const busy = run === LiveRun.Starting || run === LiveRun.Stopping;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label={RUN_LABEL[run]}
+          aria-busy={busy}
+          aria-disabled={busy}
+          data-stage-run={run}
+          onClick={busy ? undefined : onToggle}
+          className={cn(STRIP_ICON_BUTTON, busy && "cursor-default")}
+        >
+          {/* Keyed by state, so each glyph fades and grows in as it takes the last one's place. */}
+          <span key={run} className="grid place-items-center animate-in fade-in-0 zoom-in-75 duration-150">
+            <RunGlyph run={run} />
+          </span>
+        </button>
+      </TooltipTrigger>
+      {/* Beside, not below: a tooltip under the strip would sit behind the native game view. */}
+      <TooltipContent side="right" sideOffset={6}>
+        {RUN_LABEL[run]}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+/** Full screen: the game over the whole screen; holding Esc, or the button in its corner, brings it back. */
+function FullScreenButton({ offered, onEnter }: { offered: boolean; onEnter: () => void }): JSX.Element {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label={STAGE_WORDS.fullScreen}
+          data-stage-full-screen=""
+          disabled={!offered}
+          onClick={onEnter}
+          className={STRIP_ICON_BUTTON}
+        >
+          <Icon name="expand" size={15} />
+        </button>
+      </TooltipTrigger>
+      {/* Beside, not below: a tooltip under the strip would sit behind the native game view. */}
+      <TooltipContent side="left" sideOffset={6}>
+        {STAGE_WORDS.fullScreen}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 /** The Live game's sound: one speaker, crossed out while it is off. */
 function SoundButton({ on, onToggle }: { on: boolean; onToggle: () => void }): JSX.Element {
   return (
@@ -101,7 +176,7 @@ function SoundButton({ on, onToggle }: { on: boolean; onToggle: () => void }): J
           aria-pressed={on}
           data-stage-sound={on ? "on" : "off"}
           onClick={onToggle}
-          className="surface-glass grid size-8 shrink-0 cursor-pointer place-items-center rounded-lg text-muted-foreground transition-colors duration-(--duration-quick) hover:text-control-text-hover enabled:active:scale-[0.96]"
+          className={STRIP_ICON_BUTTON}
         >
           <Icon name={on ? "speaker" : "speaker-off"} size={15} />
         </button>
@@ -118,8 +193,9 @@ function SoundButton({ on, onToggle }: { on: boolean; onToggle: () => void }): J
 }
 
 /**
- * The strip over the stage: what the folder is, the view switcher, reload, the game's sound and
- * plugin buttons. An earlier build opens from its result card in the chat, not from here.
+ * The strip over the stage: what the folder is, the view switcher, Play/Stop and Reload, then at
+ * its end the game's sound, full screen and plugin buttons. An earlier build opens from its result
+ * card in the chat, not from here.
  */
 export function StageStrip({
   loaded,
@@ -131,7 +207,10 @@ export function StageStrip({
   onView,
   behind,
   onReload,
+  run,
+  fullScreen,
   sound,
+  emptyGame,
   plugins,
   onNotice,
   onToolbarOpen,
@@ -146,8 +225,14 @@ export function StageStrip({
   /** What waits for Live's Reload, when anything does. */
   behind: LiveBehind | null;
   onReload: () => void;
+  /** Play/Stop (`live-run.ts`). */
+  run: { state: LiveRun; toggle: () => void };
+  /** Full screen, offered while the running game is on the stage. */
+  fullScreen: { offered: boolean; enter: () => void };
   /** The Live game's sound switch (`game-sound.ts`). */
   sound: { on: boolean; toggle: () => void };
+  /** The game has nothing in it yet: no plugin button's action is due. */
+  emptyGame: boolean;
   plugins: PluginInfo[];
   onNotice: Notify;
   onToolbarOpen: (open: boolean) => void;
@@ -181,10 +266,19 @@ export function StageStrip({
           onSelect={onView}
         />
       ) : null}
+      {/* Siblings, not a group: every gap between the strip's controls drags the window. */}
+      {project ? <RunButton run={run.state} onToggle={run.toggle} /> : null}
       {project ? <ReloadButton behind={behind} onReload={onReload} /> : null}
       <span className="min-w-0 flex-1 self-stretch" />
       {project ? <SoundButton on={sound.on} onToggle={sound.toggle} /> : null}
-      <PluginToolbar plugins={plugins} project={project} onNotice={onNotice} onOpenChange={onToolbarOpen} />
+      {project ? <FullScreenButton offered={fullScreen.offered} onEnter={fullScreen.enter} /> : null}
+      <PluginToolbar
+        plugins={plugins}
+        project={project}
+        emptyGame={emptyGame}
+        onNotice={onNotice}
+        onOpenChange={onToolbarOpen}
+      />
     </div>
   );
 }

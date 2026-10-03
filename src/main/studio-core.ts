@@ -1804,6 +1804,16 @@ export class StudioCore {
     return this.#previews.reloadLive(p);
   }
 
+  /** The stage's Stop: Live's game stops running until Play. */
+  stopLive(): Promise<void> {
+    return this.#previews.stopLive();
+  }
+
+  /** The stage's Play on a stopped game. */
+  playLive(): Promise<void> {
+    return this.#previews.playLive();
+  }
+
   /** Something would have changed Live: it waits for the person's Reload instead (`live.behind`). */
   offerLive(...args: Parameters<PreviewService["offerLive"]>): ReturnType<PreviewService["offerLive"]> {
     return this.#previews.offerLive(...args);

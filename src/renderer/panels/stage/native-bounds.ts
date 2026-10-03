@@ -41,6 +41,8 @@ export interface StageCover {
   showEmpty: boolean;
   liveLoading: boolean;
   toolbarOpen: boolean;
+  /** The person stopped the game: its view holds a blank page, and the stage says it is stopped. */
+  stopped: boolean;
   /** The person watches a game in Live, whatever briefly covers it (`stage.ts` `watchingLive`); main tells a chat's show by it. */
   watching: boolean;
 }
@@ -57,6 +59,7 @@ const showsGame = (cover: StageCover): boolean =>
     cover.showEmpty,
     cover.liveLoading,
     cover.toolbarOpen,
+    cover.stopped,
   ].some(Boolean);
 
 // Keep the native view aligned with this element through resizes and layout changes — and
@@ -75,6 +78,7 @@ export function useNativeViewBounds(slot: RefObject<HTMLDivElement | null>, cove
     sidebarOverlay,
     toolbarOpen,
     watching,
+    stopped,
   } = cover;
   // biome-ignore lint/correctness/useExhaustiveDependencies: each cover reason re-reports the rectangle, as it always has
   useEffect(() => {
@@ -134,6 +138,7 @@ export function useNativeViewBounds(slot: RefObject<HTMLDivElement | null>, cove
     sidebarOverlay,
     toolbarOpen,
     watching,
+    stopped,
   ]);
 }
 

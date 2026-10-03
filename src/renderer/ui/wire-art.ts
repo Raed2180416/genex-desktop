@@ -5,7 +5,13 @@
  */
 
 /** The scene an empty state draws; the value is also its canvas's data-wire. */
-export const WireKind = { Idea: "idea", Building: "building", Assets: "assets", Harness: "harness" } as const;
+export const WireKind = {
+  Idea: "idea",
+  Building: "building",
+  Assets: "assets",
+  Harness: "harness",
+  Stopped: "stopped",
+} as const;
 export type WireKind = (typeof WireKind)[keyof typeof WireKind];
 type Vec3 = [number, number, number];
 type Vec2 = [number, number];
@@ -42,6 +48,7 @@ export const STILL: Record<WireKind, number> = {
   [WireKind.Building]: 6.3,
   [WireKind.Assets]: 6.3,
   [WireKind.Harness]: 6.3,
+  [WireKind.Stopped]: 0,
 };
 
 const ease = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - (-2 * x + 2) ** 3 / 2);
@@ -230,6 +237,20 @@ function box(
   L.push({ c, k, p: [...bot, bot[0]] }, { c, k, p: [...top, top[0]] });
   for (let i = 0; i < 4; i++) L.push({ c, k, p: [bot[i], top[i]] });
 }
+
+/** The stopped game: an upright square plate, the stop sign as a slab, with its face inset. */
+function stopPlate(): Line[] {
+  if (stopPlateLines) return stopPlateLines;
+  const L: Line[] = [];
+  box(L, 0, 1.3, 0, 1.15, 1.15, 0.2, 0, 0, 1);
+  const face: Vec3[] = [-0.72, 0.72].flatMap((x, i) =>
+    (i ? [0.72, -0.72] : [-0.72, 0.72]).map((y): Vec3 => [x, 1.3 + y, 0.21]),
+  );
+  L.push({ c: 1, k: 0.85, p: [...face, face[0]] });
+  stopPlateLines = L;
+  return L;
+}
+let stopPlateLines: Line[] | null = null;
 
 /** Where the crane picks up: the pallet the idea's cube lands on. */
 const PICK_ANGLE = -0.95;
@@ -824,6 +845,13 @@ export function drawWire(ctx: CanvasRenderingContext2D, frame: WireFrame, colors
   const t = frame.t;
   if (frame.kind === WireKind.Idea) return cube(ctx, IDEA_CAM, ideaSpin(t), ideaLift(t), 1, 0, colors);
   if (frame.kind === WireKind.Building) return strokeLines(ctx, crane(t), CRANE_CAM, colors);
+  if (frame.kind === WireKind.Stopped)
+    return strokeLines(
+      ctx,
+      stopPlate(),
+      { yaw: 0.55 + 0.12 * Math.sin(t * 0.5), pitch: 0.3, scale: 21, cx: 80, cy: 74, dist: 24, y0: 0, R: 1.4 },
+      colors,
+    );
   if (frame.kind === WireKind.Assets)
     return strokeLines(
       ctx,

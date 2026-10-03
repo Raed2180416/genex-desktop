@@ -7,6 +7,7 @@ import { Button } from "../../ui/Button.tsx";
 import { EmptyState } from "../../ui/EmptyState.tsx";
 import { useRunSummary } from "../../use-run-summary.ts";
 import { PlayButton } from "../run-graph/chrome.tsx";
+import { StageLoading } from "./LiveLoaderArt.tsx";
 import { PlannerArt } from "./PlannerArt.tsx";
 
 /** The stage with nothing to play yet: the shared empty state over the stage's hatch. */
@@ -16,13 +17,16 @@ export function StageEmpty({
   subtitle,
   action,
 }: {
-  art: "none" | "idea" | "building";
+  art: "none" | "idea" | "building" | "stopped";
   title: string;
   subtitle: string;
   action?: JSX.Element;
 }): JSX.Element {
   return (
-    <div data-stage-empty={art} className="hatch absolute inset-0 grid place-items-center overflow-y-auto p-8">
+    <div
+      data-stage-empty={art}
+      className="hatch absolute inset-0 grid place-items-center overflow-y-auto p-8 animate-in fade-in-0 duration-200"
+    >
       <EmptyState art={art === "none" ? "idea" : art} title={title} subtitle={subtitle} action={action} />
     </div>
   );
@@ -132,13 +136,34 @@ export function PlanningBuild({ since }: { since?: number }): JSX.Element {
   );
 }
 
-/** While the page asked for loads, the native view is out of sight: say so quietly. */
-export function LiveLoading(): JSX.Element {
+/** While the page asked for loads, the native view is out of sight: the loader says so, then fades. */
+export function LiveLoading({ leaving }: { leaving: boolean }): JSX.Element {
   return (
     <div data-live-loading className="absolute inset-0 grid place-items-center p-8">
-      <span role="status" data-shimmer className="chat-status-shimmer text-body-sm">
-        Loading game
-      </span>
+      <StageLoading label="Loading game" leaving={leaving} />
     </div>
+  );
+}
+
+/**
+ * The person stopped the game. While a night builds, the stage is what it is for a building game
+ * (the crane, Play latest or Watch progress); otherwise it says the game is stopped, with Play.
+ */
+export function StoppedGame({
+  graph,
+  project,
+  onWatch,
+  onPlay,
+  onResume,
+}: {
+  graph: RunGraphModel | null;
+  project: string | null;
+  onWatch: () => void;
+  onPlay: (head: string) => Promise<void>;
+  onResume: () => void;
+}): JSX.Element {
+  if (graph?.active) return <BuildingGame graph={graph} project={project} onWatch={onWatch} onPlay={onPlay} />;
+  return (
+    <StageEmpty art="stopped" title="Game stopped" subtitle="" action={<PlayButton label="Play" onPlay={onResume} />} />
   );
 }
