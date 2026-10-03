@@ -1242,6 +1242,20 @@ export class PreviewService {
     });
   }
 
+  /** The person's Stop: Live's game stops running, after any load of it already under way. */
+  stopLive(): Promise<void> {
+    return serial(this.#x.previewOperations, LIVE_HANDLE, async () => {
+      await this.#optionalPreview()?.stop?.();
+    });
+  }
+
+  /** The person's Play on a stopped Live: the same page again. */
+  playLive(): Promise<void> {
+    return serial(this.#x.previewOperations, LIVE_HANDLE, async () => {
+      await this.#optionalPreview()?.resume?.();
+    });
+  }
+
   // ── Live's gate: only the person changes what Live shows (`live-gate.ts`) ───────────────────
 
   /**

@@ -153,6 +153,9 @@ export const STUDIO_INVOKE_CHANNELS = {
   "studio:preview.bounds": "previewBounds",
   "studio:preview.sound": "previewSound",
   "studio:preview.reload": "reloadPreview",
+  "studio:preview.stop": "stopPreview",
+  "studio:preview.play": "playPreview",
+  "studio:preview.fullscreen": "previewFullScreen",
   "studio:live.behind": "liveBehind",
   "studio:preview.state": "previewState",
   "studio:preview.live": "previewLive",
@@ -326,6 +329,9 @@ export interface StudioInvokePayloads {
   "studio:preview.bounds": Arg<"previewBounds", 0>;
   "studio:preview.sound": Arg<"previewSound", 0>;
   "studio:preview.reload": { retry: boolean };
+  "studio:preview.stop": undefined;
+  "studio:preview.play": undefined;
+  "studio:preview.fullscreen": undefined;
   "studio:live.behind": { project: string };
   "studio:preview.state": undefined;
   "studio:preview.live": undefined;

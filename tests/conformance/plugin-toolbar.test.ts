@@ -92,3 +92,9 @@ test("toolbarStatusFrom sanitizes badge, title, disabled and tone and rejects no
     tone: "ok",
   });
 });
+test("toolbarStatusFrom keeps attention as a boolean", () => {
+  assert.deepEqual(toolbarStatusFrom({ attention: true }), { attention: true });
+  assert.deepEqual(toolbarStatusFrom({ attention: 0, title: "Up to date" }), { attention: false, title: "Up to date" });
+  assert.deepEqual(toolbarStatusFrom({ kind: "toolbar", item: "publish", attention: "yes" }), { attention: true });
+  assert.deepEqual(toolbarStatusFrom({ badge: "Draft" }), { badge: "Draft" });
+});

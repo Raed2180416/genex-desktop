@@ -1095,6 +1095,15 @@ export function liveBehindLabel(reason: LiveBehindReason, note: string | null): 
   return note ? `${words}: ${note}` : words;
 }
 
+/** The stage strip's Play/Stop and full screen, as their tooltips and accessible names say them. */
+export const STAGE_WORDS = {
+  stop: "Stop game",
+  stopping: "Stopping game",
+  play: "Play game",
+  starting: "Starting game",
+  fullScreen: "Full screen",
+} as const;
+
 // ── an agent at its screen ────────────────────────────────────────────────────────────────
 
 /** What an agent is doing at its screen, as its node says it while it happens. */
