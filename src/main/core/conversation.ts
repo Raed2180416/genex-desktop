@@ -642,16 +642,16 @@ export class ConversationService {
     if (run.state !== RunState.Finished) throw new Error(MESSAGE.continueWhichRun);
     const text = textArg(args.text);
     if (!text || !messageId) throw new Error(MESSAGE.continueNeedsText);
+    // A contained change goes to one builder turn even when a Loop came with the message.
+    const contained = args.build === false;
     // Once per message, unless the request changed (a message steered into this turn restated it):
     // the builder takes the latest.
     const previous = payloadsOf(events, CustomEvent.RunFollowupRequested)
       .filter((followup) => followup.sourceMessageId === messageId)
       .at(-1);
-    if (previous?.text !== text) {
-      await this.#core.append(
-        [customEventData(CustomEvent.RunFollowupRequested, { runId, sourceMessageId: messageId, text })],
-        threadId,
-      );
+    if (previous?.text !== text || (previous?.build === false) !== contained) {
+      const followup = { runId, sourceMessageId: messageId, text, ...(contained ? { build: false } : {}) };
+      await this.#core.append([customEventData(CustomEvent.RunFollowupRequested, followup)], threadId);
     }
     // Neutral on purpose: with a Loop on the message the harness goes on as the same build, reopened
     // with the Loop's time, and tells its coordinator so; without one a builder takes it in the chat.

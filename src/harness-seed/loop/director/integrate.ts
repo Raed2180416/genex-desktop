@@ -97,6 +97,8 @@ const NOTHING_BEYOND_THE_START = "the integration branch has nothing beyond the 
 
 /** At most this many paths are named in a sentence about them. */
 const PATHS_NAMED = 8;
+/** The fewest characters of the user's own words that stand for their message (`userQuoted`). */
+const MIN_USER_QUOTE_CHARS = 8;
 
 /**
  * A file name or git's own words in a reason, with brackets for parentheses: the clock's close
@@ -562,13 +564,30 @@ function finishAnswer(night: Night, landed: AnyRecord): string {
   return `the run is closed${outcome}. ${end}.`;
 }
 
+/**
+ * Did the user write `quote` in a message delivered into this run? The lead reads what they meant;
+ * this only checks the words are theirs, as `plan`'s scope_instruction is checked (goals.ts).
+ */
+async function userQuoted(inbox: Night["inbox"], quote: unknown): Promise<boolean> {
+  const words = typeof quote === "string" ? quote.trim() : "";
+  if (words.length < MIN_USER_QUOTE_CHARS) return false;
+  const said = await inbox.steering(undefined, false);
+  return said.some((text) => text.includes(words));
+}
+
+/**
+ * Close the run with the lead's summary. A timed build spends its working time: only the user ends
+ * it early — Finish, or their own words in a message to this run, which the lead quotes as
+ * `user_asked` (golden-boot-glory: "don't run the build" was refused for 159 minutes).
+ */
 export async function finish(night: Night, args: AnyRecord) {
   const { closeTheNight, ctx, inbox, run, softDeadline, state } = night;
   if (state.finish) return "finish is already under way";
   const summary = String(args.summary ?? "").trim();
   if (!summary) return "finish needs a summary for the user";
-  if (!ctx.cancelled && timedWorkRemaining(run, softDeadline, Date.now(), await inbox.finishing())) {
-    return `finish refused: ${minutes(softDeadline - Date.now())} working minutes remain in this timed build. Call run_status, plan and delegate the next concrete improvement, then test and integrate it. Keep working until the wrap-up window; do not idle or repeat finish. Only the user can request an early finish.`;
+  const userEnds = (await inbox.finishing()) || (await userQuoted(inbox, args.user_asked));
+  if (!ctx.cancelled && timedWorkRemaining(run, softDeadline, Date.now(), userEnds)) {
+    return `finish refused: ${minutes(softDeadline - Date.now())} working minutes remain in this timed build. Call run_status, plan and delegate the next concrete improvement, then test and integrate it. Keep working until the wrap-up window; do not idle or repeat finish. Only the user ends it early: when they asked you in a message to stop or finish now, call finish again with user_asked quoting their words exactly.`;
   }
   const land = yes(args.land, true);
   const victory = yes(args.victory, false);
@@ -832,8 +851,10 @@ export async function closeRun(night: Night, landed: AnyRecord): Promise<void> {
   report.integrationHead = state.integrationHead;
   report.baseCommit = baseCommit;
   report.integrationRef = integrationRef;
-  report.workers = Object.fromEntries([...state.workers.values()].map((w) => [w.id, workerDigest(w)]));
-  report.notes = journal.director.notes;
+  // A resumed or reopened night adds to the record its earlier sessions closed with (setup.ts `nightReport`).
+  const workers = Object.fromEntries([...state.workers.values()].map((w) => [w.id, workerDigest(w)]));
+  report.workers = { ...report.workers, ...workers };
+  report.notes = [...report.notes, ...(journal.director.notes ?? [])];
   report.landingResult = landingResult(landed);
   // The night's last verdict, in the same shape as every other: what became of the build, and
   // whether anybody preferred it. Emitted here rather than at each caller so a close by finish,

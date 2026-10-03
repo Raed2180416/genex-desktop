@@ -47,6 +47,8 @@ export const JUDGE_PIN_FILE = path.join("judge", "pin.json");
 const JUDGE_PIN_MAX_BYTES = 4096;
 /** A model id as a pin may name it: an id, never a sentence or a path outside the id's own shape. */
 const PINNED_MODEL = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,79}$/;
+/** How many closing braces a judge's JSON may carry past its end and still be read (`readJudgeJson`). */
+const STRAY_BRACES = 3;
 
 /** The engine and model every verdict is asked of, and whether a failing judge may fall back. */
 export interface JudgePin {
@@ -76,14 +78,27 @@ export function placementOf(challengerIsA: boolean): JudgePlacement {
   return challengerIsA ? JudgePlacement.ChallengerA : JudgePlacement.ChallengerB;
 }
 
-/** The JSON object a judge's reply carries, tolerating prose and a fence around it; null when there is none. */
+/**
+ * The JSON object a judge's reply carries, tolerating prose and a fence around it, and a few stray
+ * closing braces after it (golden-boot-glory: a playtester's "yes" closed with one too many and was
+ * recorded as no answer); null when there is none.
+ */
 export function readJudgeJson(text: string): AnyRecord | null {
   const candidate = /```(?:json)?\s*([\s\S]*?)```/.exec(text)?.[1] ?? text;
   const start = candidate.indexOf("{");
-  const end = candidate.lastIndexOf("}");
-  if (start < 0 || end <= start) return null;
+  let end = candidate.lastIndexOf("}");
+  for (let tries = 0; start >= 0 && end > start && tries <= STRAY_BRACES; tries++) {
+    const parsed = parsedRecord(candidate.slice(start, end + 1));
+    if (parsed) return parsed;
+    end = candidate.lastIndexOf("}", end - 1);
+  }
+  return null;
+}
+
+/** A plain JSON object, or null for anything else or text that is not JSON. */
+function parsedRecord(text: string): AnyRecord | null {
   try {
-    const parsed: unknown = JSON.parse(candidate.slice(start, end + 1));
+    const parsed: unknown = JSON.parse(text);
     return isPlainRecord(parsed) ? parsed : null;
   } catch {
     return null;

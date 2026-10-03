@@ -103,6 +103,8 @@ const MESSAGE = {
   notSwitched: (engine: string, kind: string, detail: string | undefined) =>
     `${engine} is ${kind === EngineFailure.RateLimit ? "throttled right now" : "unreachable"} (${detail ?? kind}). I didn't switch to another model — wait a bit and resend, or pick a different engine.`,
   stopped: "Stopped. Finished edits are preserved; send a message to continue.",
+  /** Loop allowed the finished build to go on, and the session made the change itself. */
+  madeDirectly: "Small change — made directly, no build.",
   stoppedBeforeWork: "stopped before it started",
   launchedAnyway: (ending: string) =>
     `The session ended early (${ending}) after recording the launch — starting the build anyway.`,
@@ -1005,9 +1007,12 @@ async function reportBuild(
 ): Promise<TurnOutcome> {
   const { turnId, engine } = options;
   const check = change.source ? await lookAtBuild(ctx, options, handoff, result) : NOTHING_SEEN;
+  // A finished build Loop could have reopened, changed by the session's own hands: say so, since
+  // the person picked a Loop and no build started (golden-boot-glory).
+  const direct = handoff.reopening && change.source && result.ok ? MESSAGE.madeDirectly : null;
   // Model, turns, time and cost stay in the recorded report above; chat replies carry no
   // per-message model labels, and there is no Continue button: a message continues the work.
-  const content = `${buildSummary(result)}${check.health ? `\n\n${check.health}` : ""}`;
+  const content = [buildSummary(result), check.health, direct].filter(Boolean).join("\n\n");
   await ctx.call(HostMethod.TurnAppend, {
     turnId,
     batch: [

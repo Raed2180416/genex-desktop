@@ -46,9 +46,9 @@ and Studio report missing checks, coverage limits, counts and revisions.
 ## Continuation and interruption
 
 After a chat-led night, its session takes follow-ups: editing the game, resuming a paused run
-with its time left, starting over only when asked. With Loop on, asking for work reopens a finished
-build with fresh time. One the chat cannot continue, like Ollama's, is answered as with Loop off,
-noting it once; no timed build can follow it. **Stop** interrupts work immediately, preserving finished
+with its time left, starting over only when asked. With Loop on, a small change is made directly;
+more work reopens the build until checked. One the chat cannot continue, like Ollama's, is answered
+as with Loop off, noting it once. **Stop** interrupts work immediately, preserving finished
 work; a stopped Loop run shows one Stopped line with Resume, and Builds or a chat request makes its
 build live. A crash or restart settles abandoned activity from persisted state; stopped, failed,
 incomplete and delivered outcomes stay distinct.

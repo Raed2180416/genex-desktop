@@ -218,6 +218,9 @@ export function recordNight(night: Night, now = Date.now()): void {
     log: logRecord(state.log),
     logSeq: night.logSeq,
     heardSeq: night.waitSeq,
+    // A resumed or reopened night numbers its judge and playtest folders on from here (`restoreNight`).
+    judges: state.judges,
+    plays: state.plays,
   });
   director.completionPolicy = durationCommission(night.run) ? CompletionPolicy.Duration : CompletionPolicy.Goal;
   director.workers ??= {};
@@ -359,6 +362,10 @@ function carryForward(night: Night): void {
   if (Array.isArray(facets) && facets.length) journal.plan = { ...journal.plan, facets };
 }
 
+/** A count of passes a journal kept, or none. */
+const passesSoFar = (value: unknown): number =>
+  typeof value === "number" && Number.isInteger(value) && value > 0 ? value : 0;
+
 /**
  * A resumed night reads its journal back: the defects nobody owns, the plan window, the last
  * health pass, the workers' engine limit, the log and how much of it the lead had heard, and the
@@ -391,6 +398,9 @@ export function restoreNight(night: Night, now = Date.now()): void {
   if (typeof saved.integrationHealthy === "boolean") state.integrationHealthy = saved.integrationHealthy;
   state.workerLimit = restoredWorkerLimit(saved.workerLimit, now);
   restoreLog(night, saved);
+  // Its judge_N and play_N folders go on from the earlier sessions', never over them.
+  state.judges = passesSoFar(saved.judges);
+  state.plays = passesSoFar(saved.plays);
   night.priorWorkers = priorWorkersOf(saved.workers, night.run.runId);
   carryForward(night);
 }
