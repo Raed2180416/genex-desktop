@@ -177,7 +177,6 @@ function describedModel(m: EngineModel): EngineDescriptor["models"][number] {
     resolvedModel: m.resolvedModel,
     ...(m.providerDefault ? { providerDefault: true } : {}),
     contextWindow: m.contextWindow,
-    contextChoices: m.contextChoices,
     supportsFast: m.supportsFast,
     supportsTools: m.supportsTools,
     supportsVision: m.supportsVision,

@@ -5,6 +5,7 @@ import { roleEngine, RoleKey, toolCall } from "../model-roles.ts";
 import { facetNotes } from "../repo.ts";
 import { CLIP_QUOTE } from "../text.ts";
 import { DEFAULT_CAMERA } from "../cameras.ts";
+import { handoverPointer } from "./handover-prompts.ts";
 import type { AnyRecord } from "../../types/harness.d.ts";
 
 /** Reference stills into the first brief, and pair images later, at most. */
@@ -251,6 +252,7 @@ function promptInput({
   shape = null,
   ownShape = false,
   game = null,
+  handover = null,
   ...rest
 }: AnyRecord): PromptInput {
   const { briefFile } = rest;
@@ -275,6 +277,7 @@ function promptInput({
     shape,
     ownShape,
     game,
+    handover,
     entryMain: shape?.main ?? "src/main.js",
     // Every section below that .studio/BRIEF.md already carries is rendered ONCE (M4.8b). A
     // delegated engine reads the file — the loop wrote it into the worktree and the prompt's
@@ -461,6 +464,8 @@ function openingHead(p: PromptInput): string[] {
       : "",
     ``,
     p.briefPointer,
+    // A session that starts after a handover reads what the one before it knew (phases/handover.ts).
+    p.handover ? handoverPointer(p.handover) : "",
     p.legacy || pointsAtBrief
       ? ``
       : `THE CONTRACT — these checks are verified mechanically after every build; a build is accepted only when it flips at least one to pass and regresses none:\n${renderChecks(p.spec.checks)}`,

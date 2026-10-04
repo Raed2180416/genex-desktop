@@ -209,4 +209,9 @@ export interface DelegateResult {
   studioToolCalls?: Array<{ name: string; args: Record<string, unknown> }>;
   /** Steered messages the session read (`DelegateRequest.steer`), by id, in the order it read them. */
   steered?: string[];
+  /**
+   * How many tokens the session's last request sent, as the provider counted them: what its next
+   * turn starts from. Absent when the provider reported none, or compacted after its last request.
+   */
+  contextTokens?: number;
 }

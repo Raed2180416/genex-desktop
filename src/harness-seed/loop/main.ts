@@ -14,8 +14,9 @@
  * dispatch that routes each action.
  */
 import { resolveContextWindow } from "./turn-loop.ts";
-import { EngineId } from "./model-roles.ts";
+import { EngineId, supportsSessions } from "./model-roles.ts";
 import { compactThread } from "./compact.ts";
+import { compactSession } from "./session-compact.ts";
 import { directorTool } from "./director.ts";
 import { runSkillOpt } from "./skillopt.ts";
 import { learningOn } from "./learning.ts";
@@ -84,14 +85,19 @@ export async function createStudio(host: Host) {
     orphanRuns: new Map(),
     scoped,
   };
+  const compactions: Compactions = new Map();
   const messages = new MessageQueue(
     host,
     (action, steer) => handleUserMessage(studio, action, steer),
     // Follow-ups wait for the current build to close — or go to its night's lead, when the lead
     // takes the chat (live-chat.ts). Stop closes it early and hands its saved journal to the next
     // message, so new instructions cannot race cancelled builders; the self-improvement pass after
-    // a run never holds the chat.
-    (threadId, next) => chatWaitsFor(studio, threadId, next),
+    // a run never holds the chat. A message sent during Compact now waits for it: the session it
+    // would resume is the one the compaction is ending.
+    async (threadId, next) => {
+      await compactions.get(threadId);
+      return chatWaitsFor(studio, threadId, next);
+    },
     // Steer reaches the chat's own turn only: while a build of this chat or its game is open,
     // messages keep the build's path.
     (threadId, action) => !buildHolds(studio, threadId, action.project),
@@ -131,7 +137,8 @@ export async function createStudio(host: Host) {
       return { ok: true, head, skills: skills.length };
     },
 
-    dispatch: (action: DispatchAction) => dispatch({ studio, messages, busyThreads: status.threads }, action),
+    dispatch: (action: DispatchAction) =>
+      dispatch({ studio, messages, compactions, busyThreads: status.threads }, action),
 
     async shutdown() {
       shuttingDown = true;
@@ -145,10 +152,14 @@ export async function createStudio(host: Host) {
 interface Loop {
   studio: Studio;
   messages: MessageQueue;
+  compactions: Compactions;
   busyThreads(): Iterable<string>;
 }
 
-async function dispatch({ studio, messages, busyThreads }: Loop, action: DispatchAction) {
+/** Each chat's Compact now while it runs, settled (never rejected) when it is over. */
+type Compactions = Map<string, Promise<void>>;
+
+async function dispatch({ studio, messages, compactions, busyThreads }: Loop, action: DispatchAction) {
   const { host } = studio;
   switch (action.type) {
     case "user_message":
@@ -205,7 +216,7 @@ async function dispatch({ studio, messages, busyThreads }: Loop, action: Dispatc
     case "skillopt_start":
       return improveOnRequest(studio, action.threadId, action.options);
     case "compact":
-      return compactOnRequest(studio, action);
+      return holdingChat(compactions, action.threadId, compactOnRequest(studio, action));
     case "selftest":
       // The architect's bar (and anyone else's): the loop's pure logic against fixed inputs.
       return runSelftest();
@@ -268,7 +279,25 @@ async function improveOnRequest(
   }
 }
 
-/** The user's "/compact": force a summary regardless of pressure, at low effort. */
+/** A chat's compaction, its queued messages held until it is over, whatever its outcome. */
+async function holdingChat(compactions: Compactions, threadId: string, compaction: Promise<void>): Promise<void> {
+  const over = compaction.then(
+    () => {},
+    () => {},
+  );
+  compactions.set(threadId, over);
+  try {
+    await compaction;
+  } finally {
+    if (compactions.get(threadId) === over) compactions.delete(threadId);
+  }
+}
+
+/**
+ * The user's Compact now. A chat with a provider session has that session write its handover, and
+ * its next turn starts fresh (session-compact.ts); otherwise, or when the session wrote none, the
+ * log is summarised regardless of pressure, at low effort.
+ */
 async function compactOnRequest(studio: Studio, action: Extract<DispatchAction, { type: "compact" }>): Promise<void> {
   const { host } = studio;
   const { threadId } = action;
@@ -280,13 +309,17 @@ async function compactOnRequest(studio: Studio, action: Extract<DispatchAction, 
   try {
     const engine = action.engine ?? EngineId.Ollama;
     const described = await host.call(HostMethod.EngineDescribe, {});
-    const report = await compactThread(ctx, {
-      threadId,
-      engine,
-      model: action.model,
-      contextWindow: resolveContextWindow(described, engine, action.model),
-      force: true,
-    });
+    const sessions = supportsSessions(described.find((e: AnyRecord) => e.id === engine));
+    const bySession = sessions ? await compactSession(ctx, { threadId, engine, model: action.model }) : null;
+    const report = bySession?.compacted
+      ? bySession
+      : await compactThread(ctx, {
+          threadId,
+          engine,
+          model: action.model,
+          contextWindow: resolveContextWindow(described, engine, action.model),
+          force: true,
+        });
     host.notify("compact.finished", { threadId, ...report });
   } finally {
     ctx.setStatus("idle");

@@ -560,7 +560,7 @@ Effort is one control for every role: the pill opens **Effort** with a help tool
 ends and a stepped slider over the orchestrator's levels (click, drag or arrow keys). Workers and
 reviewers use the closest level their models accept.
 The ring panel (340px) shows Context window used/capacity with one meter, "Compacts automatically",
-and, for Claude Code, an Auto-compact choice (Auto · 200k · 1M). Below it, each signed-in subscription has a block titled with
+and, for a model whose chat can be compacted, Compact now (also `/compact` in the composer). Below it, each signed-in subscription has a block titled with
 its plan (e.g. Claude Max plan) that opens the provider's usage page, then each limit with its reset
 time, percent used and meter (amber from 75%, red from 90%). The orchestrator's plan comes first;
 with two plans, each names the roles it serves or says Not in use. While Genex is connected, a

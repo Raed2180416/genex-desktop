@@ -5,6 +5,7 @@
  * re-briefed from the last line alone, and a chat never guesses a different game folder.
  */
 import { launchRules, RESUME_LOOP_CHAT, type LaunchGrant } from "./launch-prompts.ts";
+import { handoverSection } from "./session-compact-prompts.ts";
 import { toolCall } from "./model-roles.ts";
 import { EventKind, InterviewMode, RunEvent } from "./run-events.ts";
 import type { AnyRecord } from "../types/harness.d.ts";
@@ -347,6 +348,7 @@ const RESUME_BUILD =
  *   engine?: string,
  *   launch?: LaunchGrant | null,
  *   afterNight?: string | null,
+ *   compacted?: string | null,
  * }} [opts]
  */
 export function buildContractorBrief({
@@ -365,6 +367,8 @@ export function buildContractorBrief({
   launch = null,
   /** The build this chat's session led is over: what it is told of it (after-night-prompts.ts). */
   afterNight = null,
+  /** The handover the session before this one wrote when the chat was compacted (session-compact.ts). */
+  compacted = null,
 }: {
   ask?: string;
   messages?: readonly BriefMessage[];
@@ -378,6 +382,7 @@ export function buildContractorBrief({
   engine?: string;
   launch?: LaunchGrant | null;
   afterNight?: string | null;
+  compacted?: string | null;
 } = {}): string {
   // Where the game's work goes, never what else the session may reach: that is its permissions'.
   const workHere = folderLabel
@@ -393,22 +398,7 @@ export function buildContractorBrief({
   // the shape (autopilot.ts, director.ts, facet-loop.ts); a chat build used to carry none.
   const baseRules = contractorRules(engine);
   const rules = ownShape ? [...ownShapeRules(shape, contractMissing), ...baseRules.slice(1)] : baseRules;
-  const original = originalAsk(messages);
-  const followUp = Boolean(original && original !== ask);
-  const head = followUp
-    ? [
-        "This is the same chat, not a new job. Continue from the code already in this workspace. Do not start over, and do not go looking through other projects for it.",
-        "",
-        `Original request:\n${original.slice(0, ORIGINAL_ASK_CHARS)}`,
-        original !== ask ? `\nLatest instruction:\n${ask}` : "",
-      ]
-    : [
-        ask,
-        "",
-        scaffolded
-          ? "This is a fresh workspace scaffolded from the studio template."
-          : "Continue from the existing code in this workspace.",
-      ];
+  const { head, followUp } = briefHead(ask, messages, { compacted, scaffolded });
 
   const recent = messages
     .filter((m) => m.role === "user" || m.role === "assistant")
@@ -418,6 +408,7 @@ export function buildContractorBrief({
     .slice(-TRANSCRIPT_CHARS);
   return [
     ...head,
+    ...(compacted ? [`\n${handoverSection(compacted)}`] : []),
     ...(followUp && recent ? [`\nRecent conversation (retain decisions and completed work):\n${recent}`] : []),
     "",
     ...rules,
@@ -428,6 +419,35 @@ export function buildContractorBrief({
   ]
     .filter((line) => line !== "")
     .join("\n");
+}
+
+/**
+ * A fresh brief's opening: for a follow-up, the same chat's original request and its latest
+ * instruction; else the ask and where the workspace came from. After a compaction the first kept
+ * message is not the original request (the handover says it), so only the latest is quoted.
+ */
+function briefHead(
+  ask: string | undefined,
+  messages: readonly BriefMessage[],
+  { compacted, scaffolded }: { compacted: string | null; scaffolded: boolean },
+): { head: Array<string | undefined>; followUp: boolean } {
+  const original = compacted ? "" : originalAsk(messages);
+  const followUp = Boolean(compacted) || Boolean(original && original !== ask);
+  if (!followUp) {
+    const origin = scaffolded
+      ? "This is a fresh workspace scaffolded from the studio template."
+      : "Continue from the existing code in this workspace.";
+    return { head: [ask, "", origin], followUp };
+  }
+  return {
+    head: [
+      "This is the same chat, not a new job. Continue from the code already in this workspace. Do not start over, and do not go looking through other projects for it.",
+      "",
+      original ? `Original request:\n${original.slice(0, ORIGINAL_ASK_CHARS)}` : "",
+      original !== ask ? `\nLatest instruction:\n${ask}` : "",
+    ],
+    followUp,
+  };
 }
 
 /** How a resumed session goes on: after a night it led, that night's note; else a build's or a Loop chat's pickup. */

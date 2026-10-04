@@ -140,7 +140,7 @@ const Origin = { Judge: "judge" } as const satisfies Record<string, CheckOrigin>
 // ── expression language ────────────────────────────────────────────────────────────────────
 
 const TOKEN =
-  /\s*(?:(\d+\.?\d*(?:[eE][+-]?\d+)?|\.\d+)|("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)|(&&|\|\||<=|>=|==|!=|[-+*/<>!()[\],]))/y;
+  /\s*(?:(\d+\.?\d*(?:[eE][+-]?\d+)?|\.\d+)|("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)|(&&|\|\||<=|>=|===|!==|==|!=|[-+*/<>!()[\],]))/y;
 
 export function tokenize(source: unknown): Token[] {
   const text = String(source ?? "");
@@ -166,8 +166,14 @@ function tokenOf(match: RegExpExecArray): Token {
   if (match[1] !== undefined) return { type: "number", value: Number(match[1]) };
   if (match[2] !== undefined) return { type: "string", value: match[2].slice(1, -1).replace(/\\(.)/g, "$1") };
   if (match[3] !== undefined) return wordToken(match[3]);
-  return { type: "op", value: match[4] };
+  return { type: "op", value: STRICT_SPELLING[match[4] as string] ?? match[4] };
 }
+
+/**
+ * JavaScript's strict equality, which a check's author writes from habit: the same operator as
+ * `==` and `!=`, which already compare strictly.
+ */
+const STRICT_SPELLING: Readonly<Record<string, string>> = { "===": "==", "!==": "!=" };
 
 /** A bare word: a boolean, `null`, the `in` operator, or a name the scope resolves. */
 function wordToken(word: string): Token {

@@ -99,8 +99,6 @@ function fixtureEngine(
         efforts: [ReasoningEffort.Low, ReasoningEffort.Medium, ReasoningEffort.High],
         defaultEffort: ReasoningEffort.Medium,
         supportsFast: !direct,
-        // Like the real engines: Claude Code takes an auto-compact point, the others compact on their own.
-        contextChoices: id === EngineId.ClaudeCode ? [200000] : undefined,
         contextWindow: 200000,
         maxTokens: 8192,
         supportsTools: true,

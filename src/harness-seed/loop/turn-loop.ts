@@ -105,8 +105,7 @@ export async function runTurn(ctx: HarnessCtx, requested: TurnOptions): Promise<
   const options = await withInterviewCommission(ctx, requested);
   const engine = options.engine ?? EngineId.Ollama;
   const described = await ctx.call(HostMethod.EngineDescribe);
-  const contextWindowOf = (model: string | undefined) =>
-    options.preferences?.contextWindow ?? resolveContextWindow(described, engine, model);
+  const contextWindowOf = (model: string | undefined) => resolveContextWindow(described, engine, model);
   if (options.studioThread)
     return runStudioTurn(ctx, {
       ...options,

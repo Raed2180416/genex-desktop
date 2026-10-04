@@ -1,17 +1,17 @@
 import { type JSX, useEffect, useRef, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover.tsx";
-import { ComposerTip, PickerCaption, PickerLabel, PickerSegmented } from "./PickerPanel.tsx";
+import { ComposerTip, PickerCaption } from "./PickerPanel.tsx";
 import { Icon } from "./icons.tsx";
 import { contextLabel, type ModelChoice, type RoleKey } from "./ModelMenu.tsx";
 import { contextReading, limitLevel, PLAN_PROVIDERS, planWords, resetWords } from "./usage-words.ts";
 import { MINUTE_MS, SECOND_MS } from "../../shared/duration.ts";
-import { EngineId } from "../../shared/providers.ts";
 import { usePolling } from "../use-polling.ts";
 import { GenexCredits } from "../panels/plugins/genex/GenexCredits.tsx";
-import type { ModelPreferences } from "../../shared/model-preferences.ts";
 import type { ProviderUsage, ProviderUsageReport } from "../../shared/provider-usage.ts";
 import type { ContextUsage } from "../../shared/context.ts";
 import { Pending } from "./Pending.tsx";
+import { selectedCompact } from "../chat/compact-control.ts";
+import { COMPACT_WORDS } from "../words.ts";
 export type { ContextUsage };
 /** The ring's circumference: a circle of radius 6. */
 const RING = 2 * Math.PI * 6;
@@ -24,8 +24,6 @@ const USAGE_FRESH_MS = 30 * SECOND_MS;
 const USAGE_POLL_MS = MINUTE_MS;
 /** From this full (percent), the context ring and meter show as full. */
 const CONTEXT_FULL = 85;
-/** The auto-compact choice that leaves the point to the provider: no preference is sent. */
-const AUTO_COMPACT = "auto";
 /** The last reading, painted at once when the panel opens again while a fresh one is fetched. */
 let lastReports: ProviderUsageReport[] | null = null;
 
@@ -178,15 +176,14 @@ function PlanUsage({
 }
 
 /** The orchestrator's context and each signed-in subscription's plan limits. The ring is the
- * context summary; the panel adds the numbers, the window choice and the plans' remaining room. */
+ * context summary; the panel adds the numbers, Compact now and the plans' remaining room. */
 export function ComposerLimits({
   models,
   modelKey,
   usage,
-  preferences = {},
-  onPreferences,
   onCompact,
   compacting,
+  compactBusy,
   contexts = [],
   usedBy = {},
   project,
@@ -195,10 +192,10 @@ export function ComposerLimits({
   modelKey: string | null;
   usage?: ContextUsage | null;
   contexts?: ContextUsage[];
-  preferences?: ModelPreferences;
-  onPreferences?: (value: ModelPreferences) => void;
   onCompact?: () => void;
   compacting?: boolean;
+  /** A turn or a build is under way: Compact now waits for it. */
+  compactBusy?: boolean;
   /** Which roles each subscription serves in the current setup, keyed by engine id. */
   usedBy?: Record<string, RoleKey[]>;
   /** The open game: Genex's block reads this game's spend. */
@@ -207,14 +204,13 @@ export function ComposerLimits({
   const [open, setOpen] = useState(false);
   const { reports, failed, refresh } = usePlanUsage(open);
   const selected = models.find((m) => m.key === modelKey);
-  const { engine, used, capacity, percent, summary } = contextReading({
+  const { used, capacity, percent, summary } = contextReading({
     modelKey,
     usage,
     contexts,
-    pickedWindow: preferences.contextWindow,
     modelWindow: selected?.contextWindow,
   });
-  const choices = selected?.contextChoices ?? [];
+  const compact = selectedCompact(models, modelKey, { compacting: Boolean(compacting), busy: Boolean(compactBusy) });
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <ComposerTip hidden={open} content={percent == null ? "Context and usage" : `Context · ${percent}% used`}>
@@ -270,29 +266,11 @@ export function ComposerLimits({
           </div>
           <p className="mt-2 text-[12px] leading-4 text-ink-3">{summary} · Compacts automatically</p>
         </section>
-        {choices.length > 0 && onPreferences && (
-          <>
-            <PickerLabel first>Auto-compact</PickerLabel>
-            <div className="px-1 pb-1">
-              <PickerSegmented
-                label="Auto-compact"
-                value={preferences.contextWindow ?? AUTO_COMPACT}
-                onChange={(point) =>
-                  onPreferences({ ...preferences, contextWindow: typeof point === "number" ? point : undefined })
-                }
-                options={[
-                  { value: AUTO_COMPACT, label: "Auto" },
-                  ...choices.map((n) => ({ value: n, label: contextLabel(n) })),
-                ]}
-              />
-            </div>
-          </>
-        )}
-        {engine === EngineId.Ollama && onCompact && (
+        {compact.shown && onCompact && (
           <div className="flex items-center gap-2 pr-1">
-            <PickerCaption>Summarize to free up context.</PickerCaption>
-            <button type="button" className="picker-action ml-auto" disabled={compacting} onClick={onCompact}>
-              {compacting ? "Summarizing…" : "Summarize now"}
+            <PickerCaption>{COMPACT_WORDS.caption}</PickerCaption>
+            <button type="button" className="picker-action ml-auto" disabled={compact.disabled} onClick={onCompact}>
+              {compacting ? COMPACT_WORDS.running : COMPACT_WORDS.action}
             </button>
           </div>
         )}

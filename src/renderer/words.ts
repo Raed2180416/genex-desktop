@@ -1347,6 +1347,16 @@ export function judgeRoundLine(round: CustomPayload<typeof CustomEvent.RunIterat
 
 // ── the model picker ──────────────────────────────────────────────────────────────────────
 
+/** The context panel's Compact now (`ui/ComposerLimits.tsx`). */
+export const COMPACT_WORDS = {
+  caption: "Summarize the chat to free up context.",
+  action: "Compact now",
+  running: "Compacting…",
+  /** `/compact` while a turn or a build runs: it waits for it, so it is offered but not taken. */
+  waits: "After the current work finishes",
+  commands: "Commands",
+} as const;
+
 /** The model picker's section headers, row tags and reasons (`model-choices.ts`). */
 export const MODEL_PICKER_WORDS = {
   unavailable: "This model is unavailable. Check the connection or choose another model.",

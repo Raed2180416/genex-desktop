@@ -276,6 +276,17 @@ export class ChatRewindService {
     await Promise.allSettled([...(this.#inFlight.get(threadId) ?? [])]);
   }
 
+  /**
+   * A compaction ends the chat's provider session as a rewind does: the next turn starts a fresh
+   * one briefed with the summary (`harnessView`), so the session the host would resume goes too.
+   * The compaction is already in the log, and names the session it ended, so a failed write only
+   * leaves the session saved, never resumed.
+   */
+  async forgetCompactedSession(threadId: string, batch: readonly EventData[]): Promise<void> {
+    if (!batch.some((data) => customRecord(data)?.event_type === CustomEvent.Compacted)) return;
+    await this.#core.store.updateThread(threadId, { metadata: { contractor: null } }).catch(() => {});
+  }
+
   // ── checkpoints ──────────────────────────────────────────────────────────────────────────
   /**
    * A message's processing starts the game checkpoint that its answer's `turn.begin` waits for;

@@ -32,17 +32,10 @@ describe("the context reading", () => {
     });
   });
 
-  it("falls back to the picked window, then the model's, and says an estimate is one", () => {
+  it("falls back to the model's window, and says an estimate is one", () => {
     const measured = context({ model: "opus", promptTokens: 300, source: "estimated" });
-    const picked = contextReading({
-      modelKey: "claude-code::opus",
-      contexts: [measured],
-      pickedWindow: 600,
-      modelWindow: 1000,
-    });
-    assert.deepEqual([picked.capacity, picked.percent, picked.summary], [600, 50, "About 50% used"]);
     const own = contextReading({ modelKey: "claude-code::opus", contexts: [measured], modelWindow: 1000 });
-    assert.equal(own.percent, 30);
+    assert.deepEqual([own.capacity, own.percent, own.summary], [1000, 30, "About 30% used"]);
   });
 
   it("reads a default pick's measure under the default key, whichever way the key spells it", () => {

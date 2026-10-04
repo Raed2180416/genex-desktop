@@ -61,7 +61,6 @@ export interface EngineDescriptor {
     /** The model the provider's catalog names as its default; the picker lists it for "default". */
     providerDefault?: boolean;
     contextWindow: number;
-    contextChoices?: number[];
     supportsFast?: boolean;
     supportsTools: boolean;
     supportsVision: boolean;

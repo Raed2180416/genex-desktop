@@ -269,13 +269,21 @@ app.whenReady().then(async()=>{
  check('reduced motion keeps the effort thumb still',await element('.effort-thumb','parseFloat(getComputedStyle(e).transitionDuration)<0.001'));await close();
  await click('[aria-label="Model settings"]');await click('[data-role="planner"]');await click('[data-slot="popover-content"][aria-label="Main agent model"] [data-model-choice="claude-code::fixture-opus"]');await close();
  await click('[data-promptbar] [aria-label="Context and usage"]');
- check('Claude Code offers Auto and only the compaction points it honors, Auto first',await js('[...document.querySelectorAll("[aria-label=\\"Auto-compact\\"] [role=radio]")].map(e=>e.textContent+(e.getAttribute("aria-checked")==="true"?"*":"")).join("|")')==="Auto*|200k|1M");
- await click('[aria-label="Auto-compact"] [data-value="200000"]');
- check('a compaction point updates saved request preferences',await element('#composer-settings','JSON.parse(e.dataset.preferences).contextWindow===200000'));
+ check('Claude Code compacts on its own too, so its panel offers no compaction point',!(await js('Boolean(document.querySelector("[aria-label=\\"Auto-compact\\"]"))')));
  await capture('context-claude');
- await click('[aria-label="Auto-compact"] [data-value="auto"]');
- check('Auto sends no compaction point',await element('#composer-settings','!("contextWindow" in JSON.parse(e.dataset.preferences))'));
  await close();
+ // The / list: Claude Code keeps a session, so /compact is offered. A caret moved off the command closes it; Enter runs it.
+ const PROMPT=SPECIMEN+' textarea[aria-label="Prompt"]',compacts=()=>element('#composer-settings','Number(e.dataset.compacts)');
+ await element(PROMPT,'(e.focus(),true)');await cdp('Input.dispatchKeyEvent',{type:'keyDown',key:'a',code:'KeyA',modifiers:4,commands:['selectAll']});await key('Backspace');
+ await insertText('/com');await wait(200);
+ check('typing / offers /compact',await open('Commands')&&await js('Boolean(document.querySelector("[data-command-list] [data-command=compact]"))'));
+ await key('Left');await wait(200);
+ check('a caret moved off the command closes its list',!(await open('Commands')));
+ await key('Right');await insertText('p');await wait(200);
+ check('typing the command again reopens it',await open('Commands'));
+ await key('Enter');await wait(200);
+ check('Enter runs /compact and clears the message',await compacts()===1&&await element(PROMPT,'e.value===""'),String(await compacts()));
+ check('the cleared message leaves no / list open',!(await open('Commands')));
  // No AI model yet: the model's place holds Connect AI model; Enter and Send point at it instead of sending.
  await wc.debugger.sendCommand('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'no-preference'}]});
  const NO_MODEL='[data-composer-specimen-nomodel]';

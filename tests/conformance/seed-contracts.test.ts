@@ -21,6 +21,7 @@ import * as seedSkills from "../../src/harness-seed/loop/skills.ts";
 import { SteerDelivery as seedSteerDelivery } from "../../src/harness-seed/loop/steer-delivery.ts";
 import * as seedTime from "../../src/harness-seed/loop/time.ts";
 import * as seedWakeSchedule from "../../src/harness-seed/loop/director/wake-schedule.ts";
+import * as seedHandover from "../../src/harness-seed/loop/facet/phases/handover.ts";
 import { DelegationRefusal as seedDelegationRefusal } from "../../src/harness-seed/loop/director/lead-session.ts";
 import { RESUME_RUN as seedResumeRun } from "../../src/harness-seed/loop/after-night.ts";
 import { REOPEN_RUN as seedReopenRun } from "../../src/harness-seed/loop/reopen-run-prompts.ts";
@@ -48,7 +49,7 @@ import {
 } from "../../src/shared/run-state.ts";
 import { applyEdits, SKILL_EDIT_OPS } from "../../src/shared/skill-edits.ts";
 import { EventKind, type EventEnvelope, MessageUsageSource } from "../../src/shared/event-log.ts";
-import { DIRECTOR_LOOP_ENV } from "../../src/shared/protocol.ts";
+import { DIRECTOR_LOOP_ENV, harnessRunEnv, WORKER_HANDOVER_ENV } from "../../src/shared/protocol.ts";
 
 let clock = 0;
 const at = () => new Date(Date.UTC(2026, 8, 24, 0, 0, clock++)).toISOString();
@@ -376,6 +377,24 @@ describe("vocabularies (src/shared ↔ the seed's copies)", () => {
 
   it("names the director loop's override in the studio's environment the same way", () => {
     assert.equal(seedWakeSchedule.DIRECTOR_LOOP_ENV, DIRECTOR_LOOP_ENV);
+  });
+
+  it("names the workers' handover switch in the studio's environment the same way", () => {
+    assert.equal(seedHandover.WORKER_HANDOVER_ENV, WORKER_HANDOVER_ENV);
+  });
+
+  it("hands the harness only the run overrides of the studio's environment, each only when it is set", () => {
+    const cases: Array<[env: Record<string, string | undefined>, handed: Record<string, string>]> = [
+      [{}, {}],
+      [
+        { [DIRECTOR_LOOP_ENV]: "turn", [WORKER_HANDOVER_ENV]: "1" },
+        { [DIRECTOR_LOOP_ENV]: "turn", [WORKER_HANDOVER_ENV]: "1" },
+      ],
+      [{ [WORKER_HANDOVER_ENV]: " 1 " }, { [WORKER_HANDOVER_ENV]: "1" }],
+      [{ [WORKER_HANDOVER_ENV]: "  ", [DIRECTOR_LOOP_ENV]: "" }, {}],
+      [{ HOME: "/Users/someone", ANTHROPIC_API_KEY: "sk-ant-x", PATH: "/usr/bin", STUDIO_OTHER: "1" }, {}],
+    ];
+    for (const [env, handed] of cases) assert.deepEqual(harnessRunEnv(env), handed, JSON.stringify(env));
   });
 
   it("reads a verdict record's pass and rule as the harness writes them", () => {

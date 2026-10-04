@@ -39,7 +39,7 @@ import {
   BootReason,
   type DispatchAction,
   DispatchActionType,
-  directorLoopEnv,
+  harnessRunEnv,
   HarnessCapability,
   HarnessState,
 } from "../shared/protocol.ts";
@@ -963,8 +963,8 @@ export class StudioCore {
       sandbox: this.sandbox,
       api: this.api(),
       updatesDir: this.layout.updates,
-      // The harness's environment is an allow-list: the director-loop override is handed on by name.
-      env: directorLoopEnv(process.env),
+      // The harness's environment is an allow-list: the run overrides are handed on by name.
+      env: harnessRunEnv(process.env),
       heartbeatTimeoutMs: HARNESS_HEARTBEAT_TIMEOUT_MS,
       crashLoop: HARNESS_CRASH_LOOP,
       onNotify: (type, payload) => this.#onHarnessNotify(type, payload),

@@ -66,6 +66,12 @@ const WRITERS = new Set(["customEventData"]);
  * `RunEvent.RunFinished`), and `customEventData(name, …)` writes one.
  * A template literal (`delegated.${engine}`) is recorded as its fixed head followed by `*`.
  */
+/** The seed's shared event writers whose third argument is the event name, by the module that exports each. */
+const SHARED_WRITERS: ReadonlyArray<[writer: string, module: string]> = [
+  ["appendRun", "/run-events.ts"],
+  ["appendCustom", "/compaction-log.ts"],
+];
+
 async function eventNamesInSource(): Promise<Map<string, string[]>> {
   const files = await studioSources();
   const program = ts.createProgram(files, {
@@ -192,20 +198,21 @@ async function eventNamesInSource(): Promise<Map<string, string[]>> {
         : decl;
     };
     // The harness's shared writers, which the scan cannot follow into (it resolves no imports):
-    // `loop/run-events.ts` `appendRun(ctx, threadId, "name", …)`, imported under any name, and
-    // the director night's own `appendRun("name", …)` (`loop/director/night.ts`, reached through
-    // the night object, which `bindNight` calls with the night as its first argument).
+    // `loop/run-events.ts` `appendRun(ctx, threadId, "name", …)` and `loop/compaction-log.ts`
+    // `appendCustom(ctx, threadId, "name", …)`, imported under any name, and the director night's
+    // own `appendRun("name", …)` (`loop/director/night.ts`, reached through the night object,
+    // which `bindNight` calls with the night as its first argument).
     const writerIndex = (callee: ts.Expression): number | undefined => {
       const id = ts.isPropertyAccessExpression(callee) ? callee.name : callee;
       if (!ts.isIdentifier(id)) return undefined;
       const decl = declOf(id);
       if (decl && ts.isImportSpecifier(decl)) {
         const from = decl.parent.parent.parent.moduleSpecifier;
-        return (decl.propertyName ?? decl.name).text === "appendRun" &&
-          ts.isStringLiteral(from) &&
-          from.text.endsWith("/run-events.ts")
-          ? 2
-          : undefined;
+        const imported = (decl.propertyName ?? decl.name).text;
+        const shared = SHARED_WRITERS.some(
+          ([writer, module]) => imported === writer && ts.isStringLiteral(from) && from.text.endsWith(module),
+        );
+        return shared ? 2 : undefined;
       }
       if (id.text !== "appendRun") return undefined;
       return ts.isPropertyAccessExpression(callee) || (decl !== undefined && ts.isBindingElement(decl)) ? 0 : undefined;
