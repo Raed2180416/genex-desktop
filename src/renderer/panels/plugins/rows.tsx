@@ -4,12 +4,22 @@ import { GENEX_PLUGIN_ID } from "../../../shared/genex.ts";
 import type { PluginInfo } from "../../../shared/plugins.ts";
 import { Button } from "../../ui/Button.tsx";
 import { Icon, type IconName } from "../../ui/icons.tsx";
-import { PluginIcon } from "../../ui/PluginIcon.tsx";
+import { PluginIcon, type PluginIconSize } from "../../ui/PluginIcon.tsx";
 import { Toggle } from "../../ui/Toggle.tsx";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../../ui/tooltip.tsx";
 import { PLUGINS_WORDS } from "../../words.ts";
 import { CreditsKind, type CreditsView } from "./genex/genex-view.ts";
-import { accountPanel, isOffList, pluginAccount, pluginIconUrl, RowAccountStep, rowAccountStep } from "./labels.ts";
+import { RouterIcon } from "./genex/RouterIcon.tsx";
+import {
+  accountPanel,
+  isOffList,
+  pluginAccount,
+  pluginIconUrl,
+  RowAccountStep,
+  rowAccountStep,
+  shownDescription,
+  shownName,
+} from "./labels.ts";
 import type { PluginsPage } from "./page.ts";
 
 const ACCOUNT_WORDS = PLUGINS_WORDS.account;
@@ -23,6 +33,12 @@ export function Mark({ kind = "plugins", large = false }: { kind?: IconName; lar
       <Icon name={kind} size={large ? 30 : 22} />
     </span>
   );
+}
+
+/** A plugin's picture: Genex's routed tools on their moving board, any other plugin's own picture. */
+export function PluginPicture({ plugin, size }: { plugin: PluginInfo; size?: PluginIconSize }): JSX.Element {
+  if (plugin.manifest.id === GENEX_PLUGIN_ID) return <RouterIcon size={size} />;
+  return <PluginIcon name={plugin.manifest.name} src={pluginIconUrl(plugin)} size={size} />;
 }
 
 /** A titled section of the page, with an optional count and action. */
@@ -60,7 +76,7 @@ export function PluginToggle({ plugin, page }: { plugin: PluginInfo; page: Plugi
     <Toggle
       on={plugin.enabled}
       disabled={page.busy}
-      ariaLabel={`Use ${plugin.manifest.name}`}
+      ariaLabel={`Use ${shownName(plugin)}`}
       onChange={(on) =>
         void page.act(async () => {
           page.setSelected(null);
@@ -122,6 +138,7 @@ export function AccountStep({
   const { manifest } = plugin;
   const account = manifest.account;
   if (!account || !plugin.enabled || isOffList(plugin)) return null;
+  const name = shownName(plugin);
   const step = rowAccountStep(pluginAccount(page.connections, manifest.id));
   const connect = () => void connectAccount(plugin, page);
   switch (step) {
@@ -129,7 +146,12 @@ export function AccountStep({
       return (
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button disabled={page.busy} aria-label={`Connect ${manifest.name}`} onClick={connect}>
+            <Button
+              variant={manifest.id === GENEX_PLUGIN_ID ? "default" : "secondary"}
+              disabled={page.busy}
+              aria-label={`Connect ${name}`}
+              onClick={connect}
+            >
               {ACCOUNT_WORDS.connect}
             </Button>
           </TooltipTrigger>
@@ -138,7 +160,7 @@ export function AccountStep({
       );
     case RowAccountStep.Reconnect:
       return (
-        <Button disabled={page.busy} aria-label={`Reconnect ${manifest.name}`} onClick={connect}>
+        <Button disabled={page.busy} aria-label={`Reconnect ${name}`} onClick={connect}>
           {ACCOUNT_WORDS.reconnect}
         </Button>
       );
@@ -187,19 +209,21 @@ function PluginRow({
   update?: string | undefined;
 }): JSX.Element {
   const { manifest } = plugin;
+  const name = shownName(plugin);
+  const description = shownDescription(plugin);
   return (
     <article className="extension-row" data-plugin-row={manifest.id}>
       <button
         type="button"
         className="extension-open"
-        aria-label={`View ${manifest.name}`}
+        aria-label={`View ${name}`}
         onClick={() => page.openPlugin(manifest.id)}
       >
-        <PluginIcon name={manifest.name} src={pluginIconUrl(plugin)} />
+        <PluginPicture plugin={plugin} />
         <span className="extension-copy">
-          <span className="extension-name">{manifest.name}</span>
-          <span className="extension-description" title={manifest.description}>
-            {manifest.description}
+          <span className="extension-name">{name}</span>
+          <span className="extension-description" title={description}>
+            {description}
           </span>
           {plugin.error && <span className="text-xs text-red">{plugin.error}</span>}
           {plugin.pendingVersion && (
@@ -211,7 +235,7 @@ function PluginRow({
       {update && (
         <Button
           disabled={page.busy}
-          aria-label={`Update ${manifest.name}`}
+          aria-label={`Update ${name}`}
           onClick={() => void page.act(() => window.studio.pluginUpdate(manifest.id))}
         >
           Update to {update}
@@ -228,7 +252,7 @@ function PluginRow({
 
 /** Whether a plugin matches the page's search. */
 export const pluginMatches = (page: PluginsPage, p: PluginInfo): boolean =>
-  page.matches(p.manifest.name, p.manifest.description, p.manifest.publisher);
+  page.matches(shownName(p), shownDescription(p), p.manifest.name, p.manifest.description, p.manifest.publisher);
 
 /** The rows of the plugins that match the search; `credits` is Genex's balance, `updates` newer catalog releases by id. */
 export function PluginRows({

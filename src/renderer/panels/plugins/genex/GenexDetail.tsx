@@ -1,49 +1,46 @@
 /**
- * The Genex plugin's page, below its title: the account card, what Genex makes, its connections,
- * the skills it gives agents and what it is. The page is app-wide: one balance covers every game,
+ * The Genex plugin's page, below its title: the account card, the tools it routes, the skills it
+ * gives agents and what it is. The page is app-wide: one balance covers every game,
  * a game's own spend is in its usage panel, and Publish lives on the game's stage.
  */
 import type { JSX } from "react";
 import { GenexAction } from "../../../../shared/genex.ts";
 import type { PluginInfo } from "../../../../shared/plugins.ts";
 import { Button } from "../../../ui/Button.tsx";
-import { Icon, type IconName } from "../../../ui/icons.tsx";
+import { Icon } from "../../../ui/icons.tsx";
 import { GENEX_WORDS } from "../../../words.ts";
 import { PluginApproval } from "../../PluginApproval.tsx";
 import { Information, PluginNotes, PluginSkills, UpdateButton } from "../detail-parts.tsx";
 import { isActive } from "../labels.ts";
 import type { PluginsPage } from "../page.ts";
-import { PluginConnections } from "../PluginConnections.tsx";
 import { Section } from "../rows.tsx";
 import type { ShownSkill } from "../skills-sections.ts";
 import { GenexAccount } from "./GenexAccount.tsx";
 import { type GenexJobRow, genexJobRows, JobState } from "./genex-view.ts";
+import { ROUTED_TOOLS, toolCopy } from "./routed-tools.ts";
 import { type GenexLive, useGenexStatus } from "./use-genex-status.ts";
 
-const MAKES: ReadonlyArray<[IconName, { title: string; text: string }]> = [
-  ["box", GENEX_WORDS.makes.models],
-  ["character", GENEX_WORDS.makes.characters],
-  ["image", GENEX_WORDS.makes.art],
-  ["sound", GENEX_WORDS.makes.sound],
-];
-
-/** What Genex can make, and how to ask for it. */
-function Makes(): JSX.Element {
+/** The tools Genex routes, each with its mark and what it does. */
+function RoutedTools(): JSX.Element {
+  const words = GENEX_WORDS.router;
   return (
-    <Section title={GENEX_WORDS.makes.title} hooks={{ "data-genex-makes": "" }}>
-      <p className="genex-section-intro">{GENEX_WORDS.makes.intro}</p>
-      <ul className="genex-makes">
-        {MAKES.map(([icon, words]) => (
-          <li key={words.title}>
-            <span className="genex-make-icon" aria-hidden="true">
-              <Icon name={icon} size={20} />
-            </span>
-            <span className="genex-make-copy">
-              <span className="genex-make-title">{words.title}</span>
-              <span className="genex-make-text">{words.text}</span>
-            </span>
-          </li>
-        ))}
+    <Section title={words.toolsTitle} count={ROUTED_TOOLS.length} hooks={{ "data-genex-tools": "" }}>
+      <p className="genex-section-intro">{words.toolsIntro}</p>
+      <ul className="genex-tools">
+        {ROUTED_TOOLS.map(({ id, mark }) => {
+          const tool = toolCopy(id);
+          return (
+            <li key={id} className="genex-tool" data-genex-tool={id}>
+              <span className="genex-tool-mark" aria-hidden="true">
+                <img src={mark} alt="" draggable={false} />
+              </span>
+              <span className="genex-tool-copy">
+                <span className="genex-tool-name">{tool.name}</span>
+                <span className="genex-tool-line">{tool.line}</span>
+              </span>
+            </li>
+          );
+        })}
       </ul>
     </Section>
   );
@@ -136,8 +133,7 @@ export function GenexDetail({
           )}
         </>
       )}
-      <Makes />
-      <PluginConnections plugin={detail} page={page} names={GENEX_WORDS.connections} />
+      <RoutedTools />
       <PluginSkills detail={detail} onSkill={onSkill} />
       <Information detail={detail} />
     </div>

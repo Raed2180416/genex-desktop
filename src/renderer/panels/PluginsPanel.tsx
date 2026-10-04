@@ -19,8 +19,9 @@ import {
   isActive,
   isOffList,
   PLUGIN_GUIDE_URL,
-  pluginIconUrl,
   SEARCH_LABEL,
+  shownIntro,
+  shownName,
   TAB_INTRO,
   TAB_LABEL,
 } from "./plugins/labels.ts";
@@ -34,8 +35,7 @@ import {
 import { MoreActions } from "./plugins/detail-parts.tsx";
 import { PluginDetail, type SettingValues } from "./plugins/PluginDetail.tsx";
 import { PluginsBrowse } from "./plugins/PluginsBrowse.tsx";
-import { PluginIcon } from "../ui/PluginIcon.tsx";
-import { Mark, PluginToggle, Section } from "./plugins/rows.tsx";
+import { Mark, PluginPicture, PluginToggle, Section } from "./plugins/rows.tsx";
 import { SkillsBrowse } from "./plugins/SkillsBrowse.tsx";
 import type { ShownSkill } from "./plugins/skills-sections.ts";
 import { useAsyncEffect } from "../use-async-effect.ts";
@@ -135,7 +135,7 @@ function pageIntro(nav: Navigation, detail: PluginInfo | undefined, plugins: Plu
     if (!skill.plugin) return SKILLS_WORDS.studioTitle;
     return plugins.find((p) => p.manifest.id === skill.plugin)?.manifest.name;
   }
-  return detail ? detail.manifest.description : TAB_INTRO[nav.tab];
+  return detail ? shownIntro(detail) : TAB_INTRO[nav.tab];
 }
 
 /** A file skill's text, read from its plugin when its page opens; an inline skill already has it. */
@@ -357,11 +357,11 @@ function PageHeading({
         <Icon name="chevron-left" size={14} />
         {inside ? TAB_LABEL[nav.tab] : PLUGINS_WORDS.back}
       </Button>
-      {shownPlugin && <PluginIcon name={shownPlugin.manifest.name} src={pluginIconUrl(shownPlugin)} size="large" />}
+      {shownPlugin && <PluginPicture plugin={shownPlugin} size="large" />}
       {skill && <Mark large kind="box" />}
       <div className="extensions-title-row">
         <h1 ref={heading} tabIndex={-1}>
-          {skill?.name ?? detail?.manifest.name ?? TAB_LABEL[nav.tab]}
+          {skill?.name ?? (detail ? shownName(detail) : TAB_LABEL[nav.tab])}
         </h1>
         {shownPlugin && !isOffList(shownPlugin) && (
           <div className="extensions-title-actions">
@@ -434,7 +434,6 @@ function PageBody({
           catalog={data.catalog}
           index={data.index}
           connectorActions={connectorActions}
-          onRetryIndex={() => void page.act(async () => data.setIndex(await window.studio.pluginsIndex(true)))}
         />
       ) : (
         <SkillsBrowse

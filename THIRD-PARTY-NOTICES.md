@@ -28,6 +28,15 @@ licenses and terms of included third-party software.
   runs (https://www.blender.org/about/logo/). No endorsement is implied.
 - `src/plugins/genex/icon.png` is Genex's own icon from genex.games.
 
+## Routed tool marks
+
+`src/renderer/media/tools` holds the marks of the tools Genex routes, as genex.games/tools shows
+them, for the Genex plugin's page and picture. Each mark is its owner's trademark (Tripo, Meshy,
+Uthana, OpenAI, Google Gemini, MiniMax, the Blender Foundation, ElevenLabs) and only names the
+tool Genex sends work to; no endorsement is implied. The Meshy, Gemini, MiniMax, OpenAI and
+ElevenLabs marks come from lobe-icons (MIT, below); the light fills are recoloured for a dark
+tile. `genex.svg` is Genex's own G, from the startup loader.
+
 ## Vendored Genex skills
 
 `src/plugins/genex/skills` (shipped as `dist/resources/plugins/genex/skills`) holds Genex skill
