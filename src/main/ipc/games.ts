@@ -38,7 +38,10 @@ export function registerGamesIpc(handle: IpcHandle, { core, runSummaryReader, pu
   // A chosen folder is the renderer's word for a path: the core checks it by its real path before
   // anything is written, as it does in `studio:game.location.pick`.
   handle("studio:game.create", async (payload) =>
-    core.createGame(payload.title, payload.parent === undefined ? {} : { parent: payload.parent }),
+    core.createGame(payload.title, {
+      ...(payload.parent === undefined ? {} : { parent: payload.parent }),
+      ...(payload.provisional === true ? { provisional: true } : {}),
+    }),
   );
   // The request is the user's own words, read by their own model; the name only names a folder later.
   handle("studio:game.name", async (payload) => core.nameGame(payload));
@@ -64,6 +67,7 @@ export function registerGamesIpc(handle: IpcHandle, { core, runSummaryReader, pu
   // The Assets stage: what the game holds, joined with the project's own delivery ledger.
   handle("studio:game.asset.preview", async (payload) => core.previewProjectAsset(payload));
   handle("studio:game.asset.present", async (payload) => core.presentProjectAssets(payload));
+  handle("studio:game.asset.rigs", async (payload) => core.projectModelRigs(payload));
   handle("studio:game.assets", async (payload) => {
     if (!payload || typeof payload.project !== "string") throw new Error(MESSAGE.projectRequired);
     const events = await runSummaryReader.forProject(payload.project, core.mainThread);

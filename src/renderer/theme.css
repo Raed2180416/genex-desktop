@@ -220,6 +220,16 @@
   --text-sm--line-height: 20px;
 }
 
+/* Current work's shimmer: a bright sweep across the line, then a rest before the next. */
+@keyframes shimmer-sweep {
+  0% {
+    background-position: 140% center;
+  }
+  78%,
+  100% {
+    background-position: -40% center;
+  }
+}
 /* Existing graph/status effects use the same palette as the shared controls. */
 @keyframes shimmer-text {
   0% {
@@ -758,6 +768,12 @@
   font-size: 15px;
   line-height: 22px;
   letter-spacing: -0.26px;
+}
+/* The live status line: what the chat is doing now, a size under the chat it sits in. */
+@utility text-status {
+  font-size: 12px;
+  line-height: 18px;
+  letter-spacing: -0.1px;
 }
 @utility text-chat-sub {
   font-size: 14px;
@@ -2247,6 +2263,9 @@ button.chat-header-title:hover {
   border-radius: 10px;
   object-fit: cover;
   user-select: none;
+  /* A divider-coloured edge drawn over the picture, so a white icon still reads as a tile on a white page. */
+  outline: 1px solid var(--line);
+  outline-offset: -1px;
 }
 .extension-icon-large {
   width: 64px;
@@ -2281,6 +2300,7 @@ button.chat-header-title:hover {
   align-items: center;
   justify-content: center;
   border: 1px dashed var(--line-strong);
+  outline: none;
   color: var(--color-icon);
 }
 /* A section whose own card frames it needs no rule under its title (the Marketplace). */
@@ -2813,12 +2833,13 @@ button.chat-header-title:hover {
 
 /* Only current work animates. History and disclosures mount without entrance choreography. */
 .chat-status-shimmer {
+  --shimmer-rest: color-mix(in oklab, var(--ink-3) 82%, var(--background));
   color: var(--ink-3);
-  background: linear-gradient(90deg, var(--ink-3) 35%, var(--ink) 50%, var(--ink-3) 65%);
-  background-size: 200% 100%;
+  background: linear-gradient(100deg, var(--shimmer-rest) 36%, var(--ink) 50%, var(--shimmer-rest) 64%);
+  background-size: 260% 100%;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: shimmer-text 1.4s linear infinite;
+  animation: shimmer-sweep 2.1s cubic-bezier(0.45, 0, 0.25, 1) infinite;
 }
 @media (prefers-reduced-motion: reduce) {
   .chat-status-shimmer {
@@ -2887,6 +2908,10 @@ button.chat-header-title:hover {
   color: var(--ink);
   background: var(--control-hover, var(--hover));
 }
+/* A disclosure's chevron sits a little closer to its words than the gap between other parts. */
+.chat-disclosure > svg:last-child {
+  margin-inline-start: -2px;
+}
 /* The status line without details to open: laid out as its disclosure is, so nothing moves when one comes. */
 .chat-status-line {
   display: flex;
@@ -2897,6 +2922,38 @@ button.chat-header-title:hover {
   padding-block: 4px;
   color: var(--ink-3);
 }
+/* The live line is a size under the chat: its loader, then its words and clock, then its chevron. */
+:is([data-chat-status] .chat-disclosure, [data-chat-status] .chat-status-line, .chat-status-line[data-chat-status]) {
+  gap: 8px;
+  font-size: 12px;
+  line-height: 18px;
+  letter-spacing: -0.1px;
+}
+.chat-status-words {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+/* The loader's place: it closes while the work waits on the user, the line's gap after it too, so
+   the words slide rather than jump (ui/LoadingState.tsx). */
+.chat-status-orb-slot {
+  display: flex;
+  flex: none;
+  width: 14px;
+  overflow: hidden;
+  transition:
+    width var(--duration-fast) var(--ease-smooth-out),
+    margin-inline-end var(--duration-fast) var(--ease-smooth-out),
+    opacity var(--duration-quick) ease-out;
+}
+.chat-status-orb-slot[data-gone] {
+  width: 0;
+  margin-inline-end: -8px;
+  opacity: 0;
+}
+.chat-status-orb {
+  flex: none;
+}
 /* The status line's clock, after its words in their type, figures and resting ink. Its width is the
    words' own (`--clock-width`, ui/LoadingState.tsx), so a change of width can glide. */
 .chat-clock {
@@ -2905,11 +2962,17 @@ button.chat-header-title:hover {
   width: var(--clock-width, auto);
   white-space: nowrap;
 }
-/* Waiting on the user has no clock; the line's gap before it goes too. */
+/* Its space after the words is its own, so a clock with nothing to show yet (under a second) takes none. */
+.chat-clock > :not(:empty) {
+  padding-inline-start: 4px;
+}
+/* Waiting on the user has no clock. */
 .chat-clock[aria-hidden="true"] {
   width: 0;
-  margin-inline-start: -6px;
   opacity: 0;
+}
+.chat-clock {
+  font-variant-numeric: tabular-nums;
 }
 [data-chat-transcript] img {
   outline: 1px solid rgb(255 255 255 / 0.1);
@@ -2933,6 +2996,21 @@ button.chat-header-title:hover {
 }
 .chat-tool-frame > * + * {
   border-block-start: 1px solid var(--line);
+}
+/* A compaction's summary: one framed box, read in a size under the chat, scrolling when long. */
+.chat-compaction-summary {
+  margin-block-start: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+[data-chat-transcript] .chat-compaction-summary .prose {
+  font-size: 14px;
+  line-height: 21px;
+  color: var(--ink-2);
 }
 .chat-tool-detail {
   padding: 10px;
@@ -3950,6 +4028,62 @@ a:focus-visible {
 .settings-rows > .appearance-row > :first-child {
   gap: 2px;
 }
+/* One block of related settings on the card surface, as Appearance's theme card. */
+.settings-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+}
+/* A card that is a list: its rows reach nearly to its edge and carry their own padding. */
+.settings-card[data-list] {
+  padding: 4px;
+}
+/* A card that is one row: what it is on the left, its actions on the right. */
+.settings-card[data-row] {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding-block: 12px;
+}
+.appearance-section .settings-subtitle {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  color: var(--ink);
+}
+.appearance-section .settings-card-title {
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 20px;
+  color: var(--ink);
+}
+/* A folder path as a read-only field: its icon, the parent (cut first when long), the folder's own name whole. */
+.settings-path {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  height: 36px;
+  padding-inline: 12px;
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--field) 55%, var(--card));
+  box-shadow: inset 0 0 0 1px var(--field);
+  font: 13px / 1 var(--font-family-code);
+}
+/* A row of a list card: a hit area with its own padding and a hairline above all but the first. */
+.settings-list-row {
+  border-radius: 12px;
+}
+.settings-list-row + .settings-list-row,
+.settings-list-group + .settings-list-group {
+  border-top: 1px solid var(--line);
+}
 .appearance-typography h3 {
   margin-block-end: 8px;
 }
@@ -4067,44 +4201,268 @@ a:focus-visible {
   background: var(--chip-hover, var(--line-strong));
   color: var(--control-text-hover, var(--ink));
 }
-.asset-preview-action,
-.asset-viewer-controls {
-  opacity: 0;
-  transition: opacity 150ms ease-out;
-}
-.asset-tile:hover .asset-preview-action,
-.asset-tile:focus-within .asset-preview-action,
-.asset-row:hover .asset-preview-action,
-.asset-row:has(:focus-visible) .asset-preview-action,
-.asset-viewer-dialog:hover .asset-viewer-controls,
-.asset-viewer-dialog:focus-within .asset-viewer-controls {
-  opacity: 1;
-}
-.asset-preview-action {
-  background: color-mix(in srgb, var(--surface) 88%, transparent);
-}
-.asset-viewer-controls {
+/* ── Delivered assets ─────────────────────────────────────────────────────────────────────────
+ * The picture is the card: nothing on it at rest. Hover or focus brightens its outline, eases the
+ * picture in a little and shows one corner action; a model carries its animations as a chip. Every
+ * colour is the theme's, so a model, a picture and a sound sit the same way in light and dark. */
+.asset-tile::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 7%, transparent);
+  transition: box-shadow var(--duration-quick) ease-out;
   pointer-events: none;
 }
-.asset-viewer-controls button {
-  pointer-events: auto;
+.asset-tile:is(:hover, :focus-within)::after {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 22%, transparent);
+}
+.asset-tile img {
+  transition: transform var(--duration-medium) var(--ease-smooth-out);
+}
+.asset-tile:hover img {
+  transform: scale(1.035);
+}
+/* Glass over a picture: the page's own colour, so the action reads on any picture in either theme. */
+.asset-glass {
+  background: color-mix(in srgb, var(--background) 66%, transparent);
+  color: var(--ink);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+.asset-corner {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity var(--duration-quick) ease-out,
+    background-color var(--duration-quick) ease-out;
+}
+.asset-corner:hover {
+  background: color-mix(in srgb, var(--background) 88%, transparent);
+}
+.asset-tile:is(:hover, :focus-within) .asset-corner,
+.asset-corner:focus-visible {
+  opacity: 1;
+}
+.asset-chip {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 9px 0 8px;
+  border-radius: 8px;
+  font-family: var(--font-family-content);
+  font-size: 12px;
+  line-height: 16px;
+  pointer-events: none;
 }
 .asset-thumbnail {
   animation: fade-in 150ms ease-out;
 }
+/* A row for what has no picture: a sound, an animation, a file. The trailing slot shows the sound's
+   length at rest and gives way to the row's action on hover or focus. */
+.asset-row {
+  background: var(--inset);
+  transition: background-color var(--duration-quick) ease-out;
+}
+.asset-row:is(:hover, :has(:focus-visible)) {
+  background: color-mix(in oklab, var(--inset) 90%, var(--ink));
+}
+.asset-row-icon {
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  color: var(--ink-2);
+}
+.asset-row-rest,
+.asset-row-action {
+  transition: opacity var(--duration-quick) ease-out;
+}
+.asset-row-action {
+  opacity: 0;
+}
+.asset-row:is(:hover, :has(.asset-row-action:focus-visible)) .asset-row-rest {
+  opacity: 0;
+}
+.asset-row:hover .asset-row-action,
+.asset-row-action:focus-visible {
+  opacity: 1;
+}
+.asset-row-chevron {
+  color: var(--ink-3);
+  transition:
+    color var(--duration-quick) ease-out,
+    transform var(--duration-quick) ease-out;
+}
+.asset-row:hover .asset-row-chevron {
+  color: var(--ink);
+  transform: translateX(2px);
+}
+/* A sound's play button and waveform: ink on the row, so both themes read alike. */
+.audio-play {
+  background: var(--ink);
+  color: var(--background);
+  transition: transform var(--duration-quick) ease-out;
+}
+.audio-play:enabled:hover {
+  transform: scale(1.06);
+}
+.audio-bar {
+  background: color-mix(in srgb, var(--ink) 24%, transparent);
+}
+.audio-bar[data-played] {
+  background: var(--ink);
+}
+.audio-time,
+.asset-row-sub {
+  color: color-mix(in oklab, var(--ink) 62%, var(--inset));
+}
+.audio-time[data-live] {
+  color: var(--ink);
+}
 @media (hover: none) {
-  .asset-preview-action,
-  .asset-viewer-controls {
+  .asset-corner,
+  .asset-row-action {
     opacity: 1;
   }
+  .asset-row-rest {
+    opacity: 0;
+  }
+}
+
+/* ── Asset viewer ─────────────────────────────────────────────────────────────────────────────
+ * The file on the page's own colour, nothing around it but Reveal and Close; a model's animations
+ * in one floating bar. */
+.lightbox-scrim {
+  background: color-mix(in srgb, var(--background) 88%, transparent);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+.lightbox-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  min-width: 32px;
+  padding: 0 12px;
+  border-radius: 10px;
+  /* Solid, so it reads over a picture seen at full size as well as over the backdrop. */
+  background: color-mix(in oklab, var(--background) 90%, var(--ink));
+  color: var(--ink);
+  font-family: var(--font-family-content);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  cursor: pointer;
+  transition: background-color var(--duration-quick) ease-out;
+}
+.lightbox-button:hover {
+  background: color-mix(in oklab, var(--background) 82%, var(--ink));
+}
+.lightbox-button[data-icon-only] {
+  padding: 0;
+}
+.lightbox-media {
+  border-radius: 12px;
+}
+:root[data-theme="light"] .lightbox-media {
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 5%),
+    0 16px 48px rgb(0 0 0 / 14%);
+}
+.lightbox-panel {
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: var(--shadow-overlay);
+}
+.lightbox-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 28px;
+  translate: -50% 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: calc(100% - 48px);
+  overflow-x: auto;
+  padding: 6px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--popover) 92%, transparent);
+  box-shadow: var(--shadow-overlay);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+.lightbox-play {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-right: 4px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--background);
+  cursor: pointer;
+}
+.lightbox-chip {
+  flex: none;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 10px;
+  color: var(--ink-2);
+  font-family: var(--font-family-content);
+  font-size: 13px;
+  line-height: 20px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-quick) ease-out,
+    color var(--duration-quick) ease-out;
+}
+.lightbox-chip:hover {
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  color: var(--ink);
+}
+.lightbox-chip[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--ink) 12%, transparent);
+  color: var(--ink);
+}
+.lightbox-rule {
+  flex: none;
+  width: 1px;
+  height: 20px;
+  margin: 0 4px;
+  background: color-mix(in srgb, var(--ink) 10%, transparent);
 }
 @media (prefers-reduced-motion: reduce) {
   .asset-thumbnail {
     animation: none;
   }
-  .asset-preview-action,
-  .asset-viewer-controls {
+  .asset-tile::after,
+  .asset-tile img,
+  .asset-corner,
+  .asset-row,
+  .asset-row-rest,
+  .asset-row-action,
+  .asset-row-chevron,
+  .audio-play,
+  .lightbox-button,
+  .lightbox-chip {
     transition: none;
+  }
+  .asset-tile:hover img,
+  .audio-play:enabled:hover,
+  .asset-row:hover .asset-row-chevron {
+    transform: none;
   }
 }
 
@@ -4229,7 +4587,6 @@ a:focus-visible {
 .chat-clock {
   transition:
     width var(--duration-fast) var(--ease-smooth-out),
-    margin-inline-start var(--duration-fast) var(--ease-smooth-out),
     opacity var(--duration-quick) ease-out;
 }
 /* The reply being written grows smoothly line by line; its height follows the text (ui/animate-height.tsx). */
@@ -4239,6 +4596,7 @@ a:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   .chat-chevron,
   .chat-clock,
+  .chat-status-orb-slot,
   .build-card-text,
   :is([data-chat-scroll], [data-pending-questions]) details::details-content {
     transition: none;
@@ -4251,17 +4609,6 @@ a:focus-visible {
   [data-chat-status] .chat-chevron {
     animation: none;
   }
-}
-
-/* Match the viewer's neutral backdrop through the thumbnail's letterbox. */
-.asset-tile[data-tile-kind="model"],
-.asset-tile[data-tile-kind="audio"] {
-  background: #202329;
-}
-
-.asset-tile[data-tile-kind="model"] > button,
-.asset-tile[data-tile-kind="audio"] > button {
-  color: #b6bdc9;
 }
 
 /* ── Prompt composer ──────────────────────────────────────────────────────────
@@ -4542,10 +4889,11 @@ a:focus-visible {
   background: var(--orange);
   vertical-align: 1px;
 }
+/* The menus' divider (as `DropdownMenuSeparator`), never the control edge: lighter than the panel's frame. */
 .picker-sep {
   height: 1px;
   margin: 6px 10px;
-  background: var(--line-strong);
+  background: color-mix(in oklab, var(--foreground) 8%, transparent);
 }
 .picker-caption {
   margin: 0;

@@ -8205,3 +8205,50 @@ describe("suggestions that reached the Harness page as plain text or not at all 
     assert.deepEqual(staged[0]?.summary, ["The camera stays level."]);
   });
 });
+
+/**
+ * A new game from home, first message "Hello" (2026-10-04): the game was named "Hello World
+ * Adventure", and the reply was seven tool steps, one failed, and a report that the workspace was
+ * still empty, its renderer and inspection hooks set up, with a question card about what to make.
+ * The brief had said "Continue from the existing code in this workspace" and nothing about how to
+ * answer small talk.
+ */
+describe("a Hello in a brand-new game (2026-10-04)", () => {
+  it("HG-1. a greeting in a game the studio just made is briefed as a blank page, talking like a person first", async () => {
+    const { runDelegatedTurn } = await import("../../src/harness-seed/loop/delegated-turn.ts");
+    const { ctxRecorder } = await import("../helpers/ctx-recorder.ts");
+    const prompts: string[] = [];
+    const recorder = ctxRecorder({
+      threadId: "t1",
+      unknown: { value: null },
+      handlers: {
+        "events.messages": () => [{ role: "user", content: "Hello" }],
+        "events.list": () => [],
+        "game.list": () => [{ name: "untitled-game", title: "Untitled game", dir: "/g/untitled-game" }],
+        "game.contentStamp": () => ({ all: "same", source: "same" }),
+        "run.exec": (params) => ({
+          code: 0,
+          stdout: String(params.command).includes("rev-list") ? "1\n" : "",
+          stderr: "",
+        }),
+        "engine.delegate": (params) => {
+          prompts.push(String(params.prompt));
+          return { ok: true, engine: "claude-code", turns: 1, usage: {}, sessionId: "s1", summary: "Hi!" };
+        },
+      },
+    });
+    await runDelegatedTurn(recorder.ctx as never, {
+      threadId: "t1",
+      turnId: "turn-1",
+      text: "Hello",
+      engine: "claude-code",
+      engineLabel: "Claude Code",
+      project: "untitled-game",
+    });
+    const brief = prompts[0] ?? "";
+    assert.doesNotMatch(brief, /Continue from the existing code/);
+    assert.match(brief, /nothing has been built/i);
+    const talk = brief.search(/greeting/i);
+    assert.ok(talk >= 0 && talk < brief.search(/CLAUDE\.md/), "how to answer a greeting comes before how to build");
+  });
+});

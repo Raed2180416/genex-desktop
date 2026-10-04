@@ -1110,7 +1110,16 @@ async function main(): Promise<void> {
   performanceRecorder.mark("app-ready");
   const bootHandle = createIpcHandle(ipcMain, { fixture: fixtureNativePolicy, isStudioUi: isStudioWindow });
   registerBootIpc(bootHandle, { gate: bootGate, setWindowControls: paintWindowControls });
-  registerUpdateIpc(bootHandle, { updates, check: () => updateChecker.check() });
+  registerUpdateIpc(bootHandle, {
+    updates,
+    check: () => updateChecker.check(),
+    // An unpackaged build reports Electron's version, so only a packaged one names its own.
+    about: () => ({
+      version: app.isPackaged ? app.getVersion() : null,
+      platform: process.platform,
+      arch: process.arch,
+    }),
+  });
   addCheckForUpdatesMenuItem();
   const started = await startStudio();
   if (isSmoke) {

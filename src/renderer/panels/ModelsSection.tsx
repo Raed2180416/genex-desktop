@@ -521,10 +521,7 @@ function ProviderRow({
   const signInTrouble = !cliMissing && !signingIn && engine.status.code === EngineStatusCode.NeedsLogin;
   const problem = act.actionError ?? install.problem ?? (signInTrouble ? loginError : null);
   return (
-    <section
-      aria-label={words.name}
-      className="flex flex-col gap-2 border-b border-border/60 py-4 first:pt-1 last:border-0"
-    >
+    <section aria-label={words.name} className="settings-card gap-2">
       <RowHeading words={words} version={engine.account?.cli.version} tone={tone} status={status} view={view} />
       {/* The model catalog belongs to a connected account; a signed-out row keeps its one Sign in action. */}
       {connected && (
@@ -550,7 +547,7 @@ export function ModelProvidersSection({ engines, onEnginesRefresh }: ModelSettin
     onEnginesRefresh();
   }, [onEnginesRefresh]);
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col gap-3">
       {SUBSCRIPTION_ENGINES.map((id) => (
         <ProviderRow key={id} engineId={id} engines={engines} onEnginesRefresh={onEnginesRefresh} />
       ))}

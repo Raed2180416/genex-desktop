@@ -257,7 +257,7 @@ export function isResumeFailure(err: any): boolean {
  * is how one night was spent moving a real game's DOM UI into a HUD it never had.
  */
 const TEMPLATE_RULE =
-  "Follow CLAUDE.md in the workspace root: keep window.__studio (seed/start/pause/step/state/debugCamera) working, keep gameplay deterministic (rng from reset(seed), never Math.random), assets come from procedural code, imports, or the currently enabled plugin tools. Follow the selected tool’s returned file paths and verification guidance.";
+  "When you build, follow CLAUDE.md in the workspace root: keep window.__studio (seed/start/pause/step/state/debugCamera) working, keep gameplay deterministic (rng from reset(seed), never Math.random), assets come from procedural code, imports, or the currently enabled plugin tools. Follow the selected tool’s returned file paths and verification guidance.";
 
 /**
  * …and the same rule for a game that came with its own shape: what it already is stays, the
@@ -288,6 +288,14 @@ function ownShapeRules(shape: BriefShape | null | undefined, contractMissing = f
   ];
 }
 
+/**
+ * How the chat talks, ahead of every rule about building: the user reads every word. A "Hello" in
+ * a new game once came back as seven tool steps and a report on the workspace, its renderer and
+ * the studio's inspection hooks.
+ */
+const CONVERSATION_RULE =
+  "Talk with the user like a person. A greeting, thanks or small talk gets a short, friendly reply and no tools; when they have not said what to make or change yet, ask them. Talk about their game, never about the workspace, files, hooks, the renderer, panels or the studio's own machinery.";
+
 /** The fence a command for the user to run goes in: the chat offers Run under a one-line block of it. */
 const USER_COMMAND_FENCE = "bash";
 
@@ -299,7 +307,7 @@ function contractorRules(engine: string | undefined): string[] {
   return [
     TEMPLATE_RULE,
     "Helper scripts of your own (an inspector, a syntax check, a probe) go under .studio/ (gitignored); source scripts for generated assets live under assets/src/.",
-    "If the folder has a references/ or ref/ directory with stills, look at those pictures first — they are the visual bar, not files to load as textures.",
+    "Before you build or change how the game looks, if the folder has a references/ or ref/ directory with stills, look at those pictures — they are the visual bar, not files to load as textures.",
     "The game's work happens in this workspace: never in another copy of this game or in another game's folder, and a path the user named is a stills folder to look at, not a parent to walk. When the user asks about something elsewhere on their Mac (another folder, their Downloads, their disk), that is the ask: what you may reach is your session's permissions, not this brief.",
     "When your shell is sandboxed, it rejects commands it cannot statically analyze — avoid $-expansions, escaped whitespace, heredocs and long && chains; run one simple command at a time, and put multi-step logic in a script file you then run with node.",
     `When a sandbox blocks a step only the user's own Mac can do (an install or download that needs the network, such as brew or pip, a system tool, a sign-in), do not work around it: end your reply with that one command on a single line in a \`\`\`${USER_COMMAND_FENCE} block and one plain sentence on why. The chat shows it with a Run button; how it went comes back as the user's next message. Never offer a command you can run yourself, sudo, or anything piped into a shell.`,
@@ -349,6 +357,7 @@ const RESUME_BUILD =
  *   launch?: LaunchGrant | null,
  *   afterNight?: string | null,
  *   compacted?: string | null,
+ *   fresh?: boolean,
  * }} [opts]
  */
 export function buildContractorBrief({
@@ -369,6 +378,8 @@ export function buildContractorBrief({
   afterNight = null,
   /** The handover the session before this one wrote when the chat was compacted (session-compact.ts). */
   compacted = null,
+  /** Nothing has been made in this game yet: the studio's template, as it was made. */
+  fresh = false,
 }: {
   ask?: string;
   messages?: readonly BriefMessage[];
@@ -383,6 +394,7 @@ export function buildContractorBrief({
   launch?: LaunchGrant | null;
   afterNight?: string | null;
   compacted?: string | null;
+  fresh?: boolean;
 } = {}): string {
   // Where the game's work goes, never what else the session may reach: that is its permissions'.
   const workHere = folderLabel
@@ -398,7 +410,7 @@ export function buildContractorBrief({
   // the shape (autopilot.ts, director.ts, facet-loop.ts); a chat build used to carry none.
   const baseRules = contractorRules(engine);
   const rules = ownShape ? [...ownShapeRules(shape, contractMissing), ...baseRules.slice(1)] : baseRules;
-  const { head, followUp } = briefHead(ask, messages, { compacted, scaffolded });
+  const { head, followUp } = briefHead(ask, messages, { compacted, fresh: fresh || scaffolded });
 
   const recent = messages
     .filter((m) => m.role === "user" || m.role === "assistant")
@@ -411,6 +423,7 @@ export function buildContractorBrief({
     ...(compacted ? [`\n${handoverSection(compacted)}`] : []),
     ...(followUp && recent ? [`\nRecent conversation (retain decisions and completed work):\n${recent}`] : []),
     "",
+    CONVERSATION_RULE,
     ...rules,
     ...launchBlock,
     ...(afterNight ? [afterNight] : []),
@@ -423,19 +436,21 @@ export function buildContractorBrief({
 
 /**
  * A fresh brief's opening: for a follow-up, the same chat's original request and its latest
- * instruction; else the ask and where the workspace came from. After a compaction the first kept
+ * instruction; else the ask and where the game stands. After a compaction the first kept
  * message is not the original request (the handover says it), so only the latest is quoted.
+ * A game nothing has been made in is a blank page: "continue from the existing code" once sent
+ * a "Hello" off to inspect an empty template.
  */
 function briefHead(
   ask: string | undefined,
   messages: readonly BriefMessage[],
-  { compacted, scaffolded }: { compacted: string | null; scaffolded: boolean },
+  { compacted, fresh }: { compacted: string | null; fresh: boolean },
 ): { head: Array<string | undefined>; followUp: boolean } {
   const original = compacted ? "" : originalAsk(messages);
   const followUp = Boolean(compacted) || Boolean(original && original !== ask);
   if (!followUp) {
-    const origin = scaffolded
-      ? "This is a fresh workspace scaffolded from the studio template."
+    const origin = fresh
+      ? "This game is brand new: nothing has been built in it yet, so there is nothing to inspect. It starts from the studio's empty template."
       : "Continue from the existing code in this workspace.";
     return { head: [ask, "", origin], followUp };
   }

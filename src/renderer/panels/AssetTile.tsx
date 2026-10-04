@@ -1,24 +1,29 @@
+import { Play } from "lucide-react";
 import type { ProjectAsset } from "../../shared/game-assets.ts";
+import { Icon } from "../ui/icons.tsx";
+import { ASSET_WORDS, animationCountWords } from "../words.ts";
 import { AssetThumbnail } from "./AssetThumbnail.tsx";
-import { ResultButton } from "../ui/ResultButton.tsx";
 
-/** The tile's action words for an asset kind: view a model, play a clip, else preview. */
-function previewWords(kind: ProjectAsset["kind"]): string {
-  if (kind === "model") return "View 3D";
-  return kind === "audio" || kind === "video" ? "Play preview" : "Preview";
-}
-
-/** The same preview surface in the conversation and the Assets canvas. */
+/**
+ * One file as a card, in the conversation and on the Assets canvas: the picture is the card and
+ * opens the viewer. A model shows how many animation files move it; `onOpenAssets` adds the corner
+ * action. An animation file with no model to fold into (`motion`) shows a figure and its name.
+ */
 export function AssetTile({
   project,
   asset,
   companions,
+  clips = 0,
+  motion = false,
   onOpen,
   onOpenAssets,
 }: {
   project: string;
   asset: ProjectAsset;
   companions: string[];
+  /** How many animation files play on this model. */
+  clips?: number;
+  motion?: boolean;
   onOpen: () => void;
   onOpenAssets?: () => void;
 }) {
@@ -33,15 +38,27 @@ export function AssetTile({
         aria-label={`Preview ${name}`}
         title={name}
         onClick={onOpen}
-        className="absolute inset-0 block w-full rounded-card text-ink-3"
+        className="absolute inset-0 block w-full cursor-pointer rounded-card text-ink-3"
       >
-        <AssetThumbnail project={project} asset={asset} companions={companions} fallback={null} />
-        <span className="asset-preview-action result-button absolute bottom-2 right-2">{previewWords(asset.kind)}</span>
+        <AssetThumbnail project={project} asset={asset} companions={companions} fallback={null} motion={motion} />
+        {clips > 0 && (
+          <span data-asset-clips={clips} className="asset-chip asset-glass">
+            <Play aria-hidden size={10} fill="currentColor" strokeWidth={0} />
+            {animationCountWords(clips)}
+          </span>
+        )}
       </button>
       {onOpenAssets && (
-        <ResultButton data-open-assets onClick={onOpenAssets} className="asset-preview-action absolute left-2 top-2">
-          Open in Assets
-        </ResultButton>
+        <button
+          type="button"
+          data-open-assets
+          aria-label={ASSET_WORDS.openInAssets}
+          title={ASSET_WORDS.openInAssets}
+          onClick={onOpenAssets}
+          className="asset-corner asset-glass"
+        >
+          <Icon name="assets" size={16} />
+        </button>
       )}
     </div>
   );

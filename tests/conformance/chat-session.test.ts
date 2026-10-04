@@ -12,7 +12,10 @@ import {
   originalAsk,
   resolveChatProject,
 } from "../../src/harness-seed/loop/chat-session.ts";
+import { runDelegatedTurn } from "../../src/harness-seed/loop/delegated-turn.ts";
+import { launchRules } from "../../src/harness-seed/loop/launch-prompts.ts";
 import { fencedCommand } from "../../src/shared/terminal.ts";
+import { ctxRecorder } from "../helpers/ctx-recorder.ts";
 
 type ChatMessage = { role: string; content: string };
 
@@ -102,5 +105,85 @@ describe("chat session helpers", () => {
     const fence = /one command on a single line in a ```(\w+) block/.exec(brief)?.[1];
     assert.ok(fence, "the brief names the fence a command for the user goes in");
     assert.equal(fencedCommand("brew install ffmpeg", fence), "brew install ffmpeg");
+  });
+
+  it("talks like a person first: small talk gets a short reply, no tools and nothing about the studio", () => {
+    for (const brief of [
+      buildContractorBrief({ ask: "Hello", fresh: true }),
+      buildContractorBrief({ ask: "hi", ownShape: true, shape: { main: "src/game.ts" } }),
+    ]) {
+      const talk = brief.search(/greeting/i);
+      assert.ok(talk >= 0, "the brief says how to answer a greeting");
+      assert.ok(talk < brief.search(/CLAUDE\.md/), "before any rule about building");
+    }
+    const loop = launchRules("claude-code", { toolName: "start_unattended_run" }).join("\n");
+    assert.ok(
+      loop.search(/greeting/i) >= 0 && loop.search(/greeting/i) < loop.search(/ask_user/),
+      "a Loop chat replies before it asks",
+    );
+  });
+
+  it("briefs a brand-new game's first message as a blank page, and a built one's as code to continue", () => {
+    const fresh = buildContractorBrief({ ask: "Hello", fresh: true, folderLabel: "AI Games/untitled-game" });
+    assert.doesNotMatch(fresh, /existing code/);
+    assert.match(fresh, /nothing has been built/i);
+    assert.match(buildContractorBrief({ ask: "Hello", folderLabel: "AI Games/arena" }), /existing code/);
+  });
+});
+
+describe("a chat's first message in a game", () => {
+  /** The brief a game's first message is delegated with, its folder at `commits` commits and `changes` uncommitted. */
+  async function briefFor({
+    commits,
+    changes = "",
+    prior = [] as ChatMessage[],
+  }: {
+    commits: string;
+    changes?: string;
+    prior?: ChatMessage[];
+  }) {
+    const prompts: string[] = [];
+    const recorder = ctxRecorder({
+      threadId: "t1",
+      unknown: { value: null },
+      handlers: {
+        "events.messages": () => [...prior, { role: "user", content: "Hello" }],
+        "events.list": () => [],
+        "game.list": () => [{ name: "untitled-game", title: "Untitled game", dir: "/g/untitled-game" }],
+        "game.contentStamp": () => ({ all: "same", source: "same" }),
+        "run.exec": (params) => {
+          const command = String(params.command);
+          if (command.includes("rev-list")) return { code: 0, stdout: `${commits}\n`, stderr: "" };
+          if (command.includes("status")) return { code: 0, stdout: changes, stderr: "" };
+          return { code: 1, stdout: "", stderr: "unexpected" };
+        },
+        "engine.delegate": (params) => {
+          prompts.push(String(params.prompt));
+          return { ok: true, engine: "claude-code", turns: 1, usage: {}, sessionId: "s1", summary: "Hi!" };
+        },
+      },
+    });
+    await runDelegatedTurn(recorder.ctx as never, {
+      threadId: "t1",
+      turnId: "turn-1",
+      text: "Hello",
+      engine: "claude-code",
+      engineLabel: "Claude Code",
+      project: "untitled-game",
+    });
+    return prompts[0] ?? "";
+  }
+
+  it("is a blank page when nothing has been made in the game since the studio made it", async () => {
+    assert.match(await briefFor({ commits: "1" }), /nothing has been built/i);
+  });
+
+  it("continues from the code once anything has been made, or the chat is already talking", async () => {
+    assert.match(await briefFor({ commits: "3" }), /existing code/);
+    assert.match(await briefFor({ commits: "1", changes: " M src/main.js\n" }), /existing code/);
+    assert.doesNotMatch(
+      await briefFor({ commits: "1", prior: [{ role: "user", content: "Make a fishing game" }] }),
+      /nothing has been built/i,
+    );
   });
 });

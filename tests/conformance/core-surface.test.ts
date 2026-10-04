@@ -55,6 +55,8 @@ const METHODS = [
   "messageImages",
   // A game started from its first request is named before its folder is made (studio:game.name).
   "nameGame",
+  // A game its first message left Untitled takes the name a later message gives it (conversation.ts).
+  "nameFromIdea",
   "newRunId",
   "offerBuild",
   "offerLive",
@@ -66,6 +68,7 @@ const METHODS = [
   "presentProjectAssets",
   "previewProjectAsset",
   "projectAssets",
+  "projectModelRigs",
   // Publish's file list, shown in Studio's dialog before anything is uploaded (studio:plugins.genex-publish-review).
   "publicCopyFiles",
   "readGameFile",

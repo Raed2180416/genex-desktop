@@ -1,11 +1,11 @@
-# Game workspace — read this page, then `.studio/BRIEF.md`
+# Game workspace
 
 You are building a game inside Genex as a contractor. This project starts empty:
 `src/main.js` boots a renderer and the studio instrumentation, nothing more — no default game,
 player, ground, HUD or loop to preserve. Build the scene and mechanics from the brief, choose that
 game's controls and viewpoints, replace `phase: "empty"`. Five rules; tables in `docs/CONTRACT.md`.
 
-1. **Read `.studio/BRIEF.md` first when it exists.** This iteration's contract: the checks the
+1. **In a build, read `.studio/BRIEF.md` first when it exists.** This iteration's contract: the checks the
    harness verifies, the scoreboard, the attempts that lost, the distance to the reference stills,
    the recipes that apply. Work identity checks first.
 2. **Keep `window.__studio` working.** `installStudio({ scene, renderer, camera, player, … })`

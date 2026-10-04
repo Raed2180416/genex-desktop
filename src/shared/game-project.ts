@@ -22,6 +22,8 @@ export interface GameProject {
   shape: ProjectShape;
   /** `shape.own`: the folder brought its own game, so the studio builds it and serves its output. */
   built: boolean;
+  /** Named before anyone said what the game is: its first idea renames it in place (`nameFromIdea`). */
+  provisional?: boolean;
 }
 
 /**
@@ -131,6 +133,8 @@ export interface GameNameRequest {
 /** The name a game started from its first request gets (`main/core/game-naming.ts`). */
 export interface GameName {
   title: string;
+  /** The message named no game (a greeting, a test) or the model gave no name: the title waits for an idea. */
+  provisional?: boolean;
 }
 
 export interface GameLocation {

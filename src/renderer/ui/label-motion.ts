@@ -4,14 +4,16 @@
  *
  * A status label that stays long enough to read. Work reports its phases faster than a person can
  * read them ("Sending", "Working" for 25 ms, then "Thinking"); each label stays at least
- * `LABEL_DWELL_MS`, then the newest one wanted replaces it and those in between are skipped.
+ * `LABEL_DWELL_MS`, then the newest one wanted replaces it and those in between are skipped, so
+ * nothing flickers.
  */
 import { type RefObject, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { SECOND_MS } from "../../shared/duration.ts";
 import { prefersReducedMotion } from "./media-queries.ts";
 import { OPEN_MS, SMOOTH_OUT, sizeGlide } from "./motion.ts";
 
 /** How long a status label stays before another may replace it. */
-export const LABEL_DWELL_MS = 400;
+export const LABEL_DWELL_MS = SECOND_MS;
 /** How long a new label takes to fade in where the old one stood. */
 const LABEL_FADE_MS = 200;
 /** How faint a new label starts. */
@@ -55,6 +57,33 @@ export function useSteadyLabel(wanted: string): string {
     return () => clearTimeout(timer);
   }, [shown, wanted]);
   return shown.text;
+}
+
+/** A status line's words on show, when the work they name started (epoch ms), and whether it waits on the person. */
+export interface HeldStatus {
+  label: string;
+  since: number;
+  waiting: boolean;
+}
+
+/**
+ * The status on show once {@link steadyLabel} shows `shown` while the work wants `wanted`: older
+ * words keep their clock and their waiting until they go; the clock starts when its words come on
+ * show and runs on while the same words stay, which follow the work's waiting as it changes.
+ */
+export function heldStatus(held: HeldStatus, shown: string, wanted: HeldStatus): HeldStatus {
+  if (shown !== wanted.label) return held;
+  if (held.label !== shown) return wanted;
+  return held.waiting === wanted.waiting ? held : { ...held, waiting: wanted.waiting };
+}
+
+/** The status line's words, the start of their clock and their waiting, held together by {@link useSteadyLabel}. */
+export function useSteadyStatus(wanted: HeldStatus): HeldStatus {
+  const shown = useSteadyLabel(wanted.label);
+  const [held, setHeld] = useState<HeldStatus>(wanted);
+  const next = heldStatus(held, shown, wanted);
+  if (next !== held) setHeld(next);
+  return next;
 }
 
 /** Fades `text` in each time it changes after the first, in the element `ref` names. */

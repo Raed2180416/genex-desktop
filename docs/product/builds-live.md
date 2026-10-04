@@ -20,7 +20,7 @@ closed, with Show in Finder for files in the game folder.
 pause. The strip holds Live/Builds/Assets, Play/Stop, Reload, the sound switch (⌥⌘M; only a shown
 Live in front is heard), Full screen (hold Esc to leave) and plugin actions such as Publish (accent
 until listed). Stop halts the game until Play or Reload. Slow loads show a halftone loader and a
-shimmering “Loading game”. An empty scaffold shows “Ready for your first idea” (a cube), or
+shimmering “Loading game”. An empty scaffold shows “Ready for your first idea” (a computer), or
 “Building your game” (a crane) with Watch progress while a run works, Play latest once a build is
 ready; the first healthy build then shows itself. Otherwise only the user changes Live (opening a
 game, Reload, Play, Make live, a chat request while Live is hidden). A newer healthy build, a

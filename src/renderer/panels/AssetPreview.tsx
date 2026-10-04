@@ -1,33 +1,41 @@
-/** An asset opened in its own dialog: a model or texture in the 3D viewer, an image, a clip, text, or why it cannot show. */
-import type { JSX, RefObject } from "react";
-import { useEffect, useRef, useState } from "react";
+/**
+ * An asset opened over the window: a picture (click to see it at full size), a model or texture in
+ * the 3D viewer with its animations in one bar, a clip, text, or why it cannot show. Nothing frames
+ * it but Reveal in Finder and Close.
+ */
+import type { JSX, MouseEvent, RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Pause, Play } from "lucide-react";
 import { assetPreviewMode } from "../../shared/asset-preview.ts";
 import type { ProjectAsset } from "../../shared/game-assets.ts";
 import type { createAssetViewer } from "../asset-model-viewer.js";
 import { previewBytes } from "../asset-bytes.ts";
-import { sourceLabel } from "../assets-layout.ts";
-import { DialogSurface } from "../ui/dialog.tsx";
-import { ResultButton as Button } from "../ui/ResultButton.tsx";
+import { clipTitles } from "../asset-names.ts";
+import { Lightbox } from "../ui/Lightbox.tsx";
+import { prefersReducedMotion } from "../ui/media-queries.ts";
 import { hostPlatform } from "../platform.ts";
-import { fileManagerWords } from "../words.ts";
+import { ASSET_WORDS, fileManagerWords } from "../words.ts";
 
 /** How much of a text file the preview decodes. */
 const TEXT_PREVIEW_BYTES = 256 * 1024;
-const BYTES_PER_KB = 1024;
-const BYTES_PER_MB = 1024 * 1024;
-/** Image zoom: one press's step and the most it zooms in. */
-const ZOOM_STEP = 0.5;
-const ZOOM_MAX = 4;
+/** A picture at full size is at least this many times its fitted width, so a small one still grows. */
+const ZOOM_MIN_SCALE = 2;
+/** The animation speeds the speed button steps through. */
+const SPEEDS = [1, 2, 0.5] as const;
 
 type Mode = ReturnType<typeof assetPreviewMode>;
 type Viewer = ReturnType<typeof createAssetViewer>;
 type Clip = { name: string; duration: number };
 
-/** A file's size in KB, or in MB from a megabyte up. */
-function sizeWords(bytes: number): string {
-  if (bytes < BYTES_PER_MB) return `${Math.max(1, Math.round(bytes / BYTES_PER_KB))} KB`;
-  return `${(bytes / BYTES_PER_KB / BYTES_PER_KB).toFixed(2)} MB`;
-}
+/** Why a file could not show, by mode. */
+const MESSAGE = {
+  image: "This image could not be decoded. The file may be incomplete or unsupported.",
+  audio: "This audio codec could not be played. Try a WAV, MP3 or Ogg export.",
+  video: "This video codec could not be played. Try an MP4 (H.264) or WebM export.",
+  unsupported:
+    "This format needs its authoring app. For a 3D preview with materials and animation, export GLB; for a sprite animation, export animated GIF/WebP or video.",
+  truncated: "\n… Preview truncated at 256 KiB; original unchanged.",
+} as const;
 
 /** What a read file shows as: its text, truncated past the preview's limit, or an object URL for the media element. */
 function mediaFrom(
@@ -36,12 +44,21 @@ function mediaFrom(
 ): { text: string } | { url: string } {
   const bytes = previewBytes(result.data);
   if (mode !== "text") return { url: URL.createObjectURL(new Blob([bytes], { type: result.mimeType })) };
-  const truncated = bytes.length > TEXT_PREVIEW_BYTES ? "\n… Preview truncated at 256 KiB; original unchanged." : "";
+  const truncated = bytes.length > TEXT_PREVIEW_BYTES ? MESSAGE.truncated : "";
   return { text: new TextDecoder().decode(bytes.subarray(0, TEXT_PREVIEW_BYTES)) + truncated };
 }
 
-/** The asset loaded for its preview: the 3D viewer for a model or texture, else its bytes as text or a media URL. */
-function useAssetSource(project: string, asset: ProjectAsset, assets: ProjectAsset[], host: HTMLDivElement | null) {
+/**
+ * The asset loaded for its preview: the 3D viewer for a model or texture (with `clips`, animation
+ * files of its rig, playing on it), else its bytes as text or a media URL.
+ */
+function useAssetSource(
+  project: string,
+  asset: ProjectAsset,
+  assets: ProjectAsset[],
+  clips: ProjectAsset[],
+  host: HTMLDivElement | null,
+) {
   const mode = assetPreviewMode(asset.file);
   const model = mode === "model" || mode === "texture";
   const media = useRef<HTMLMediaElement | null>(null);
@@ -50,8 +67,7 @@ function useAssetSource(project: string, asset: ProjectAsset, assets: ProjectAss
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
-  const [clips, setClips] = useState<Clip[]>([]);
-  const [time, setTime] = useState(0);
+  const [animations, setAnimations] = useState<Clip[]>([]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: the preview reloads for a new file or viewer host, not a new list of companions
   useEffect(() => {
     let cancelled = false;
@@ -61,6 +77,8 @@ function useAssetSource(project: string, asset: ProjectAsset, assets: ProjectAss
     };
     const read = (file: string) => window.studio.previewProjectAsset({ project, file });
     if (model && host) {
+      const files = clips.map((clip) => clip.assetRef ?? clip.file);
+      const names = clipTitles(clips.map((clip) => clip.file));
       void import("../asset-model-viewer.js")
         .then(({ createAssetViewer }) => {
           if (cancelled) return;
@@ -68,15 +86,14 @@ function useAssetSource(project: string, asset: ProjectAsset, assets: ProjectAss
             file: asset.assetRef ?? asset.file,
             read,
             companions: assets.map((a) => a.assetRef ?? a.file),
+            motions: files.map((file, i) => ({ file, name: names[i] ?? file })),
             onReady: (value: { clips: Clip[]; triangles: number }) => {
               if (cancelled) return;
-              setClips(value.clips);
+              setAnimations(value.clips);
               setReady(true);
             },
             onError: fail,
-            onTime: (value: number) => {
-              if (!cancelled) setTime(value);
-            },
+            onTime: () => {},
           });
         })
         .catch(fail);
@@ -104,194 +121,185 @@ function useAssetSource(project: string, asset: ProjectAsset, assets: ProjectAss
       if (objectURL) URL.revokeObjectURL(objectURL);
     };
   }, [project, asset.assetRef, asset.file, host]);
-  return { mode, model, media, viewer, url, text, error, setError, ready, setReady, clips, time };
+  return { mode, model, media, viewer, url, text, error, setError, ready, setReady, animations };
 }
 
 type Source = ReturnType<typeof useAssetSource>;
 
-/** Keep the media element the dialog plays, so closing the dialog stops it. */
+/** Keep the media element the viewer plays, so closing it stops it. */
 const keepMedia =
   (media: RefObject<HTMLMediaElement | null>) =>
   (node: HTMLMediaElement | null): void => {
     if (node) media.current = node;
   };
 
-/** The preview itself for anything but a model: the image, the player, the text, or why it cannot show. */
-function MediaBody({
-  source,
-  asset,
-  imageZoom,
-}: {
-  source: Source;
-  asset: ProjectAsset;
-  imageZoom: number;
-}): JSX.Element {
-  const { mode, url, setReady, setError } = source;
+/** Where a full-size picture was asked for: its width, and the point clicked, as shares of the picture. */
+type Zoom = { width: number; x: number; y: number };
+
+/** The picture fitted to the window; a click shows it at full size around the point clicked, another fits it again. */
+function ImageStage({ url, name, source }: { url: string; name: string; source: Source }): JSX.Element {
+  const [zoom, setZoom] = useState<Zoom | null>(null);
+  const scroller = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const box = scroller.current;
+    if (!zoom || !box) return;
+    box.scrollLeft = zoom.x * box.scrollWidth - box.clientWidth / 2;
+    box.scrollTop = zoom.y * box.scrollHeight - box.clientHeight / 2;
+  }, [zoom]);
+  const image = (style?: { width: number; imageRendering?: "pixelated" }) => (
+    <img
+      src={url}
+      alt={name}
+      draggable={false}
+      onLoad={() => source.setReady(true)}
+      onError={() => source.setError(MESSAGE.image)}
+      style={style}
+      className={`lightbox-media block ${style ? "max-w-none" : "max-h-[calc(100vh-160px)] max-w-[calc(100vw-160px)] object-contain"}`}
+    />
+  );
+  const zoomIn = (event: MouseEvent<HTMLButtonElement>) => {
+    const picture = event.currentTarget.querySelector("img");
+    if (!picture) return;
+    const rect = picture.getBoundingClientRect();
+    const byKeyboard = event.detail === 0;
+    setZoom({
+      width: Math.max(picture.naturalWidth, rect.width * ZOOM_MIN_SCALE),
+      x: byKeyboard ? 0.5 : (event.clientX - rect.left) / rect.width,
+      y: byKeyboard ? 0.5 : (event.clientY - rect.top) / rect.height,
+    });
+  };
+  if (!zoom)
+    return (
+      <button type="button" aria-label={ASSET_WORDS.zoomIn} onClick={zoomIn} className="cursor-zoom-in rounded-xl">
+        {image()}
+      </button>
+    );
+  const natural = scroller.current?.querySelector("img")?.naturalWidth ?? zoom.width;
   return (
-    <>
-      {mode === "image" && url && (
-        <div className="max-h-[60vh] overflow-auto">
-          <img
-            src={url}
-            alt={asset.file.split("/").pop()}
-            onLoad={() => setReady(true)}
-            onError={() => setError("This image could not be decoded. The file may be incomplete or unsupported.")}
-            style={imageZoom > 1 ? { width: `${imageZoom * 100}%`, maxWidth: "none" } : undefined}
-            className={imageZoom === 1 ? "mx-auto max-h-[60vh] max-w-full object-contain" : "block"}
-          />
-        </div>
-      )}
-      {mode === "audio" && url && (
-        <div className="flex min-h-40 flex-col justify-center gap-4 p-6">
-          <span className="text-body-sm text-ink-3">Play, seek and adjust the volume below.</span>
-          <audio
-            ref={keepMedia(source.media)}
-            controls
-            preload="metadata"
-            src={url}
-            className="w-full"
-            onLoadedMetadata={() => setReady(true)}
-            onError={() => setError("This audio codec could not be played. Try a WAV, MP3 or Ogg export.")}
-          />
-        </div>
-      )}
-      {mode === "video" && url && (
-        <video
+    <div ref={scroller} className="absolute inset-0 overflow-auto">
+      <div className="grid min-h-full w-max min-w-full place-items-center p-20">
+        <button
+          type="button"
+          aria-label={ASSET_WORDS.zoomOut}
+          onClick={() => setZoom(null)}
+          className="cursor-zoom-out rounded-xl"
+        >
+          {image({ width: zoom.width, ...(zoom.width > natural ? { imageRendering: "pixelated" } : {}) })}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** The preview itself for anything but a model: the picture, the player, the text, or why it cannot show. */
+function MediaBody({ source, asset }: { source: Source; asset: ProjectAsset }): JSX.Element | null {
+  const { mode, url, setReady, setError } = source;
+  const name = asset.file.split("/").pop() ?? asset.file;
+  if (mode === "image" && url) return <ImageStage url={url} name={name} source={source} />;
+  if (mode === "video" && url)
+    return (
+      <video
+        ref={keepMedia(source.media)}
+        controls
+        playsInline
+        preload="metadata"
+        src={url}
+        className="lightbox-media max-h-[calc(100vh-160px)] max-w-[calc(100vw-160px)]"
+        onLoadedMetadata={() => setReady(true)}
+        onError={() => setError(MESSAGE.video)}
+      />
+    );
+  if (mode === "audio" && url)
+    return (
+      <div className="lightbox-panel w-[min(480px,calc(100vw-160px))] p-5">
+        <audio
           ref={keepMedia(source.media)}
           controls
-          playsInline
           preload="metadata"
           src={url}
-          className="mx-auto max-h-[60vh] w-full"
+          className="w-full"
           onLoadedMetadata={() => setReady(true)}
-          onError={() => setError("This video codec could not be played. Try an MP4 (H.264) or WebM export.")}
+          onError={() => setError(MESSAGE.audio)}
         />
-      )}
-      {mode === "text" && (
-        <pre className="max-h-[55vh] overflow-auto whitespace-pre-wrap break-words p-4 text-xs select-text">
-          {source.text}
-        </pre>
-      )}
-      {mode === "unsupported" && (
-        <p className="p-6 text-body-sm text-ink-2">
-          This format needs its authoring app. For a 3D preview with materials and animation, export GLB; for a sprite
-          animation, export animated GIF/WebP or video.
-        </p>
-      )}
-    </>
-  );
-}
-
-/** The viewer's own controls over the model: reset the view, reveal the file, and how to move around. */
-function ViewerControls({ source, onReveal }: { source: Source; onReveal: () => void }): JSX.Element {
-  const shown = source.ready && !source.error;
-  return (
-    <div className="asset-viewer-controls absolute inset-x-3 bottom-3 flex flex-wrap items-end justify-between gap-2">
-      <div className="flex gap-2">
-        {shown && <Button onClick={() => source.viewer.current?.fit()}>Reset view</Button>}
-        <Button onClick={onReveal}>{fileManagerWords(hostPlatform()).reveal}</Button>
       </div>
-      {shown && (
-        <span className="max-w-64 text-right text-micro text-white/65">
-          {source.mode === "texture" ? "Scroll to zoom" : "Drag to orbit · Scroll to zoom · Right-drag to pan"}
-        </span>
-      )}
-    </div>
-  );
+    );
+  if (mode === "text" && source.ready)
+    return (
+      <pre className="lightbox-panel max-h-[calc(100vh-160px)] w-[min(960px,calc(100vw-160px))] overflow-auto whitespace-pre-wrap break-words p-5 text-xs select-text">
+        {source.text}
+      </pre>
+    );
+  if (mode === "unsupported")
+    return <p className="max-w-md text-center text-body-sm text-ink-2">{MESSAGE.unsupported}</p>;
+  return null;
 }
 
-function ImageZoom({ zoom, onZoom }: { zoom: number; onZoom: (zoom: number) => void }): JSX.Element {
-  return (
-    <div className="flex items-center gap-3">
-      <Button aria-label="Zoom out of image" disabled={zoom <= 1} onClick={() => onZoom(Math.max(1, zoom - ZOOM_STEP))}>
-        −
-      </Button>
-      <span className="text-micro tabular-nums">{zoom * 100}%</span>
-      <Button
-        aria-label="Zoom into image"
-        disabled={zoom >= ZOOM_MAX}
-        onClick={() => onZoom(Math.min(ZOOM_MAX, zoom + ZOOM_STEP))}
-      >
-        +
-      </Button>
-      <Button variant="ghost" onClick={() => onZoom(1)}>
-        Fit image
-      </Button>
-    </div>
-  );
-}
-
-/** A model's animation clips: pick one, play or pause it, change its speed, and scrub it. */
-function ClipControls({ source }: { source: Source }): JSX.Element {
-  const { clips, time, viewer } = source;
+/** A model's animations in one floating bar: play or pause, the clips, and the speed. */
+function AnimationBar({ source }: { source: Source }): JSX.Element {
+  const { animations, viewer } = source;
   const [clip, setClip] = useState(-1);
   const [playing, setPlaying] = useState(false);
-  const duration = clip >= 0 ? (clips[clip]?.duration ?? 0) : 0;
+  const [speed, setSpeed] = useState(0);
+  const start = (index: number) => {
+    viewer.current?.clip(index);
+    viewer.current?.play(true);
+    setClip(index);
+    setPlaying(true);
+  };
+  // A model opens moving: its first clip plays at once, unless motion is reduced.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the bar mounts once the clips are known
+  useEffect(() => {
+    if (!prefersReducedMotion()) start(0);
+  }, []);
+  const toggle = () => {
+    if (clip < 0) {
+      start(0);
+      return;
+    }
+    viewer.current?.play(!playing);
+    setPlaying(!playing);
+  };
+  const clipName = animations[Math.max(clip, 0)]?.name ?? "";
   return (
-    <div className="flex flex-wrap items-center gap-3 p-3">
-      <label className="text-body-sm">
-        Animation{" "}
-        <select
-          aria-label="Animation clip"
-          className="cursor-pointer rounded-control bg-inset p-2"
-          value={clip}
-          onChange={(event) => {
-            const next = Number(event.target.value);
-            setClip(next);
-            setPlaying(false);
-            viewer.current?.clip(next);
-          }}
-        >
-          <option value={-1}>Rest pose</option>
-          {clips.map((item, index) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: a clip is chosen by its index; names may repeat
-            <option key={index} value={index}>
-              {item.name}
-            </option>
-          ))}
-        </select>
-      </label>
-      <Button
-        disabled={clip < 0}
-        onClick={() => {
-          viewer.current?.play(!playing);
-          setPlaying(!playing);
-        }}
+    <div role="group" aria-label={ASSET_WORDS.animations} className="lightbox-bar">
+      <button
+        type="button"
+        aria-label={`${playing ? "Pause" : "Play"} ${clipName}`}
+        onClick={toggle}
+        className="lightbox-play"
       >
-        {playing ? "Pause animation" : "Play animation"}
-      </Button>
-      <label className="text-body-sm">
-        Speed{" "}
-        <select
-          aria-label="Animation speed"
-          className="cursor-pointer rounded-control bg-inset p-2"
-          defaultValue="1"
-          onChange={(event) => viewer.current?.speed(Number(event.target.value))}
+        {playing ? (
+          <Pause aria-hidden size={12} fill="currentColor" strokeWidth={0} />
+        ) : (
+          <Play aria-hidden size={12} fill="currentColor" strokeWidth={0} className="translate-x-px" />
+        )}
+      </button>
+      {animations.map((item, index) => (
+        <button
+          // biome-ignore lint/suspicious/noArrayIndexKey: a clip is chosen by its index; names may repeat
+          key={index}
+          type="button"
+          aria-pressed={index === clip}
+          onClick={() => start(index)}
+          className="lightbox-chip"
         >
-          <option value="0.25">0.25×</option>
-          <option value="0.5">0.5×</option>
-          <option value="1">1×</option>
-          <option value="2">2×</option>
-        </select>
-      </label>
-      <input
-        aria-label="Animation position"
-        type="range"
-        min="0"
-        max={duration}
-        step="0.01"
-        value={Math.min(time, duration)}
-        disabled={clip < 0}
-        onChange={(event) => {
-          setPlaying(false);
-          viewer.current?.play(false);
-          viewer.current?.seek(Number(event.target.value));
+          {item.name}
+        </button>
+      ))}
+      <span aria-hidden className="lightbox-rule" />
+      <button
+        type="button"
+        aria-label={ASSET_WORDS.speed}
+        title={ASSET_WORDS.speed}
+        onClick={() => {
+          const next = (speed + 1) % SPEEDS.length;
+          viewer.current?.speed(SPEEDS[next] ?? 1);
+          setSpeed(next);
         }}
-        className="min-w-32 flex-1"
-      />
-      <span className="text-micro tabular-nums text-ink-3">
-        {time.toFixed(1)} / {duration.toFixed(1)}s · loops
-      </span>
+        className="lightbox-chip min-w-11 tabular-nums"
+      >
+        {SPEEDS[speed]}×
+      </button>
     </div>
   );
 }
@@ -300,66 +308,62 @@ export function AssetPreview({
   project,
   asset,
   assets,
+  clips = [],
   onClose,
   onReveal,
 }: {
   project: string;
   asset: ProjectAsset;
   assets: ProjectAsset[];
+  /** Animation files of this model's rig, played on it after its own clips. */
+  clips?: ProjectAsset[];
   onClose: () => void;
   onReveal: () => void;
 }): JSX.Element {
   const [host, setHost] = useState<HTMLDivElement | null>(null);
-  const [imageZoom, setImageZoom] = useState(1);
-  const source = useAssetSource(project, asset, assets, host);
+  const source = useAssetSource(project, asset, assets, clips, host);
   const { mode, model, ready, error } = source;
   const shown = ready && !error;
   const loading = !ready && !error && mode !== "unsupported";
-  const hasClips = mode === "model" && shown && source.clips.length > 0;
+  const animated = source.animations.length > 0;
+  const name = asset.file.split("/").pop() ?? "Asset preview";
   return (
-    <DialogSurface
-      title={asset.file.split("/").pop() ?? "Asset preview"}
-      description={`${sourceLabel(asset.source)} · ${sizeWords(asset.bytes)}`}
-      onDismiss={onClose}
-      headerHidden={model}
-      size="2xl"
-      className={model ? "asset-viewer-dialog !max-w-[960px] !p-0 !gap-0" : "!max-w-[960px]"}
+    <Lightbox
+      title={name}
       testId="asset-preview"
+      onDismiss={onClose}
+      actions={
+        <button type="button" className="lightbox-button" onClick={onReveal}>
+          {fileManagerWords(hostPlatform()).reveal}
+        </button>
+      }
     >
-      <div
-        className={`relative min-h-40 overflow-hidden bg-inset ${model ? "rounded-2xl" : "rounded-xl"}`}
-        data-asset-preview-mode={mode}
-        data-preview-ready={ready}
-      >
-        {model && <div ref={setHost} className="h-[min(72vh,720px)] min-h-48 w-full" />}
-        <MediaBody source={source} asset={asset} imageZoom={imageZoom} />
+      <div className="contents" data-asset-preview-mode={mode} data-preview-ready={ready}>
+        {model && <div ref={setHost} className="absolute inset-0" onDoubleClick={() => source.viewer.current?.fit()} />}
+        {!error && <MediaBody source={source} asset={asset} />}
+        {model && shown && (
+          // Centred, and above the animations bar when there is one, so the two never meet.
+          <p
+            className={`pointer-events-none absolute left-1/2 -translate-x-1/2 text-center text-micro text-ink-3 ${animated ? "bottom-[88px]" : "bottom-9"}`}
+          >
+            {mode === "texture" ? ASSET_WORDS.textureHint : ASSET_WORDS.modelHint}
+          </p>
+        )}
+        {model && shown && animated && <AnimationBar source={source} />}
         {loading && (
           <div
             role="status"
-            className="pointer-events-none absolute inset-0 grid place-items-center bg-inset/80 text-body-sm text-ink-3"
+            className="stage-loader-late pointer-events-none absolute inset-0 grid place-items-center text-body-sm text-ink-3"
           >
-            Loading preview…
+            {ASSET_WORDS.loading}
           </div>
         )}
         {error && (
-          <div role="alert" className="absolute inset-0 grid place-items-center bg-inset p-6 text-body-sm text-ink-2">
+          <div role="alert" className="max-w-md text-center text-body-sm text-ink-2">
             {error}
           </div>
         )}
-        {model && <ViewerControls source={source} onReveal={onReveal} />}
       </div>
-      {mode === "image" && shown && <ImageZoom zoom={imageZoom} onZoom={setImageZoom} />}
-      {hasClips && <ClipControls source={source} />}
-      {!model && (
-        <div className="flex items-center justify-between gap-3">
-          <span className="min-w-0 truncate text-micro text-ink-3" title={asset.file}>
-            {asset.file}
-          </span>
-          <Button variant="ghost" onClick={onReveal}>
-            {fileManagerWords(hostPlatform()).reveal}
-          </Button>
-        </div>
-      )}
-    </DialogSurface>
+    </Lightbox>
   );
 }

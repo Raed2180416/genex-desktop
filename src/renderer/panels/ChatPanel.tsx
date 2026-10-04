@@ -120,7 +120,12 @@ function ChatComposer(parts: ChatParts & { composerRef: RefObject<PromptBarHandl
         // switch away with no way back.
         coordinating={run?.state === RunState.Running}
         leadListens={chat.leadListens}
-        placeholder={chatPlaceholder({ revisingPlan: plan.revising, studio: chat.isStudioThread, draft: chat.isDraft })}
+        placeholder={chatPlaceholder({
+          revisingPlan: plan.revising,
+          studio: chat.isStudioThread,
+          // A game still waiting for its idea asks for one, as home does.
+          draft: chat.isDraft || chat.folder?.provisional === true,
+        })}
         value={drafts.draft}
         onChange={drafts.setDraft}
         model={model.bar}

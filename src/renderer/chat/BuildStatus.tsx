@@ -53,7 +53,7 @@ export function BuildStatus({
         }
         aside={
           <p className="m-0 shrink-0 pe-2 text-end text-chat-sub">
-            <span className="block text-ink">
+            <span className="block min-h-[1lh] text-ink">
               <Elapsed since={startedAt} />
             </span>
             {budgetMs ? <span className="block text-ink-3">{capWords(budgetMs)}</span> : null}

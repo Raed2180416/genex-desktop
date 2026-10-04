@@ -11,6 +11,8 @@ import {
   launchFailed,
   launchFinished,
   launchHanded,
+  launchInSidebar,
+  launchMade,
   launchNamed,
   launchOpened,
   launchStarted,
@@ -67,6 +69,25 @@ describe("the launch's own steps", () => {
     assert.equal(launchFinished(handed, "l1").launch, null);
     assert.deepEqual(launchFinished(handed, "l1").planning, opened.planning, "and keeps doing so after");
     assert.equal(launchFinished(handed, "other"), handed);
+  });
+
+  it("the sidebar holds one row for it: a placeholder until its game is listed, then the game's own", () => {
+    const named = launchNamed(started, "l1", "Tiny Island Fishing");
+    const nothing = () => false;
+    assert.deepEqual(launchInSidebar(null, nothing), { placeholder: false, title: null, project: null });
+    assert.deepEqual(launchInSidebar(named.launch, nothing), {
+      placeholder: true,
+      title: "Tiny Island Fishing",
+      project: null,
+    });
+    const made = launchMade(named, "l1", "tiny-island-fishing");
+    assert.equal(made.launch?.phase, LaunchPhase.Opening, "made, its chat still opening");
+    assert.equal(launchMade(named, "other", "x"), named, "a stale launch's step changes nothing");
+    assert.equal(launchInSidebar(made.launch, nothing).placeholder, true, "never no row at all");
+    assert.deepEqual(
+      launchInSidebar(made.launch, (name) => name === "tiny-island-fishing"),
+      { placeholder: false, title: "Tiny Island Fishing", project: "tiny-island-fishing" },
+    );
   });
 
   it("a failed launch gives the words back to home once", () => {
@@ -134,6 +155,29 @@ describe("launching a game from home", () => {
     assert.equal(storage.data.get("studio.threadEffort.t-fish"), "high", "and its effort");
   });
 
+  it("the made game takes its placeholder's place at once, while its chat is still opening", async () => {
+    let openChat: (record: ConversationRecord) => void = () => {};
+    const { app } = launched({
+      threadForGame: () =>
+        new Promise((resolve) => {
+          openChat = resolve;
+        }),
+    });
+    await tick();
+    const going = app.launchGame({ text: REQUEST, modelKey: null, effort: null });
+    await tick();
+    const listed = (name: string) => app.library.getState().games.some((g) => g.name === name);
+    assert.ok(listed("tiny-island-fishing"), "the library lists the new game");
+    assert.deepEqual(
+      launchInSidebar(app.launch.getState().launch, listed),
+      { placeholder: false, title: "Tiny Island Fishing", project: "tiny-island-fishing" },
+      "one row, the game's own, never the game and its placeholder",
+    );
+    openChat(chat("t-fish", "tiny-island-fishing"));
+    await going;
+    assert.equal(app.launch.getState().launch?.phase, LaunchPhase.Opened);
+  });
+
   it("makes the game in the folder chosen at home", async () => {
     const { app, fake } = launched();
     await tick();
@@ -150,7 +194,14 @@ describe("launching a game from home", () => {
     });
     await tick();
     await app.launchGame({ text: REQUEST, modelKey: null, effort: null });
-    assert.deepEqual(fake.callsOf("createGame"), [["Untitled game"]]);
+    assert.deepEqual(fake.callsOf("createGame"), [["Untitled game", { provisional: true }]]);
+  });
+
+  it("a first message that names no game (a greeting) makes it Untitled, its name waiting for an idea", async () => {
+    const { app, fake } = launched({ nameGame: async () => ({ title: "Untitled game", provisional: true }) });
+    await tick();
+    await app.launchGame({ text: "Hello", modelKey: null, effort: null });
+    assert.deepEqual(fake.callsOf("createGame"), [["Untitled game", { provisional: true }]]);
   });
 
   it("a refused game leaves home as it was, says why, and gives the words back", async () => {

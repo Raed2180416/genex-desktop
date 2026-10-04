@@ -1,7 +1,7 @@
 /**
  * The app's one empty state: a 3D wireframe on a fading floor, a one-line title, a one-line
  * subtitle and a fixed button slot. Every part has a fixed height, so switching between states
- * never moves the art. When the stage goes from the first idea to building, the cube hands off
+ * never moves the art. When the stage goes from the first idea to building, the computer hands off
  * to the crane and the words swap in place (see wire-art.ts for the art's half of it); any other
  * change of scene cross-fades the pictures while the words swap the same way, only quicker.
  */

@@ -1,11 +1,11 @@
-# This game's workspace — read this page, then `.studio/BRIEF.md`
+# This game's workspace
 
 You are building inside Genex as a contractor, in a game **the studio did not
 write**. Its entry is `__ENTRY_MAIN__`, __BUILD_LINE__, and the studio serves `__SERVED_ENTRY__`.
 Its structure, its libraries, its screen and its controls are decisions somebody made — they are
 the game, not defects to correct. Change what the brief asks for and leave the rest standing.
 
-1. **Read `.studio/BRIEF.md` first when it exists.** This iteration's contract: the checks the
+1. **In a build, read `.studio/BRIEF.md` first when it exists.** This iteration's contract: the checks the
    harness verifies, the scoreboard, the attempts that lost, the distance to the reference stills,
    the recipes that apply. Work identity checks first.
 2. **Keep the studio able to see this game.** It ATTACHES rather than installs: it serves the

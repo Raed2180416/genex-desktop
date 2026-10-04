@@ -1,7 +1,22 @@
 /** Settings → Games: the folder new games are created in. */
 import { useState, type JSX } from "react";
 import { Button } from "../ui/Button.tsx";
+import { Icon } from "../ui/icons.tsx";
 import { problemWords } from "../words.ts";
+
+/** The section's own words. */
+const WORDS = {
+  title: "Default game folder",
+  hint: "New games are created here. Games you already have stay where they are.",
+  change: "Change…",
+  choosing: "Choosing…",
+} as const;
+
+/** A path as its parent ("~/") and its own folder ("AI Games"): the parent is cut first when it is long. */
+function pathParts(label: string): { parent: string; leaf: string } {
+  const cut = label.replace(/\/+$/, "").lastIndexOf("/");
+  return cut < 0 ? { parent: "", leaf: label } : { parent: label.slice(0, cut + 1), leaf: label.slice(cut + 1) };
+}
 
 export function GamesSection({
   rootLabel,
@@ -25,20 +40,23 @@ export function GamesSection({
       setBusy(false);
     }
   };
+  const { parent, leaf } = pathParts(rootLabel);
   return (
     <div data-games-settings className="appearance-section">
-      <div className="appearance-row">
-        <span className="flex min-w-0 flex-col">
-          <span className="text-ink">Games folder</span>
-          <span data-games-root className="font-mono break-all text-ink-2">
-            {rootLabel}
-          </span>
-          <span className="text-ink-3">New games are created here. Games you already have stay where they are.</span>
-        </span>
-        <Button disabled={busy} onClick={() => void choose()}>
-          {busy ? "Choosing…" : "Change…"}
-        </Button>
-      </div>
+      <section aria-label={WORDS.title} className="settings-card">
+        <h3 className="settings-card-title">{WORDS.title}</h3>
+        <div className="mt-2.5 flex min-w-0 items-center gap-2">
+          <div data-games-root title={rootLabel} className="settings-path">
+            <Icon name="folder" size={14} className="shrink-0 text-ink-3" />
+            <span className="min-w-0 truncate text-ink-3">{parent}</span>
+            <span className="shrink-0 whitespace-nowrap text-ink">{leaf}</span>
+          </div>
+          <Button disabled={busy} onClick={() => void choose()} className="h-9">
+            {busy ? WORDS.choosing : WORDS.change}
+          </Button>
+        </div>
+        <p className="mt-2.5 text-ink-3">{WORDS.hint}</p>
+      </section>
       {error && (
         <p role="alert" className="mt-2 text-red">
           {error}

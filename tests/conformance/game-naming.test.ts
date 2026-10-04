@@ -105,8 +105,17 @@ describe("naming a game", () => {
     });
   });
 
+  it("leaves a game whose first message names none (a greeting, a test) Untitled, its name waiting for an idea", async () => {
+    for (const reply of ["NONE", "None.", "**NONE**"])
+      assert.deepEqual(await nameGame(deps([engine("a", reply)]), { prompt: "Hello" }), {
+        title: UNTITLED_GAME,
+        provisional: true,
+      });
+  });
+
   it("falls back to the request when the engine fails, answers nothing, or is not there", async () => {
-    const fallback = { title: "A cozy fishing game on a tiny island" };
+    // The request's own words are a stand-in: the name still waits for the model's.
+    const fallback = { title: "A cozy fishing game on a tiny island", provisional: true };
     assert.deepEqual(await nameGame(deps([engine("a", new Error("signed out"))]), { prompt: REQUEST }), fallback);
     assert.deepEqual(await nameGame(deps([engine("a", "")]), { prompt: REQUEST }), fallback);
     assert.deepEqual(await nameGame(deps([]), { prompt: REQUEST }), fallback);
@@ -119,12 +128,15 @@ describe("naming a game", () => {
     const slow = engine("slow", () => new Promise<string>((resolve) => setTimeout(() => resolve("Too Late"), 500)));
     const started = Date.now();
     const named = await nameGame(deps([slow], 20), { prompt: REQUEST });
-    assert.deepEqual(named, { title: "A cozy fishing game on a tiny island" });
+    assert.deepEqual(named, { title: "A cozy fishing game on a tiny island", provisional: true });
     assert.ok(Date.now() - started < 400, "the name came from the request without waiting for the model");
   });
 
   it("refuses a request that is not text, and names an empty one Untitled game", async () => {
     await assert.rejects(nameGame(deps([]), { prompt: 42 as unknown as string }));
-    assert.deepEqual(await nameGame(deps([engine("a", "")]), { prompt: "" }), { title: UNTITLED_GAME });
+    assert.deepEqual(await nameGame(deps([engine("a", "")]), { prompt: "" }), {
+      title: UNTITLED_GAME,
+      provisional: true,
+    });
   });
 });

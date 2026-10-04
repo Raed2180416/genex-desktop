@@ -25,6 +25,8 @@ export interface GameLibraryEntry {
   trustProjectSettings?: boolean;
   cover?: GameCover;
   primaryThreadId?: string;
+  /** The title waits for the game's first idea; any title given since clears it. */
+  provisional?: boolean;
 }
 export interface GameUpdate {
   title?: string;
