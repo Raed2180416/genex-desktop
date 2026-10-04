@@ -5,6 +5,10 @@
  * preview; nothing here runs.
  */
 
+/** The `__studio` verbs that start and pause a game's clock (`src/game-template/src/studio.js`). */
+export const GameClock = { Start: "start", Pause: "pause" } as const;
+export type GameClock = (typeof GameClock)[keyof typeof GameClock];
+
 /**
  * Which surface a capture photographs (M4.5/M4.9a). `canvas` is what the game draws, `page` is
  * the whole compositor frame — the DOM menu, the HTML HUD, the loader — and `auto` lets the

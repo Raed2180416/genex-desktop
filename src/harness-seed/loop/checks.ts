@@ -1284,13 +1284,15 @@ export function summarizeScoreboard(
   // carries `unavailable`. It never counts as passing, and at identity weight it never blocks
   // `satisfied` either; a board whose identity checks are ALL unanswerable still does.
   const unanswerable = (e: CheckResult): boolean => e.unavailable === true && !isMeasured(e);
+  // A judge's guess failed nothing it could see: it reads as couldn't measure, never as failing.
+  const couldNotTell = (e: CheckResult): boolean => !isMeasured(e) || guessed(e);
   const identityCounted = identity.filter((e) => !unanswerable(e));
   const planned = entries.filter((e) => !isGrown(e));
   const grown = entries.filter(isGrown);
   return {
     total: entries.length,
     passing: entries.filter(measuredPass).length,
-    unmeasured: entries.filter((e) => !isMeasured(e)).length,
+    unmeasured: entries.filter(couldNotTell).length,
     plannedTotal: planned.length,
     plannedPassing: planned.filter(measuredPass).length,
     plannedUnmeasured: planned.filter((e) => !isMeasured(e)).length,
@@ -1300,12 +1302,21 @@ export function summarizeScoreboard(
     identityPassing: identity.filter(measuredPass).length,
     identityAllPass: identityAllPass(identity, identityCounted, entries, spec),
     failing: entries
-      .filter((e) => e.pass === false)
+      .filter((e) => e.pass === false && !guessed(e))
       .map((e) => ({ id: e.id, kind: e.kind, weight: e.weight, reason: e.reason })),
     unmeasuredChecks: entries
-      .filter((e) => !isMeasured(e))
+      .filter(couldNotTell)
       .map((e) => ({ id: e.id, kind: e.kind, weight: e.weight, reason: e.reason })),
   };
+}
+
+/**
+ * A vision check failed only on an answer below the guessing line (`VISION_STUCK_CONFIDENCE`):
+ * golden-boot-glory ended with six such checks listed as failing at confidence 0.20–0.40.
+ */
+function guessed(entry: CheckResult): boolean {
+  const unsure = typeof entry.confidence === "number" && entry.confidence < VISION_STUCK_CONFIDENCE;
+  return entry.kind === Kind.Vision && entry.pass === false && unsure;
 }
 
 /**

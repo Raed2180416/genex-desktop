@@ -18,6 +18,32 @@ import { EventKind, RunEvent } from "../loop/run-events.ts";
 
 const str = (description: string) => ({ type: "string", description });
 
+/**
+ * The plain words every self-change carries: the person sees them in Activity, beside the diff
+ * and Undo, and never reads your files.
+ */
+const PLAIN_WORDS_PARAMS = {
+  title: str(
+    "for the person using the app, who never reads your files: at most eight plain words starting with a verb, saying what you will do differently",
+  ),
+  summary: {
+    type: "array",
+    items: { type: "string" },
+    description:
+      "one to three short plain sentences about the same change, for the same person; no file, tool or skill names",
+  },
+};
+
+/** What a self-change says about itself: why (for the log), and its plain words (for the person). */
+type ChangeWords = { reason: string; title?: unknown; summary?: unknown };
+
+/** A tool call's own words about its change. */
+const changeWords = (args: AnyRecord): ChangeWords => ({
+  reason: args.reason,
+  title: args.title,
+  summary: args.summary,
+});
+
 /** Paths inside the harness workspace are the agent's own body; nothing outside is reachable. */
 function selfPath(ctx: ToolCtx, relative: string): string {
   const base = ctx.workspace;
@@ -39,11 +65,15 @@ async function writeSelf(
   ctx: ToolCtx,
   file: string,
   contents: string,
-  reason: string,
+  { reason, title, summary }: ChangeWords,
 ): Promise<{ ok: true; snapshotId: string } | { ok: false; message: string }> {
   // The host takes the path as the workspace spells it, whatever form it was given in.
   const rel = path.relative(ctx.workspace, selfPath(ctx, file)).split(path.sep).join("/");
-  const written = await ctx.call(HostMethod.GuardianWriteSelf, { file: rel, contents, reason });
+  const words = {
+    ...(typeof title === "string" ? { title } : {}),
+    ...(Array.isArray(summary) ? { summary: summary.filter((line): line is string => typeof line === "string") } : {}),
+  };
+  const written = await ctx.call(HostMethod.GuardianWriteSelf, { file: rel, contents, reason, ...words });
   return written.ok ? { ok: true, snapshotId: written.snapshotId } : { ok: false, message: written.message };
 }
 
@@ -114,8 +144,9 @@ export const tools: HarnessTool[] = [
         file: str("path relative to your workspace"),
         contents: str("full new contents"),
         reason: str("why you are changing this — it goes in the log and the self-change diff"),
+        ...PLAIN_WORDS_PARAMS,
       },
-      required: ["file", "contents", "reason"],
+      required: ["file", "contents", "reason", "title", "summary"],
     },
     async execute(args, ctx) {
       // R4: the judge rubrics are the yardstick this self is measured by — frozen. The sandbox
@@ -123,7 +154,7 @@ export const tools: HarnessTool[] = [
       if (args.file === "judge" || args.file.startsWith("judge/")) {
         throw new Error(`judge/ is frozen: the blind critic's rubric is not yours to edit (refused: ${args.file})`);
       }
-      const written = await writeSelf(ctx, args.file, args.contents, args.reason);
+      const written = await writeSelf(ctx, args.file, args.contents, changeWords(args));
       if (!written.ok) return notApplied(args.file, written.message);
       ctx.notify("selfmod.edited", { file: args.file, reason: args.reason });
       const needsRestart = args.file.startsWith("loop/");
@@ -148,15 +179,16 @@ export const tools: HarnessTool[] = [
         filename: str("e.g. audio-tools.ts"),
         contents: str("full TypeScript module source"),
         reason: str("what this tool is for"),
+        ...PLAIN_WORDS_PARAMS,
       },
-      required: ["filename", "contents", "reason"],
+      required: ["filename", "contents", "reason", "title", "summary"],
     },
     async execute(args, ctx) {
       // `.mjs` is the pre-TypeScript extension, still accepted for a tool written in plain JavaScript.
       if (!/^[a-z0-9-]+\.(?:ts|mjs)$/.test(args.filename)) {
         return { ok: false, content: "filename must look like my-tools.ts (lowercase, .ts)" };
       }
-      const written = await writeSelf(ctx, `tools/${args.filename}`, args.contents, args.reason);
+      const written = await writeSelf(ctx, `tools/${args.filename}`, args.contents, changeWords(args));
       if (!written.ok) return notApplied(`tools/${args.filename}`, written.message);
       ctx.notify("selfmod.tool_installed", { file: args.filename, reason: args.reason });
       return `Installed tools/${args.filename} (tried in a copy of you first). It will be in your tool list on the next round — call it to check that it works.`;
@@ -183,12 +215,13 @@ export const tools: HarnessTool[] = [
         slug: str("file name without .md"),
         contents: str("full markdown, starting with --- name: … description: … ---"),
         reason: str("what you learned that made you write this"),
+        ...PLAIN_WORDS_PARAMS,
       },
-      required: ["slug", "contents", "reason"],
+      required: ["slug", "contents", "reason", "title", "summary"],
     },
     async execute(args, ctx) {
       const file = path.join("skills", `${args.slug}.md`);
-      const written = await writeSelf(ctx, file, args.contents, args.reason);
+      const written = await writeSelf(ctx, file, args.contents, changeWords(args));
       if (!written.ok) return notApplied(file, written.message);
       ctx.notify("selfmod.skill_edited", { slug: args.slug, reason: args.reason });
       return `Wrote skills/${args.slug}.md (tried in a copy of you first).`;

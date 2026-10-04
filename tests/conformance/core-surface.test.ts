@@ -60,6 +60,8 @@ const METHODS = [
   "offerLive",
   "permissionSettings",
   "playGameSnapshot",
+  // The stage strip's Play/Stop (studio:preview.play, studio:preview.stop).
+  "playLive",
   "pluginBinding",
   "presentProjectAssets",
   "previewProjectAsset",
@@ -104,6 +106,7 @@ const METHODS = [
   "snapshot",
   "start",
   "stop",
+  "stopLive",
   "stopThread",
   "threadForGame",
   "undoSelfChange",

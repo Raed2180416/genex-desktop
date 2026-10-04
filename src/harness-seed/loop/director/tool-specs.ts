@@ -374,6 +374,11 @@ export const DIRECTOR_TOOLS: LiveToolSpec[] = [
         },
         land: { type: "string", description: "yes (default) or no." },
         victory: { type: "string", description: "yes or no (default)." },
+        user_asked: {
+          type: "string",
+          description:
+            "A timed build with working time left: the user's words asking to stop or finish now, quoted exactly from their message to this run.",
+        },
       },
       required: ["summary"],
     },

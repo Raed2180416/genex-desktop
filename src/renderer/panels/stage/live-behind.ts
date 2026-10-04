@@ -31,6 +31,8 @@ export interface LiveBehindInput extends StageWatch {
   threadId: string | null;
   graph: RunGraphModel | null;
   selectedRun: string | null;
+  /** The person stopped the game: nothing waiting goes in on its own, which would start it again. */
+  stopped: boolean;
   loadLive: (target: string, load: () => Promise<unknown>) => Promise<unknown>;
   onView: (view: StageView) => void;
   onNotice: Notify;
@@ -172,7 +174,7 @@ export function useLiveBehind(input: LiveBehindInput): {
   const reload = useCallback(() => void apply(behindRef.current), [apply]);
 
   const stage: StageWatch = { view: input.view, visible: input.visible, showEmpty: input.showEmpty };
-  useUnseenChanges(appliesUnseen(behind, stage) ? behind : null, apply);
+  useUnseenChanges(appliesUnseen(behind, stage) && !input.stopped ? behind : null, apply);
   useFirstBuild(firstBuildShows(offer, stage) ? (offer?.head ?? null) : null, failedHead, showMergedBuild);
 
   const showBuild = useCallback((head: string): Promise<void> => showMergedBuild(head, true), [showMergedBuild]);

@@ -1681,9 +1681,13 @@ export interface HarnessHostApi {
    * The one way the harness changes one of its own files (`write_own_file`, `write_skill`,
    * `install_tool`): the host tries the change in a validation fork, snapshots before and after,
    * writes it, and records it where Activity and Undo read it. Prompts and skills are
-   * write-denied to every agent process, so nothing else changes them.
+   * write-denied to every agent process, so nothing else changes them. `title` and `summary` are
+   * the plain words Activity shows for the change; the host bounds them.
    */
-  "guardian.write_self": { params: { file: string; contents: string; reason: string }; result: SelfWriteResult };
+  "guardian.write_self": {
+    params: { file: string; contents: string; reason: string; title?: string; summary?: string[] };
+    result: SelfWriteResult;
+  };
   /** A harness notification forwarded to the renderer as a `UiEvent`, name and payload as sent. */
   "ui.notify": { params: { type: string; payload?: unknown }; result: boolean };
 }

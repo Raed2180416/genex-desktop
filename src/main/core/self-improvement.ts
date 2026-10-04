@@ -61,14 +61,14 @@ const CHANGE_DIFF_MAX_CHARS = 400_000;
 
 /** Words the user reads when a suggestion or an undo cannot go ahead. */
 const MESSAGE = {
-  suggestionGone: "This suggestion is no longer waiting. Studio may have applied or discarded it already.",
+  suggestionGone: "This suggestion is no longer waiting. Harness may have applied or discarded it already.",
   suggestionTargetGone: "The instructions this suggestion changes are gone. Discard it.",
-  changeNotFound: "Studio couldn’t find this change.",
+  changeNotFound: "Harness couldn’t find this change.",
   changeAlreadyUndone: "This change was already undone.",
-  changeBaseGone: "Studio no longer has the version from before this change, so it can’t undo it.",
-  undoWhileBuilding: "Studio is building right now. Undo this change when the build finishes.",
-  undoConflict: "A later change edited the same part of Studio’s instructions. Undo that change first.",
-  changeAlreadyGone: "This change no longer differs from what Studio has now.",
+  changeBaseGone: "Harness no longer has the version from before this change, so it can’t undo it.",
+  undoWhileBuilding: "Harness is building right now. Undo this change when the build finishes.",
+  undoConflict: "A later change edited the same part of Harness’s instructions. Undo that change first.",
+  changeAlreadyGone: "This change no longer differs from what Harness has now.",
 } as const;
 
 /** Folders the architect never sees: the frozen judge, and installed packages. */

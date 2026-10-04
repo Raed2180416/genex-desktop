@@ -107,10 +107,19 @@ function launchEnv(owner: any): NodeJS.ProcessEnv {
   return freshMachineEnv(process.env, { home: owner.home, secureStorage: owner.secureStorage });
 }
 
+/**
+ * How an owned build is built: a fixture profile's also counts React commits for its checks; a
+ * live one does not, since profiling every render slows the app a person is using.
+ */
+export function devBuildArgs(buildId: string, providers: string): string[] {
+  const args = ["scripts/build.mjs", `--dev-build=${buildId}`];
+  return providers === "fixture" ? [...args, "--commit-counts"] : args;
+}
+
 /** Builds a dev build and starts the app on it, detached, with its output in a fresh log folder. */
 async function launchApp(owner: any, id: string, providers: string) {
   const buildId = `b-${randomUUID()}`;
-  await command(process.execPath, ["scripts/build.mjs", `--dev-build=${buildId}`]);
+  await command(process.execPath, devBuildArgs(buildId, providers));
   writeJson(safeChild(owner.root, "launch.json"), { version: 1, profileId: id, ownerId: owner.ownerId, buildId });
   const logRoot = safeChild(devRoot(checkout), `evidence/launch-${buildId}`);
   fs.mkdirSync(logRoot, { mode: 0o700 });

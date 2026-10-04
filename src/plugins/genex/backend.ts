@@ -38,21 +38,27 @@ const MESSAGE = {
   OutsideInvocation: "A Genex host call ran outside a plugin invocation",
 } as const;
 
-/** The publish toolbar item's badges. */
-const PUBLISH_BADGE = {
-  Uploading: (phase: string) => ({ badge: "Uploading…", tone: "info", title: `Publishing this game (${phase})` }),
-  Failed: { badge: "Draft", tone: "warn", title: "The last publish failed. Open Publish to read why." },
-  Live: { badge: "Live", tone: "ok", title: "This game is listed in the Genex gallery" },
-  Draft: { badge: "Draft", tone: "info", title: "This game has an unlisted draft page" },
+/**
+ * The publish toolbar item's status: no badge, only its tooltip, and whether the game has
+ * something to publish (`attention`), which Studio draws in the accent.
+ */
+const PUBLISH_STATUS = {
+  Uploading: (phase: string) => ({ title: `Publishing this game (${phase})`, attention: false }),
+  Failed: { title: "The last publish failed. Open Publish to read why.", attention: true },
+  Live: { title: "This game is listed in the Genex gallery", attention: false },
+  Draft: { title: "This game has an unlisted draft page", attention: true },
+  Unpublished: { title: "Publish this game with a playable link", attention: true },
 } as const satisfies Record<string, PluginToolbarStatus | ((phase: string) => PluginToolbarStatus)>;
 
-/** The badge for a game's publish state: uploading, failed, listed, drafted, or none. */
-function publishBadge(state: GenexPublishState): PluginToolbarStatus {
-  if (state.job?.state === GenexPublishJobState.Running) return PUBLISH_BADGE.Uploading(state.job.phase);
-  if (state.job?.state === GenexPublishJobState.Failed) return PUBLISH_BADGE.Failed;
-  if (state.status === GenexHostedStatus.Published) return PUBLISH_BADGE.Live;
-  if (state.slug) return PUBLISH_BADGE.Draft;
-  return {};
+/** Publish's status for a game's publish state: uploading, failed, listed, drafted, or never published. */
+export function publishButtonStatus(state: GenexPublishState): PluginToolbarStatus {
+  const job = state.job?.state;
+  if (job === GenexPublishJobState.Running || job === GenexPublishJobState.Unresolved)
+    return PUBLISH_STATUS.Uploading(state.job?.phase ?? "");
+  if (job === GenexPublishJobState.Failed) return PUBLISH_STATUS.Failed;
+  if (state.status === GenexHostedStatus.Published) return PUBLISH_STATUS.Live;
+  if (state.slug) return PUBLISH_STATUS.Draft;
+  return PUBLISH_STATUS.Unpublished;
 }
 
 /** A publish-status call: wait on the running upload, or read (and with `check`, re-check) the record. */
@@ -72,9 +78,7 @@ async function publishTool(genex: GenexTools, project: string, args: Args, ctx: 
     operation: args.operation,
     phase: PublishAnnouncement.Requested,
   });
-  await ctx
-    .host(PluginService.EventsEmit, { kind: "toolbar", item: "publish", badge: "Uploading…", tone: "info" })
-    .catch(() => {});
+  await ctx.host(PluginService.EventsEmit, { kind: "toolbar", item: "publish", attention: false }).catch(() => {});
   // The export runs inside this invocation: a detached upload gets no answer from host services.
   const exportStage = () => service(PluginService.ExportStage, {});
   const state =
@@ -186,7 +190,9 @@ const ACTIONS: Record<string, Action> = {
   [GenexAction.PublishOpen]: withProject((genex, project, args) => genex.publishLinks(project, args.target)),
   [GenexAction.PublishBadge]: async (genex, args, ctx) => {
     if (!ctx.project) return {};
-    return publishBadge(await genex.publishStatus(ctx.project, args.operation === GenexPublishStatusOperation.Check));
+    return publishButtonStatus(
+      await genex.publishStatus(ctx.project, args.operation === GenexPublishStatusOperation.Check),
+    );
   },
 };
 

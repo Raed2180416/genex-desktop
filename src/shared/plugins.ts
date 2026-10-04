@@ -222,6 +222,8 @@ export interface PluginToolbarStatus {
   disabled?: boolean;
   title?: string;
   tone?: "ok" | "warn" | "err" | "info";
+  /** The button's action is due now (a game with something to publish): drawn in the accent fill. */
+  attention?: boolean;
 }
 /**
  * Where one environment variable of a plugin's MCP server gets its value. The manifest names a

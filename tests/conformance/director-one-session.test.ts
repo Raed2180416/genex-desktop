@@ -1255,7 +1255,8 @@ describe("the same agent after the build: the resume it asks for, and the sessio
     await launchedAndClosed(rig, threadId, engine);
     const chatSession = requests.find((r) => r.kind === Kind.Chat)?.sessionId;
     const leadsBefore = requests.filter((r) => r.kind === Kind.Lead).length;
-    night = landingNight("enemies", true);
+    // The reopened night works to its ask (a goal commission): its lead plans for it first.
+    night = landingNight("enemies", false);
     part = "enemies";
 
     await answeredOnLoop(rig, threadId, "add enemies", "claude-code", { hours: 2 }, 2);
@@ -1326,7 +1327,8 @@ async function seeReopenedWorker(request: DelegateRequest, seen: ReopenSeen): Pr
  * then records the reopen for enemies; and the night reopened, which builds them.
  */
 function reopenedNights(gameDir: string, seen: ReopenSeen) {
-  const nights = [landingNight("sky", false), landingNight("enemies", true)];
+  // The reopened night works to its ask (a goal commission, golden-boot-glory): its lead plans for it first.
+  const nights = [landingNight("sky", false), landingNight("enemies", false)];
   let night = 0;
   const chatAfter = async (request: DelegateRequest) => {
     if (request.prompt.includes("add enemies")) {
@@ -1402,6 +1404,11 @@ describe("the same agent after the build: a finished build reopened with Loop on
 
     const second = customEvents(log, "run_finished")[1] ?? {};
     assert.equal(second.landed, true, String(second.stoppedBecause));
+    assert.deepEqual(
+      Object.keys(second.workers ?? {}).sort(),
+      ["enemies", "sky"],
+      "the reopened night's record keeps the finished night's workers",
+    );
     assert.equal(await readFile(path.join(project.dir, "src", "sky.js"), "utf8"), "export const sky = 'pink';\n");
     assert.equal(await readFile(path.join(project.dir, "src", "enemies.js"), "utf8"), "export const enemies = true;\n");
     assert.deepEqual(strangers(requests), [], "no coordinator and no builder follow-up");

@@ -5551,7 +5551,8 @@ describe("a Loop message after a finished build the run's coordinator answers fo
       recorded = [],
       since = [],
       artifacts = {},
-    }: { chatSession?: boolean; recorded?: Json[]; since?: Json[]; artifacts?: Json } = {},
+      contained = false,
+    }: { chatSession?: boolean; recorded?: Json[]; since?: Json[]; artifacts?: Json; contained?: boolean } = {},
   ) {
     const log: Array<{ id: string; data: Json }> = [
       { id: "e1", data: { type: "custom", event_type: "run_registered", payload: { ...run, resumed: false } } },
@@ -5600,6 +5601,7 @@ describe("a Loop message after a finished build the run's coordinator answers fo
             runId: RUN,
             sourceMessageId: params.coordinator.messageId,
             text: "add enemies to the plaza",
+            ...(contained ? { build: false } : {}),
           };
           append({ type: "custom", event_type: "run_followup_requested", payload: followup });
         }
@@ -5682,6 +5684,17 @@ describe("a Loop message after a finished build the run's coordinator answers fo
     await handleUserMessage(chat.studio as never, { ...message } as never);
     assert.doesNotMatch(String(chat.asked.coordinator[0]?.prompt), /Loop is on/);
     assert.equal(chat.asked.builders.length, 1, "one builder turn");
+    assert.equal((await chat.registered()).length, 1, "nothing reopened");
+  });
+
+  it("GB1b. a contained change with Loop on after a coordinator-led finished build: continue_build with build: false hands it to one builder turn, and nothing reopens", async () => {
+    const chat = coordinatedChat(true, { contained: true });
+    await handleUserMessage(
+      chat.studio as never,
+      { ...message, text: "fix it quickly", autopilot: { hours: 3 } } as never,
+    );
+    assert.match(String(chat.asked.coordinator[0]?.prompt), /Loop is on/);
+    assert.equal(chat.asked.builders.length, 1, "one builder turn makes the change");
     assert.equal((await chat.registered()).length, 1, "nothing reopened");
   });
 
@@ -5866,6 +5879,221 @@ describe("a finished build reopened, and the outcomes it must verify", () => {
       );
       assert.deepEqual(carried, [], `${label}: its checkpoints and review are its own`);
     }
+  });
+});
+
+/**
+ * golden-boot-glory (2026-10-02): after a finished 3 h Loop build, the user asked to "fix it very
+ * quickly" — remove two HUD plates. The after-build note told the session that work "of any size — a
+ * fix…" goes to the build, so it reopened the run with a fresh three hours that had to be spent: the
+ * chat said "until about 9:48 PM", the lead made the fix in seventy seconds, and `finish` was then
+ * refused for 159 working minutes.
+ */
+describe("a quick fix after a finished Loop build (golden-boot-glory)", () => {
+  const grant = { hours: 3, frameCount: 2, project: "golden-boot-glory", launchTool: "start_autopilot" };
+  const finished = { runId: "run_gb", state: "finished", goal: "a soccer game", landed: true, reopenable: true };
+
+  it("GB1. Loop permits a build but never orders one: a contained change after a finished build is the session's own edit, and only more work reopens it", async () => {
+    const { afterNightNote } = await import("../../src/harness-seed/loop/after-night-prompts.ts");
+    const { coordinatorPrompt } = await import("../../src/harness-seed/loop/coordinator-prompts.ts");
+    const note = afterNightNote(finished as never, "claude-code", grant);
+    const coordinator = coordinatorPrompt({
+      events: [],
+      run: { runId: "run_gb" },
+      text: "fix it quickly",
+      journal: null,
+      savedPlan: null,
+      history: "",
+      reopen: { hours: 3 },
+    });
+    for (const [label, words] of [
+      ["the chat's own session", note],
+      ["the run's coordinator", coordinator],
+    ]) {
+      assert.doesNotMatch(String(words), /of any size/, `${label}: a fix is not a build`);
+      assert.match(String(words), /contained change/i, `${label}: a contained change is named`);
+    }
+    assert.match(note, /contained change[^\n]*yourself/i, "the session makes a contained change itself");
+    assert.match(note, /estimate/i, "an unclear size is asked with an estimate");
+    assert.match(
+      coordinator,
+      /contained change[^\n]*build: false/i,
+      "the coordinator hands a contained change to one builder turn",
+    );
+  });
+
+  it("GB2. a reopened build works until the ask is checked, its Loop hours a ceiling: the lead may finish once it is done, and the chat says so", async () => {
+    const { reopenPromise } = await import("../../src/harness-seed/loop/reopen-run-prompts.ts");
+    const spent = { wallClockMs: 3 * HOUR_MS, completionPolicy: CompletionPolicy.Duration, review: false };
+    const budgets = reopenBudgets(spent, 3);
+    assert.deepEqual(budgets, { review: false, wallClockMs: 3 * HOUR_MS, completionPolicy: CompletionPolicy.Goal });
+    const run = reopenedRun({ runId: "run_gb", goal: "a soccer game", budgets: spent } as never, budgets, null);
+    const now = Date.parse("2026-10-02T15:48:00Z");
+    assert.equal(
+      timedWorkRemaining(run as never, now + 3 * HOUR_MS, now),
+      false,
+      "finish is not refused for time left",
+    );
+
+    const said = reopenPromise(budgets, now);
+    assert.match(said, /until your request is checked/);
+    assert.match(said, /at the latest/);
+    assert.doesNotMatch(said, /goes on until about/);
+  });
+
+  it("GB3. the user wrote \"don't run the build\" into a timed build and its lead was refused finish — only a Finish button no screen shows could end it: the lead may finish by quoting the user's words, and only words the user sent", async () => {
+    const { finish } = await import("../../src/harness-seed/loop/director/integrate.ts");
+    const now = Date.now();
+    const userSaid = "Why build? You don't need to make a little snake, don't run the build.";
+    const nightAsked = () => {
+      const closes: unknown[] = [];
+      const night = {
+        ctx: { cancelled: false, setStatus: () => {} },
+        run: { runId: "run_gb", budgets: { wallClockMs: 3 * HOUR_MS, completionPolicy: CompletionPolicy.Duration } },
+        softDeadline: now + 2 * HOUR_MS,
+        state: { integrationHead: "f".repeat(40) },
+        inbox: { finishing: async () => false, steering: async () => [userSaid] },
+        closeTheNight: async (how: unknown) => {
+          closes.push(how);
+          return { ok: true, line: "made live, not judged better" };
+        },
+      };
+      return { night, closes };
+    };
+
+    const quoted = nightAsked();
+    const answer = String(
+      await finish(quoted.night as never, { summary: "the fix", user_asked: "don't run the build" }),
+    );
+    assert.equal(quoted.closes.length, 1, answer);
+    assert.match(answer, /the run is closed/);
+
+    const unquoted = nightAsked();
+    const refused = String(await finish(unquoted.night as never, { summary: "the fix" }));
+    assert.equal(unquoted.closes.length, 0);
+    assert.match(refused, /finish refused/);
+    assert.match(refused, /user_asked/, "the refusal says how the user's words end it");
+    assert.doesNotMatch(refused, /Finish button|press Finish/i);
+
+    for (const invented of ["stop now please", "don't", ""]) {
+      const made = nightAsked();
+      await finish(made.night as never, { summary: "the fix", user_asked: invented });
+      assert.equal(made.closes.length, 0, `"${invented}" is not the user's words`);
+    }
+  });
+
+  it("GB4. the reopened build's judge preferred the plates the user had asked to remove, because only the commission named them: its lead, judges and playtester read the latest ask first, winning where they conflict", async () => {
+    const { workingGoal } = await import("../../src/harness-seed/loop/goal-prompts.ts");
+    const { withAsk } = await import("../../src/harness-seed/loop/reopen-run.ts");
+    const { finalJudgeQuestion } = await import("../../src/harness-seed/loop/director/close-prompts.ts");
+    const commission = `Make a soccer game: a realistic 11v11 broadcast match. ${"Both teams hold a formation shape. ".repeat(12)}Presentation is a TV broadcast with an active-player indicator ring and name.`;
+    const ask = "Remove both floating name plates: the active player's and the pass target's.";
+    const run = { goal: commission, asks: withAsk({ goal: commission }, ask) };
+
+    assert.equal(workingGoal({ goal: commission }), commission, "a build never reopened is judged by its commission");
+    const goal = workingGoal(run);
+    assert.ok(goal.indexOf(ask) < goal.indexOf("indicator ring and name"), "the ask comes first");
+    assert.match(goal, /wins/);
+    assert.ok(finalJudgeQuestion(goal).includes(ask), "the final judge's clipped question carries the ask");
+
+    const again = withAsk(run, "Add a second stadium");
+    assert.deepEqual(again, ["Add a second stadium", ask], "the latest first");
+    assert.deepEqual(withAsk({ asks: again }, "Add a second stadium"), again, "a replayed ask is kept once");
+  });
+
+  it("GB5. the reopened night wrote over the record of the night it continued — its thirteen workers, 31 rounds and its judge_1 folder — and learned from a fix it made by hand: it adds to that record, numbers its passes on, and learns only from new rounds", async () => {
+    const { nightReport } = await import("../../src/harness-seed/loop/director/setup.ts");
+    const { recordNight } = await import("../../src/harness-seed/loop/director/journal.ts");
+    const { keptNewRounds } = await import("../../src/harness-seed/loop/run-dispatch.ts");
+    const run = { runId: "run_gb", project: "golden-boot-glory", goal: "a soccer game", reference: { name: "FC" } };
+    const earlier = {
+      workers: { audio: { id: "audio" }, hud: { id: "hud" } },
+      iterations: [{ facetId: "audio" }, { facetId: "hud" }],
+      verdicts: [{ pass: "judge" }],
+      notes: [{ text: "the night's note" }],
+    };
+    const report = nightReport(run as never, earlier);
+    assert.deepEqual(
+      { workers: Object.keys(report.workers), rounds: report.iterations.length, verdicts: report.verdicts.length },
+      { workers: ["audio", "hud"], rounds: 2, verdicts: 1 },
+    );
+    assert.deepEqual(report.notes, earlier.notes);
+    assert.equal(keptNewRounds(report), false, "the lead's own fix kept no round: nothing new to learn");
+    report.iterations.push({ facetId: "plates" });
+    assert.equal(keptNewRounds(report), true);
+    assert.equal(keptNewRounds(nightReport(run as never)), true, "a night of its own learns as before");
+
+    const now = Date.now();
+    const finishedNight = {
+      run,
+      started: now,
+      softDeadline: now,
+      finalDeadline: now,
+      state: { judges: 3, plays: 2, ledger: [], workers: new Map(), log: [], planReviewUntil: 0 },
+      journal: { director: {} as Record<string, any> },
+    };
+    recordNight(finishedNight as never, now);
+    const reopened = {
+      resume: true,
+      priorJournal: { director: finishedNight.journal.director },
+      run,
+      state: { judges: 0, plays: 0, ledger: [], workers: new Map(), log: [] } as Record<string, any>,
+      journal: { director: {} as Record<string, unknown> },
+    };
+    restoreNight(reopened as never, now);
+    assert.deepEqual(
+      { judges: reopened.state.judges, plays: reopened.state.plays },
+      { judges: 3, plays: 2 },
+      "the next judge writes judge_4, the next playtest play_3",
+    );
+  });
+});
+
+/**
+ * golden-boot-glory's reviewers and playtester (2026-10-02): six defect checks stayed "failing" on
+ * answers the judge gave at confidence 0.20–0.40; one playtest's "yes" was lost because its reply
+ * came in a fenced block after another; and the playtester, five seconds a move, watched the match
+ * clock run four minutes during one key press.
+ */
+describe("the reviewers and the playtester of a broadcast match (golden-boot-glory)", () => {
+  it("GR1. a judge's guess is not a failure: a vision check answered below the guessing line reads as couldn't measure, and a confident no still fails", async () => {
+    const { summarizeScoreboard } = await import("../../src/harness-seed/loop/checks.ts");
+    const vision = (id: string, confidence: number) => ({
+      id,
+      kind: "vision",
+      weight: "normal",
+      pass: false,
+      answer: "no",
+      confidence,
+      reason: `judge answered no (confidence ${confidence.toFixed(2)})`,
+    });
+    const board = {
+      corner: vision("corner", 0.2),
+      fouls: vision("fouls", 0.3),
+      night: vision("night", 0.8),
+      score: { id: "score", kind: "probe", weight: "identity", pass: true, reason: "" },
+    };
+    const summary = summarizeScoreboard(board as never, { checks: [] });
+    assert.deepEqual(
+      summary.failing.map((entry: { id: string }) => entry.id),
+      ["night"],
+    );
+    assert.deepEqual(
+      summary.unmeasuredChecks.map((entry: { id: string }) => entry.id),
+      ["corner", "fouls"],
+    );
+    assert.equal(summary.unmeasured, 2);
+    assert.equal(summary.passing, 1, "a guess never counts as passing either");
+  });
+
+  it("GR2. playtest 2 answered yes in a fenced reply that closed one brace too many, and was recorded as no answer: the reply's JSON is read without its stray closing braces", async () => {
+    const { readJudgeJson } = await import("../../src/harness-seed/loop/judge-provenance.ts");
+    const answers = { "director-play": { answer: "yes", note: "Passing worked." } };
+    const reply = `\`\`\`json\n${JSON.stringify({ answers })}}\n\`\`\``;
+    assert.deepEqual(readJudgeJson(reply), { answers });
+    assert.deepEqual(readJudgeJson(`Here it is:\n${JSON.stringify({ answers })}}}`), { answers });
+    assert.equal(readJudgeJson("no verdict here"), null);
+    assert.equal(readJudgeJson('{"answers": {"q": '), null, "a reply cut short is still unreadable");
   });
 });
 
@@ -7908,5 +8136,72 @@ describe("a demo check written with === (live Loop build, 2026-10-04)", () => {
       false,
       "=== is strict, as == already was: the string '2' is not the number 2",
     );
+  });
+});
+
+describe("suggestions that reached the Harness page as plain text or not at all (2026-10-03)", () => {
+  it("HP-1. a proposer reply with a code fence inside its JSON, or a skill echoed in a markdown fence first, read as no JSON and the suggestion vanished: the JSON is read", async () => {
+    const { readJudgeJson } = await import("../../src/harness-seed/loop/judge-provenance.ts");
+    const fenceInside = JSON.stringify({
+      edits: [{ op: "append", text: "```js\nfoo()\n```" }],
+      title: "Show the code",
+    });
+    assert.deepEqual(readJudgeJson(fenceInside), JSON.parse(fenceInside));
+    const echoedFirst = 'The file:\n```markdown\n# Skill\n- rule\n```\n```json\n{"edits":[],"title":"t"}\n```';
+    assert.deepEqual(readJudgeJson(echoedFirst), { edits: [], title: "t" });
+    assert.deepEqual(readJudgeJson('```json\n{"pick":"B"}\n```'), { pick: "B" }, "a fenced answer reads as before");
+  });
+
+  it("HP-2. a proposer reply with edits but no title or summary staged a card that read 'Change how Harness plans a build': the edits are described once more in plain words", async () => {
+    const { runSkillOpt } = await import("../../src/harness-seed/loop/skillopt.ts");
+    const { tmpDir } = await import("../helpers/tmp.ts");
+    const workspace = path.join(await tmpDir("skillopt-describe-"), "ws");
+    await mkdir(path.join(workspace, "skills"), { recursive: true });
+    await writeFile(
+      path.join(workspace, "skills", "camera.md"),
+      "---\nname: Camera\ndescription: shots\ntrainable: true\n---\n\n# Rules\n\n- Keep the camera behind the player.\n",
+    );
+    const edit = "- Keep the horizon level.";
+    const history = ["gap one", "gap two", "gap three", "gap four"].map((gap, i) => ({
+      id: String(i + 1),
+      data: {
+        type: "custom",
+        event_type: "run_iteration",
+        payload: { iteration: i + 1, winner: "incumbent", biggest_gap: gap },
+      },
+    }));
+    const described: string[] = [];
+    let staged: Array<{ title?: string; summary?: string[] }> = [];
+    const reply = (value: unknown) => ({ message: { content: JSON.stringify(value) } });
+    const ctx = {
+      workspace,
+      cancelled: false,
+      setStatus() {},
+      notify() {},
+      async call(method: string, params: Record<string, unknown>) {
+        if (method === "thread.list") return [];
+        if (method === "events.list") return history;
+        if (method === "artifact.read") return [];
+        if (method === "artifact.write") {
+          if (params.artifactId === "skillopt_staged") staged = params.value as typeof staged;
+          return true;
+        }
+        if (method === "events.append") return true;
+        if (method !== "engine.complete") throw new Error(`unexpected call ${method}`);
+        const text = (params.messages as Array<{ content: string }>)[0]!.content;
+        if (text.includes("SKILL FILE")) return reply({ edits: [{ op: "append", text: edit }], rationale: "r" });
+        if (text.includes("VERSION A:")) {
+          const sectionA = text.split("VERSION A:")[1]?.split("VERSION B:")[0] ?? "";
+          return reply({ pick: sectionA.includes(edit) ? "A" : "B", reason: "candidate" });
+        }
+        described.push(text);
+        return reply({ title: "Keep the horizon level in every shot", summary: ["The camera stays level."] });
+      },
+    };
+    await runSkillOpt(ctx as never, { threadId: "t1" });
+    assert.equal(described.length, 1, "one extra call describes the edits");
+    assert.ok(described[0]!.includes(edit), "the describer sees the edits it describes");
+    assert.equal(staged[0]?.title, "Keep the horizon level in every shot");
+    assert.deepEqual(staged[0]?.summary, ["The camera stays level."]);
   });
 });

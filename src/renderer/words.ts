@@ -1095,6 +1095,15 @@ export function liveBehindLabel(reason: LiveBehindReason, note: string | null): 
   return note ? `${words}: ${note}` : words;
 }
 
+/** The stage strip's Play/Stop and full screen, as their tooltips and accessible names say them. */
+export const STAGE_WORDS = {
+  stop: "Stop game",
+  stopping: "Stopping game",
+  play: "Play game",
+  starting: "Starting game",
+  fullScreen: "Full screen",
+} as const;
+
 // ── an agent at its screen ────────────────────────────────────────────────────────────────
 
 /** What an agent is doing at its screen, as its node says it while it happens. */
@@ -1393,6 +1402,53 @@ export const NOTICE_WORDS = {
 export function permissionWords(plugin: string, prompt: string | undefined): string {
   return prompt ? `${plugin}: ${prompt}` : `${plugin} asks for permission.`;
 }
+
+// ── Harness activity ──────────────────────────────────────────────────────────────────────
+
+/** The suggestions card in Activity and its exact-edit view (`ui/ProposalsTable.tsx`). */
+export const SUGGESTION_WORDS = {
+  title: (changes: string) => `Harness suggests ${changes} to how it builds`,
+  subtitle: "Nothing changes until you apply.",
+  include: (title: string) => `Include: ${title}`,
+  fallbackSummary: "Suggested after reviewing your recent builds.",
+  whatChanges: "What changes",
+  seeExactEdit: "See the exact edit",
+  selected: (included: number, total: number) => `${included} of ${total} selected · you can undo later`,
+  discard: "Discard",
+  apply: (changes: string) => `Apply ${changes}`,
+} as const;
+
+/** Activity's header and its Self-improvement switch (`panels/ReviewPanel.tsx`). */
+export const ACTIVITY_WORDS = {
+  title: "Activity",
+  learning: "Self-improvement",
+  learningHint: "When off, Harness stops learning from your builds. What it already learned stays until you undo it.",
+} as const;
+
+/** The Harness chat's header button and the dialog it opens (`chat/HarnessGuide.tsx`). */
+export const HARNESS_GUIDE_WORDS = {
+  open: "How it works",
+  title: "How Harness works",
+  lead: "Harness is the set of instructions the agents follow when they build your games. It learns from every build and suggests better ways to work. You decide what changes.",
+  steps: [
+    { title: "You build.", body: "Every game chat and Loop run is recorded under Recent runs." },
+    {
+      title: "Harness looks back.",
+      body: "After a run it finds what went wrong or took extra work, and drafts an edit to its own instructions.",
+    },
+    {
+      title: "The edit is tested.",
+      body: "Independent reviewers compare the current and edited instructions on your past requests. Only edits they prefer go on.",
+    },
+    { title: "You decide.", body: "Suggestions wait until you apply them. Every applied change can be undone." },
+  ],
+  notes: [
+    "Reviewers compare instructions; they don’t rebuild your games. An applied change isn’t proof of better results.",
+    "Turn Self-improvement off to stop learning. What Harness already learned stays until you undo it.",
+  ],
+  settings: "Harness settings",
+  done: "Done",
+} as const;
 
 // ── app updates ───────────────────────────────────────────────────────────────────────────
 

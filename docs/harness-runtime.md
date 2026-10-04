@@ -101,8 +101,9 @@ the agent made meanwhile, which the migration strands.
 The self-edit gate. `write_own_file`, `write_skill` and `install_tool` change the agent's own
 files only through `guardian.write_self`: the host tries the change as `guardian.validate_edit`
 does, and only a pass is written, between two host snapshots, with a record the host writes
-(`self_edit`, `skill_edited`, `tool_installed`; the harness may not append these). Activity lists
-each one until it is undone, and Undo reverts exactly its file. `prompts/` and `skills/` are
+(`self_edit`, `skill_edited`, `tool_installed`; the harness may not append these). The record
+keeps the agent's reason and, bounded by the host, the plain `title` and `summary` it wrote for the
+person. Activity lists each one until it is undone, and Undo reverts exactly its file. `prompts/` and `skills/` are
 write-denied to every agent process, like `judge/`, so nothing else changes them.
 `guardian.validate_edit`: the host makes a validation fork (a worktree of the harness at its
 current commit plus the live uncommitted files), writes the change into it, runs the vendored
@@ -468,7 +469,9 @@ Windows/Linux.
 ### Goal completion and worker approvals
 
 Until-satisfied director runs treat the clock as a safety ceiling; explicit duration runs retain
-their working window and user Finish override. However a night ends — the lead's `finish`, the
+their working window and user Finish override. The lead's `finish` is refused while working time
+remains unless the user asked: Finish, or `user_asked` quoting the user's own words from a message
+delivered into the run (`integrate.ts` `userQuoted`, checked against the run inbox's steers). However a night ends — the lead's `finish`, the
 clock, the user's Finish, an engine limit — the close judges the head it is about to make live
 (`director/tools.ts` `judgeTheLanding`, from `integrate.ts`): blind against the build the user had,
 or, for a new game or one whose start nobody could photograph, a yes-or-no on the goal
@@ -485,9 +488,9 @@ lands when the close's look loaded it or a judge saw it load, the close's own in
 close; one that kept an older `tools.ts` lands as before and notes that it did not judge.
 
 The initial plan freezes required acceptance scenarios in the versioned director journal. A
-reopened build takes the Loop's policy (`reopen-run.ts` `reopenBudgets`: ∞ a goal, hours a duration) and none of the finished night's
-outcomes: its journal records `goals: null` (`director/reopen.ts` `reopenedJournal`); under ∞ its
-lead's first plan taken for the ask posts the plan card and freezes new ones (a refused plan sets
+reopened build is a goal commission, the Loop's hours or ∞ its ceiling (`reopen-run.ts`
+`reopenBudgets`), and takes none of the finished night's outcomes: its journal records
+`goals: null` (`director/reopen.ts` `reopenedJournal`); its lead's first plan taken for the ask posts the plan card and freezes new ones (a refused plan sets
 none), and until then `worker_start` asks for that plan (`workers.ts` `goalRefusal`). A Resume
 before it plans keeps waiting: `restoreNight` takes outcomes from the plan only for a journal from
 before they were kept, and `reopen.ts` `outcomesAwaitPlan` sets aside any a kept older

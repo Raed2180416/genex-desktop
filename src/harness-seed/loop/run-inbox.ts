@@ -81,6 +81,11 @@ export const coordinatorTools = [
       type: "object",
       properties: {
         text: { type: "string", description: "What to implement next, incorporating the latest user message." },
+        build: {
+          type: "boolean",
+          description:
+            "false for a contained change (a fix, a tweak, one feature): one builder makes it in this chat and the build stays finished. Omit to continue the build itself.",
+        },
       },
       required: ["text"],
     },

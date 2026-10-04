@@ -23,9 +23,11 @@ export type LiveLoad = { project: string; pending: boolean; since: number };
 
 type LivePage = Awaited<ReturnType<typeof window.studio.previewLive>>;
 
-/** What the game reports about itself, the load Live waits on, and a way to start one. */
+/** What the game reports about itself, whether it is stopped, the load Live waits on, and a way to start one. */
 export function useLiveLoad(project: string | null) {
   const [state, setState] = useState<Record<string, unknown> | null>(null);
+  /** The person stopped the game (Stop on the strip): main says so on every probe. */
+  const [stopped, setStopped] = useState(false);
   const [liveLoad, setLiveLoad] = useState<LiveLoad | null>(() =>
     project ? { project, pending: false, since: Date.now() } : null,
   );
@@ -33,6 +35,7 @@ export function useLiveLoad(project: string | null) {
   if (loadFor !== project) {
     setLoadFor(project);
     setState(null);
+    setStopped(false);
     setLiveLoad(project ? { project, pending: false, since: Date.now() } : null);
   }
   const liveLoadRef = useRef(liveLoad);
@@ -53,7 +56,7 @@ export function useLiveLoad(project: string | null) {
       },
     );
   }, []);
-  return { state, setState, liveLoad, setLiveLoad, liveLoadRef, loadLive };
+  return { state, setState, stopped, setStopped, liveLoad, setLiveLoad, liveLoadRef, loadLive };
 }
 
 /** How one page load is settling, tracked across probes. */
@@ -87,13 +90,23 @@ function settled(
   return ready;
 }
 
+/** What this game's own page says on a probe: whether it is stopped, and the state it reports. */
+function noteGame(live: LivePage, set: Pick<ReturnType<typeof useLiveLoad>, "setState" | "setStopped">): void {
+  set.setStopped(live.stopped);
+  if (!live.page) return;
+  const next = live.page.state;
+  set.setState((previous) =>
+    previous?.phase === next?.phase && previous?.drawCalls === next?.drawCalls ? previous : next,
+  );
+}
+
 // One probe answers both questions the stage asks of the page: what state the game reports,
 // and — while a load is under way — whether the page it asked for has loaded and gone quiet.
 /** Probe the live page while Live shows or a load is waiting; reveal the game once its page has settled. */
 export function useLiveProbe({
   project,
   stageView,
-  live: { liveLoad, liveLoadRef, setLiveLoad, setState },
+  live: { liveLoad, liveLoadRef, setLiveLoad, setState, setStopped },
   buildProblemRef,
 }: {
   project: string | null;
@@ -112,12 +125,7 @@ export function useLiveProbe({
     const observe = (live: LivePage | null): void => {
       // The previous game's page, or this one mid-navigation, says nothing about the page asked for.
       const current = Boolean(live && live.project === project && !live.navigating);
-      if (current && live?.page) {
-        const next = live.page.state;
-        setState((previous) =>
-          previous?.phase === next?.phase && previous?.drawCalls === next?.drawCalls ? previous : next,
-        );
-      }
+      if (current && live) noteGame(live, { setState, setStopped });
       const load = liveLoadRef.current;
       if (!load || load.pending) return;
       if (load.project !== project) return;
