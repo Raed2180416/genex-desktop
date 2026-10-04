@@ -53,7 +53,7 @@ import {
 import { CHAT_SO_FAR_MESSAGES, chatSoFar } from "../../src/harness-seed/loop/director/lead-session-prompts.ts";
 import { priorCommitWords } from "../../src/harness-seed/loop/director/journal-prompts.ts";
 import { hasConflictMarkers } from "../../src/harness-seed/loop/director/conflict-worker.ts";
-import { DIRECTOR_LOOP_ENV as SHARED_DIRECTOR_LOOP_ENV, directorLoopEnv } from "../../src/shared/protocol.ts";
+import { DIRECTOR_LOOP_ENV as SHARED_DIRECTOR_LOOP_ENV, harnessRunEnv } from "../../src/shared/protocol.ts";
 
 const T0 = Date.UTC(2026, 8, 25, 14, 0, 0);
 
@@ -289,11 +289,11 @@ describe("when the lead is woken (wake-schedule.ts)", () => {
     assert.equal(directorLoopOf({ directorLoop: "wake" }, turn), DirectorLoop.Wake, "the run's own word wins");
     assert.equal(directorLoopOf({}, { [DIRECTOR_LOOP_ENV]: "sideways" }), DirectorLoop.Wake);
     // The studio hands the harness that one variable of its own, and only when it is set.
-    assert.deepEqual(directorLoopEnv({ [SHARED_DIRECTOR_LOOP_ENV]: "turn", HOME: "/Users/me" }), {
+    assert.deepEqual(harnessRunEnv({ [SHARED_DIRECTOR_LOOP_ENV]: "turn", HOME: "/Users/me" }), {
       [SHARED_DIRECTOR_LOOP_ENV]: "turn",
     });
-    assert.deepEqual(directorLoopEnv({ HOME: "/Users/me" }), {});
-    assert.deepEqual(directorLoopEnv({ [SHARED_DIRECTOR_LOOP_ENV]: " " }), {});
+    assert.deepEqual(harnessRunEnv({ HOME: "/Users/me" }), {});
+    assert.deepEqual(harnessRunEnv({ [SHARED_DIRECTOR_LOOP_ENV]: " " }), {});
   });
 });
 

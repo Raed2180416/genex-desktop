@@ -11,7 +11,7 @@ import { gitFile } from "../helpers/git.ts";
  */
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { afterEach, describe, it } from "node:test";
 import {
@@ -36,6 +36,7 @@ import {
   facetVocabularyScore,
   lessonsFromNotes,
   promptImagesFor,
+  runFacetLoop,
   similarDefect,
 } from "../../src/harness-seed/loop/facet-loop.ts";
 import {
@@ -6162,7 +6163,14 @@ describe("a turn that has taken many pictures (P04-F4)", () => {
       unknown: { value: null },
       handlers: {
         "engine.describe": () => [
-          { id: "ollama", label: "Ollama", kind: "direct", status: { code: "ready" }, models: [], defaultModel: "m" },
+          {
+            id: "ollama",
+            label: "Ollama",
+            kind: "direct",
+            status: { code: "ready" },
+            models: [{ id: "m", label: "m", contextWindow: 160_000 }],
+            defaultModel: "m",
+          },
         ],
         "context.policy": () => ({ policy: { mode: "default" } }),
         "plugins.tools": () => ({ tools: [] }),
@@ -6175,7 +6183,6 @@ describe("a turn that has taken many pictures (P04-F4)", () => {
       threadId: "t1",
       turnId: "turn1",
       engine: "ollama",
-      preferences: { contextWindow: 160_000 },
       stills: Array.from({ length: 60 }, (_, i) => ({ ...still, label: `shot ${i}` })),
     });
 
@@ -7543,5 +7550,363 @@ describe("a worker of its own for the UI and HUD (owner, 2026-10-02)", () => {
     const stadium = compileWorkerSpec({ id: "stadium", brief: "a floodlit stadium", kind: "top-down" });
     assert.equal(partCritic(stadium.spec, game), "place", "a part with no critic of its own keeps its kind's");
     assert.equal(partCritic({ ...stadium.spec, critic: "noir" }, game), "place", "an unknown critic is no critic");
+  });
+});
+
+/**
+ * The census of 2026-10-03: facet workers were 91% of a month's spend, and the sessions that grew
+ * past 200k tokens of context were 74% of it. A Claude Code session re-sends its whole history on
+ * every step and compacts only near its window (about 967K on a 1M model), so a worker's context
+ * grew uncapped — one request carried 999,155 tokens. With the handover switched on, a worker past
+ * its limit writes what it knows into its notes at the end of a round and the next round starts in
+ * a fresh session that reads them.
+ */
+describe("a worker's context that grows past its handover limit (census, 2026-10-03)", () => {
+  type LoopCall = { method: string; params: Record<string, any> };
+  const PAST = 600_000;
+  const UNDER = 400_000;
+  /** The handover turn's own prompt (the fresh session's prompt only points at what it wrote). */
+  const isHandover = (params: Record<string, any>) => /^HANDOVER: your next round/.test(String(params.prompt));
+  /** A facet loop on a stub studio. `turn` answers each delegated turn after the build turns it counts. */
+  const runWorker = async ({
+    run = {},
+    over = {},
+    contextTokens = PAST,
+    rounds = 2,
+    turn,
+    exec,
+  }: {
+    run?: Record<string, unknown>;
+    over?: Record<string, unknown>;
+    contextTokens?: number;
+    rounds?: number;
+    turn?: (params: Record<string, any>, ctx: { cancelled: boolean }) => unknown;
+    /** The stub's git; what it answers is the command's stdout (a commit hash by default). */
+    exec?: (params: Record<string, any>) => Promise<string | undefined>;
+  }) => {
+    const calls: LoopCall[] = [];
+    let sessions = 0;
+    let builds = 0;
+    const ctx = {
+      workspace: path.join(import.meta.dirname, "no-such-workspace"),
+      cancelled: false,
+      notify: () => {},
+      setStatus: () => {},
+      call: async (method: string, params: Record<string, any>) => {
+        calls.push({ method, params });
+        if (method === "engine.delegate") {
+          const answered = turn?.(params, ctx);
+          if (answered !== undefined) return answered;
+          // A handover is not a round's build: the stub stops the loop after `rounds` of those.
+          if (!isHandover(params)) builds += 1;
+          if (builds >= rounds && !isHandover(params)) ctx.cancelled = true;
+          return { ok: true, summary: "built", sessionId: params.resume || `ses_${++sessions}`, contextTokens };
+        }
+        if (method === "run.exec") {
+          const stdout = await exec?.(params);
+          return { code: 0, stdout: stdout ?? "0123456789abcdef0123456789abcdef01234567", stderr: "" };
+        }
+        if (method === "engine.describe") return [{ id: "codex", kind: "delegated" }];
+        return null;
+      },
+    };
+    const result = await runFacetLoop(
+      ctx as never,
+      {
+        runThreadId: "run-thread",
+        facetThreadId: "facet-thread",
+        run: { runId: "run_handover", project: "plaza", engine: "codex", ...run },
+        facet: { id: "plaza", title: "Plaza", intent: "paint the plaza", checks: [] },
+        worktree: "/scratch/autopilot/run_handover/plaza",
+        deadline: Date.now() + 60 * 60_000,
+        ...over,
+      } as never,
+    );
+    const turns = calls.filter((c) => c.method === "engine.delegate").map((c) => c.params);
+    const appended = (type: string) =>
+      calls
+        .filter((c) => c.method === "events.append")
+        .flatMap((c) => c.params.batch)
+        .filter((e: Record<string, any>) => e.event_type === type)
+        .map((e: Record<string, any>) => e.payload);
+    return { result, turns, appended, calls };
+  };
+  const switchedOn = { budgets: { workerHandover: true } };
+  const HANDOVER_NOTES = "## Handover\n- the fountain shader is half done\n";
+  /** A worktree whose handover turn writes `HANDOVER_NOTES` into the worker's notes, as asked. */
+  const writingWorktree = async () => {
+    const worktree = await tmpDir("handover-notes-");
+    const notes = path.join(worktree, "docs/notes/NOTES.plaza.md");
+    const turn = (params: Record<string, any>) => {
+      if (!isHandover(params)) return undefined;
+      return (async () => {
+        await mkdir(path.dirname(notes), { recursive: true });
+        await writeFile(notes, HANDOVER_NOTES);
+        return { ok: true, summary: "written", sessionId: params.resume };
+      })();
+    };
+    return { worktree, notes, turn };
+  };
+
+  it("H1. a worker past its limit kept one session all night: it writes a handover in that session, then its next round starts fresh with the whole brief", async () => {
+    const { worktree, turn } = await writingWorktree();
+    const { turns, appended } = await runWorker({ run: switchedOn, over: { worktree }, turn });
+    assert.equal(turns.length, 3, "the build, the handover, the next round's build");
+    const [, handover = {}, next = {}] = turns;
+    assert.equal(handover.resume, "ses_1", "the handover is written by the session that remembers the round");
+    assert.ok(isHandover(handover));
+    assert.match(String(handover.prompt), /## Handover/, "and is asked for a `## Handover` section");
+    assert.match(String(handover.prompt), /docs\/notes\/NOTES\.plaza\.md/, "in the worker's own notes file");
+    assert.doesNotMatch(String(handover.prompt), /token|brief(ly)?\b|save/i, "never asked to be brief or save tokens");
+    assert.ok(!next.resume, "the next round does not resume the old session");
+    assert.match(String(next.prompt), /^You are building ONE FACET/, "it is given the whole opening prompt");
+    assert.match(
+      String(next.prompt),
+      /## Handover.*docs\/notes\/NOTES\.plaza\.md/s,
+      "and told to read the handover first",
+    );
+    assert.deepEqual(
+      appended("facet_handover").map((p) => [p.facetId, p.iteration, p.contextTokens, p.wrote]),
+      [["plaza", 1, PAST, true]],
+    );
+  });
+
+  it("H2. under its limit, a worker's next round resumes the same session", async () => {
+    const { turns, appended } = await runWorker({ run: switchedOn, contextTokens: UNDER });
+    assert.equal(turns.length, 2);
+    assert.equal(turns[1]?.resume, "ses_1");
+    assert.equal(appended("facet_handover").length, 0);
+  });
+
+  it("H3. with the handover switched off, a worker past its limit still resumes", async () => {
+    const { turns } = await runWorker({});
+    assert.equal(turns.length, 2, "no handover turn");
+    assert.equal(turns[1]?.resume, "ses_1");
+  });
+
+  it("H4. the studio's environment switches the handover on for a run that names none", async () => {
+    process.env.STUDIO_WORKER_HANDOVER = "1";
+    try {
+      const { turns } = await runWorker({});
+      assert.equal(turns.length, 3);
+      assert.ok(isHandover(turns[1] ?? {}));
+    } finally {
+      delete process.env.STUDIO_WORKER_HANDOVER;
+    }
+    const named = await runWorker({ run: { budgets: { workerHandover: false } } });
+    assert.equal(named.turns.length, 2, "a run that turns it off keeps it off");
+  });
+
+  it("H5. a handover turn that fails still starts the next round fresh, and the round is not lost", async () => {
+    const { result, turns, appended } = await runWorker({
+      run: switchedOn,
+      turn: (params) => {
+        if (isHandover(params)) throw new Error("You've hit your session limit");
+        return undefined;
+      },
+    });
+    assert.equal(turns.length, 3);
+    assert.ok(!turns[2]?.resume, "fresh anyway: the brief and the code are enough");
+    assert.doesNotMatch(String(turns[2]?.prompt), /## Handover/, "and not sent to read a handover nobody wrote");
+    assert.equal(result.iterations, 2, "the next round still ran");
+    assert.deepEqual(
+      appended("facet_handover").map((p) => p.wrote),
+      [false],
+    );
+  });
+
+  it("H6. a worker whose facet ends with this round hands nothing over and keeps its session", async () => {
+    const { result, turns } = await runWorker({ run: switchedOn, over: { maxIterations: 1 }, rounds: 1 });
+    assert.equal(turns.length, 1);
+    assert.equal(result.sessionId, "ses_1");
+  });
+
+  it("H7. a facet stopped right after its handover never hands the old session back to resume", async () => {
+    const { result, turns } = await runWorker({
+      run: switchedOn,
+      turn: (params, ctx) => {
+        if (!isHandover(params)) return undefined;
+        ctx.cancelled = true;
+        return { ok: true, summary: "written", sessionId: "ses_1" };
+      },
+    });
+    assert.equal(turns.length, 2, "the build and the handover");
+    assert.equal(result.sessionId, null, "what the facet resumes with is a fresh session");
+  });
+
+  it("H10. a handover turn that touched game code: the fresh session finds the accepted build as it was, and the notes", async () => {
+    const worktree = await tmpDir("handover-worktree-");
+    const notes = path.join(worktree, "docs/notes/NOTES.plaza.md");
+    const game = path.join(worktree, "src/plaza.js");
+    const handover = "## Handover\n- the fountain shader is half done\n";
+    let handedOver = false;
+    let foundByNext: { notes: string | null; stray: boolean } | null = null;
+    await runWorker({
+      run: switchedOn,
+      over: { worktree },
+      turn: (params, ctx) => {
+        if (handedOver && !isHandover(params)) {
+          ctx.cancelled = true;
+          // What the next round's fresh session starts from.
+          return (async () => {
+            foundByNext = {
+              notes: await readFile(notes, "utf8").catch(() => null),
+              stray: await readFile(game, "utf8").then(
+                () => true,
+                () => false,
+              ),
+            };
+            return undefined;
+          })().then(() => ({ ok: true, summary: "built", sessionId: "ses_2" }));
+        }
+        if (!isHandover(params)) return undefined;
+        handedOver = true;
+        return (async () => {
+          await mkdir(path.dirname(notes), { recursive: true });
+          await writeFile(notes, handover);
+          await mkdir(path.dirname(game), { recursive: true });
+          await writeFile(game, "// a stray edit\n");
+          return { ok: true, summary: "written", sessionId: params.resume };
+        })();
+      },
+      // The stub's git does to the files above what a hard reset and a clean would.
+      exec: async (params) => {
+        if (!handedOver || !/git clean/.test(String(params.command))) return;
+        await rm(notes, { force: true });
+        await rm(game, { force: true });
+      },
+    });
+    assert.deepEqual(foundByNext, { notes: handover, stray: false });
+  });
+
+  it("H11. a handover turn that answered but wrote no `## Handover`: the fresh session is not sent to read one", async () => {
+    const worktree = await tmpDir("handover-unwritten-");
+    const { turns, appended } = await runWorker({
+      run: switchedOn,
+      over: { worktree },
+      turn: (params) => (isHandover(params) ? { ok: true, summary: "Done.", sessionId: params.resume } : undefined),
+    });
+    assert.equal(turns.length, 3);
+    assert.doesNotMatch(String(turns[2]?.prompt), /## Handover/);
+    assert.deepEqual(
+      appended("facet_handover").map((p) => p.wrote),
+      [false],
+    );
+  });
+
+  it("H12. the handover outlives the next round's provider outage: the retried round's session still finds it", async () => {
+    const { worktree, notes, turn: writeNotes } = await writingWorktree();
+    // The stub's git keeps each commit's notes, and a hard reset puts back the ones it names.
+    const commits = new Map<string, string | null>([["0".repeat(40), null]]);
+    let head = "0".repeat(40);
+    const exec = async (params: Record<string, any>): Promise<string | undefined> => {
+      const command = String(params.command);
+      if (/^git .*\bcommit\b.* -m /.test(command)) {
+        head = commits.size.toString(16).padStart(40, "a");
+        commits.set(head, await readFile(notes, "utf8").catch(() => null));
+      }
+      const reset = /^git reset\b.*--hard\s+'?([0-9a-f]{40})/.exec(command);
+      if (reset?.[1]) {
+        head = reset[1];
+        const kept = commits.get(head) ?? null;
+        if (kept === null) await rm(notes, { force: true });
+        else await writeFile(notes, kept);
+      }
+      return /git rev-parse HEAD/.test(command) ? head : undefined;
+    };
+    let builds = 0;
+    let foundByRetry: string | null = null;
+    await runWorker({
+      run: { ...switchedOn, budgets: { workerHandover: true, outageDelays: [0] } },
+      over: { worktree },
+      exec,
+      turn: (params, ctx) => {
+        if (isHandover(params)) return writeNotes(params);
+        builds += 1;
+        if (builds === 2) throw new Error("API Error: 529 Overloaded");
+        if (builds < 3) return undefined;
+        ctx.cancelled = true;
+        return readFile(notes, "utf8")
+          .catch(() => null)
+          .then((found) => {
+            foundByRetry = found;
+            return { ok: true, summary: "built", sessionId: "ses_2" };
+          });
+      },
+    });
+    assert.equal(builds, 3, "the build, the overloaded round, its retry");
+    assert.equal(foundByRetry, HANDOVER_NOTES);
+  });
+
+  it("H8. a resume the provider refuses costs a fresh session with the whole prompt, not the round", async () => {
+    const { turns, appended } = await runWorker({
+      contextTokens: UNDER,
+      turn: (params) => {
+        if (params.resume === "ses_1") throw new Error("No conversation found with session ID: ses_1");
+        return undefined;
+      },
+    });
+    assert.equal(turns.length, 3, "the build, the refused resume, the fresh retry");
+    assert.ok(!turns[2]?.resume);
+    assert.match(String(turns[2]?.prompt), /^You are building ONE FACET/);
+    assert.deepEqual(
+      appended("facet_session_reset").map((p) => [p.facetId, p.iteration]),
+      [["plaza", 2]],
+    );
+  });
+
+  it("H9. a build that overflowed its context drops the session, and the next round starts fresh", async () => {
+    let first = true;
+    const { turns } = await runWorker({
+      turn: () => {
+        if (!first) return undefined;
+        first = false;
+        return { ok: false, summary: "", sessionId: "ses_1", errorText: "prompt is too long: context overflow" };
+      },
+      rounds: 1,
+    });
+    assert.equal(turns.length, 2);
+    assert.ok(!turns[1]?.resume, "the overflowed session is not resumed");
+  });
+});
+
+/**
+ * The live Loop build of 2026-10-04 (run_musxeasnpww9): the director wrote its workers' demo
+ * checks in JavaScript's equality, `state.lives === 3`. The check language spelled only `==`
+ * (already strict), so both checks came back "does not parse" and were dropped, and ~25 s in the
+ * director stopped both workers and restarted them with `==` — two worker starts for one spelling.
+ */
+describe("a demo check written with === (live Loop build, 2026-10-04)", () => {
+  it("EQ1. a worker's check with === or !== is kept, and reads as strict equality", async () => {
+    const { compileWorkerSpec } = await import("../../src/harness-seed/loop/director/rules.ts");
+    const compiled = compileWorkerSpec({
+      id: "slimes",
+      brief: "slimes that cost a life on contact",
+      checks: [
+        { id: "hit-costs-one", kind: "probe", demo: "slime-hit", expr: "state.lives === 2" },
+        { id: "still-playing", kind: "probe", demo: "slime-hit", expr: "state.phase !== 'over'" },
+      ],
+    });
+    assert.deepEqual(compiled.problems, [], "both checks parse");
+    const ids = compiled.spec.checks.map((check: Check) => check.id);
+    assert.ok(ids.includes("hit-costs-one") && ids.includes("still-playing"), `both checks kept: ${ids}`);
+    const evidence = (lives: number, phase: string) => ({
+      state: { lives: 3, phase: "play" },
+      demos: { "slime-hit": { ok: true } },
+      demoStates: { "slime-hit": { lives, phase } },
+    });
+    const check = (id: string) => compiled.spec.checks.find((c: Check) => c.id === id)!;
+    assert.equal(evaluateProbeCheck(check("hit-costs-one"), evidence(2, "play")).pass, true);
+    assert.equal(evaluateProbeCheck(check("hit-costs-one"), evidence(1, "play")).pass, false);
+    assert.equal(evaluateProbeCheck(check("still-playing"), evidence(2, "play")).pass, true);
+    assert.equal(evaluateProbeCheck(check("still-playing"), evidence(0, "over")).pass, false);
+    assert.equal(
+      evaluateProbeCheck(
+        { id: "loose", kind: "probe", demo: "slime-hit", expr: "state.lives === '2'" },
+        evidence(2, "play"),
+      ).pass,
+      false,
+      "=== is strict, as == already was: the string '2' is not the number 2",
+    );
   });
 });

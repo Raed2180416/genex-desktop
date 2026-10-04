@@ -1292,10 +1292,10 @@ describe("composer provider preferences", () => {
     await engine.refreshModels();
     const model = (await engine.models()).find((m) => m.id === "fixture-model");
     assert.equal(model?.contextWindow, 200000);
-    assert.equal(model?.contextChoices, undefined, "Codex compacts on its own; no window is offered");
-    const args = await engine.preferenceArgs("fixture-model", { contextWindow: 64000, fast: true });
+    const savedWithWindow = { contextWindow: 64000, fast: true };
+    const args = await engine.preferenceArgs("fixture-model", savedWithWindow);
     assert.deepEqual(args, ["-c", 'service_tier="fast"'], "a saved window from an earlier build is not sent");
-    assert.deepEqual(await engine.preferenceArgs("fixture-model", { contextWindow: 999999 }), []);
+    assert.deepEqual(await engine.preferenceArgs("fixture-model", { contextWindow: 999999 } as { fast?: boolean }), []);
     assert.deepEqual(await engine.preferenceArgs("missing", { fast: true }), []);
   });
 });

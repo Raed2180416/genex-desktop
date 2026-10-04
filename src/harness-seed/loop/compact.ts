@@ -10,9 +10,11 @@
 import { eventsToMessagesWithSources, estimateMessagesTokens } from "./prompt.ts";
 import { EngineId } from "./model-roles.ts";
 import { HostMethod } from "./host-methods.ts";
-import { EventKind, RunEvent } from "./run-events.ts";
+import { RunEvent } from "./run-events.ts";
+import { lastContractorSession } from "./chat-session.ts";
+import { appendCustom, COMPACTING_PHASE, latestCompaction } from "./compaction-log.ts";
 import { StopReason } from "./outage.ts";
-import type { AnyRecord, HarnessCtx } from "../types/harness.d.ts";
+import type { HarnessCtx } from "../types/harness.d.ts";
 import type { Message } from "../types/host-api.d.ts";
 
 /** What a compaction is asked to do, and against which budget. */
@@ -52,8 +54,6 @@ const CHUNK_WINDOW_SHARE = 0.4;
 const CHUNK_CHARS_PER_TOKEN = 3;
 /** The longest summary one call may write, in tokens. */
 const SUMMARY_MAX_TOKENS = 1024;
-/** The session phase a compaction shows while it runs (`session_activity`). */
-const COMPACTING_PHASE = "compacting";
 
 const SUMMARY_SYSTEM = [
   "You compress a conversation between a user and a game-building studio into a briefing for the studio's next turn.",
@@ -96,7 +96,9 @@ export async function compactThread(ctx: HarnessCtx, options: CompactOptions): P
   const coveredUpTo = sources[cut - 1];
   const toSummarise = messages.slice(0, cut);
 
-  const prior = events.findLast((e) => e.data.type === EventKind.Custom && e.data.event_type === RunEvent.Compacted);
+  const prior = latestCompaction(events);
+  // The session the chat would resume: the summary ends it too (shared/chat-rewind.ts `harnessView`).
+  const session = lastContractorSession(events)?.sessionId;
   const limit = Math.max(MIN_CHUNK_CHARS, Math.floor(contextWindow * CHUNK_WINDOW_SHARE) * CHUNK_CHARS_PER_TOKEN);
   await appendCustom(ctx, threadId, RunEvent.SessionActivity, {
     phase: COMPACTING_PHASE,
@@ -127,16 +129,10 @@ export async function compactThread(ctx: HarnessCtx, options: CompactOptions): P
     tokensBefore: fullTokens,
     model: options.model ?? null,
     trigger: compactionTrigger(options),
+    ...(session ? { sessionId: session } : {}),
   });
   ctx.notify("thread.compacted", { threadId, messages: toSummarise.length });
   return { compacted: true, messages: toSummarise.length };
-}
-
-async function appendCustom(ctx: HarnessCtx, threadId: string, eventType: string, payload: AnyRecord): Promise<void> {
-  await ctx.call(HostMethod.EventsAppend, {
-    threadId,
-    batch: [{ type: EventKind.Custom, event_type: eventType, payload }],
-  });
 }
 
 /** Who asked: the turn loop's own compaction is "auto", the user's "Compact now" is "manual". */

@@ -115,7 +115,6 @@ export interface ToolDefinition {
 
 /** Request settings whose capabilities are advertised by the selected provider/model. */
 export interface ModelPreferences {
-  contextWindow?: number;
   fast?: boolean;
 }
 // ↑ src/shared/model-preferences.ts
@@ -785,7 +784,6 @@ export interface EngineDescriptor {
     /** The model the provider's catalog names as its default; the picker lists it for "default". */
     providerDefault?: boolean;
     contextWindow: number;
-    contextChoices?: number[];
     supportsFast?: boolean;
     supportsTools: boolean;
     supportsVision: boolean;
@@ -913,6 +911,11 @@ export interface DelegateResult {
   studioToolCalls?: Array<{ name: string; args: Record<string, unknown> }>;
   /** Steered messages the session read (`DelegateRequest.steer`), by id, in the order it read them. */
   steered?: string[];
+  /**
+   * How many tokens the session's last request sent, as the provider counted them: what its next
+   * turn starts from. Absent when the provider reported none, or compacted after its last request.
+   */
+  contextTokens?: number;
 }
 // ↑ src/shared/engine-requests.ts
 
@@ -1782,6 +1785,11 @@ export interface RunSpec {
     /** v2 loop knobs: the pre-evidence code review (default on) and its model half (default on for delegated engines). */
     review?: boolean;
     modelReview?: boolean;
+    /**
+     * A facet worker past its context limit hands over to a fresh session at the end of a round
+     * (harness-seed/loop/facet/phases/handover.ts). Absent: `WORKER_HANDOVER_ENV` decides.
+     */
+    workerHandover?: boolean;
   };
   engine?: string;
   /** The builders' model. Arrives as the composer's pick; the harness resolves it at launch. */

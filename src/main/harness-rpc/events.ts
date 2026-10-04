@@ -18,6 +18,7 @@ export function eventsRpc(core: StudioCore, x: CoreInternals) {
       const threadId = threadOr(core, p.threadId);
       refuseHostRecords(p.batch);
       const latest = await core.append(p.batch, threadId);
+      await x.rewind.forgetCompactedSession(threadId, p.batch);
       x.rewind.checkpointQueueRecords(threadId, p.batch);
       // A message the queue answered or took back is nobody's to answer any more; one still
       // queued outlives a Stop.

@@ -23,8 +23,9 @@ import { ComposerPermissionMenu } from "./ComposerPermissionMenu.tsx";
 import type { PermissionMode } from "../../shared/permissions.ts";
 import { ComposerAddMenu, type AddMenuHandle, PlanModeOff } from "./ComposerAddMenu.tsx";
 import { ComposerLimits, type ContextUsage } from "./ComposerLimits.tsx";
+import { ComposerCommandMenu, compactCommand, useComposerCommands } from "./ComposerCommandMenu.tsx";
+import { selectedCompact } from "../chat/compact-control.ts";
 import { useToolbarFit } from "./toolbar-fit.ts";
-import type { ModelPreferences } from "../../shared/model-preferences.ts";
 import { composerPlaceholder, PLAN_PLACEHOLDER } from "../composer-placeholder.ts";
 import { browserStorage, removeKey, STORAGE_KEYS } from "../storage.ts";
 import {
@@ -74,8 +75,7 @@ export interface PromptBarHandle {
 
 /**
  * The composer's model controls, in one object: the choices and the pick, the roles panel (a
- * delegated engine's workers and judges), the effort (rendered only when `onEffort` is given)
- * and the model preferences.
+ * delegated engine's workers and judges) and the effort (rendered only when `onEffort` is given).
  */
 export interface ComposerModelProps {
   choices: ModelChoice[];
@@ -89,8 +89,6 @@ export interface ComposerModelProps {
   /** The levels the effort control offers (the orchestrator's own). */
   efforts?: string[];
   onEffort?: (value: string | null) => void;
-  preferences?: ModelPreferences;
-  onPreferences?: (value: ModelPreferences) => void;
 }
 
 /**
@@ -482,6 +480,8 @@ interface PromptBarProps {
   contextUsage?: ContextUsage | null;
   onCompact?: () => void;
   compacting?: boolean;
+  /** A turn or a build is under way: Compact now waits for it. */
+  compactBusy?: boolean;
   placeholder?: string;
   disabled?: boolean;
   busy?: boolean;
@@ -570,7 +570,7 @@ function useComposerSend(
   return { send, action, ignoreStopUntil, modelNudge: modelNudge.beat };
 }
 
-/** The prompt itself: typing, the @ mention it may open, and Enter to send. */
+/** The prompt itself: typing, the @ mention or / command list it may open, and Enter to send. */
 function PromptInput({
   inputRef,
   draft,
@@ -578,7 +578,9 @@ function PromptInput({
   disabled,
   placeholder,
   mentions,
+  commands,
   addMenuRef,
+  commandMenuRef,
   onEnter,
 }: {
   inputRef: RefObject<HTMLTextAreaElement | null>;
@@ -587,10 +589,13 @@ function PromptInput({
   disabled: boolean;
   placeholder: string;
   mentions: ReturnType<typeof useMention>;
+  commands: ReturnType<typeof useComposerCommands> | null;
   addMenuRef: RefObject<AddMenuHandle | null>;
+  commandMenuRef: RefObject<AddMenuHandle | null>;
   onEnter: () => void;
 }): JSX.Element {
   const { mention, setMention, findMention } = mentions;
+  const list = listAria(mentions, commands);
   return (
     <textarea
       ref={inputRef}
@@ -600,15 +605,19 @@ function PromptInput({
       onChange={(event) => {
         setDraft(event.target.value);
         setMention(findMention(event.target.value, event.target.selectionStart));
+        commands?.track(event.target.value, event.target.selectionStart);
       }}
       onSelect={(event) => {
         // Only a caret that moved changes the mention; typing and Escape are handled above.
         if (mention && event.currentTarget.selectionStart !== mention.end)
           setMention(findMention(event.currentTarget.value, event.currentTarget.selectionStart));
+        // A caret moved off the end of a / command closes its list.
+        if (commands?.query != null) commands.track(event.currentTarget.value, event.currentTarget.selectionStart);
       }}
       onKeyDown={(event) => {
         markPerformance(PerformanceMarkName.Keydown);
         if (addMenuRef.current?.keyDown(event)) return;
+        if (commandMenuRef.current?.keyDown(event)) return;
         const sends = event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing;
         if (sends) {
           event.preventDefault();
@@ -617,16 +626,60 @@ function PromptInput({
       }}
       placeholder={placeholder}
       aria-label="Prompt"
-      {...(mention
+      {...(list
         ? {
-            "aria-controls": mentions.mentionListId,
+            "aria-controls": list.id,
             "aria-autocomplete": "list" as const,
-            "aria-activedescendant": mentions.mentionOption ?? undefined,
+            "aria-activedescendant": list.option ?? undefined,
           }
         : {})}
       className="composer-input min-h-[35px] w-full min-w-0 resize-none bg-transparent pt-[6px] pr-2 pb-[9px] pl-[7px] text-composer text-ink outline-none [overflow-wrap:anywhere] placeholder:text-ink-3"
     />
   );
+}
+
+/** The / command list in a game's composer; the Harness chat has none. */
+function CommandList({
+  props,
+  commands,
+  anchor,
+  menuRef,
+}: {
+  props: PromptBarProps;
+  commands: ReturnType<typeof useComposerCommands>;
+  anchor: RefObject<HTMLDivElement | null>;
+  menuRef: RefObject<AddMenuHandle | null>;
+}): JSX.Element | null {
+  if (props.gameMode === false) return null;
+  return (
+    <ComposerCommandMenu
+      ref={menuRef}
+      query={commands.query}
+      options={compactCommand(composerCompact(props), props.onCompact && commands.runner(props.onCompact))}
+      anchor={anchor}
+      listId={commands.listId}
+      onClose={() => commands.setQuery(null)}
+      onActiveOption={commands.setActiveOption}
+    />
+  );
+}
+
+/** Compact now as this composer's selected model and its work allow it. */
+function composerCompact(props: PromptBarProps) {
+  return selectedCompact(props.model.choices, props.model.selected, {
+    compacting: Boolean(props.compacting),
+    busy: Boolean(props.compactBusy),
+  });
+}
+
+/** The option list the text box points at: the @ mention's, else an open / command list's. */
+function listAria(
+  mentions: ReturnType<typeof useMention>,
+  commands: ReturnType<typeof useComposerCommands> | null,
+): { id: string; option: string | null } | null {
+  if (mentions.mention) return { id: mentions.mentionListId, option: mentions.mentionOption };
+  if (commands?.activeOption) return { id: commands.listId, option: commands.activeOption };
+  return null;
 }
 
 /** The hidden file picker behind Add → References and the attach button. */
@@ -661,9 +714,11 @@ export function PromptBar(props: PromptBarProps): JSX.Element {
   const panelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const addMenuRef = useRef<AddMenuHandle>(null);
+  const commandMenuRef = useRef<AddMenuHandle>(null);
   const modelMenuRef = useRef<ModelMenuHandle>(null);
   usePromptHandle(props.ref, { inputRef, modelMenuRef, draft, setDraft });
   const mentions = useMention(gameMode, draft, setDraft, inputRef);
+  const commands = useComposerCommands(draft, setDraft);
   // A reply about the build is a note to it, delivered at once, not a message waiting in line.
   // Add's Plan mode asks for what to plan, as Codex's does, until the message goes.
   const contextual = loop.planOn ? PLAN_PLACEHOLDER : (props.placeholder ?? DEFAULT_PLACEHOLDER);
@@ -703,9 +758,12 @@ export function PromptBar(props: PromptBarProps): JSX.Element {
           disabled={disabled}
           placeholder={placeholderNow}
           mentions={mentions}
+          commands={gameMode ? commands : null}
           addMenuRef={addMenuRef}
+          commandMenuRef={commandMenuRef}
           onEnter={composer.send}
         />
+        <CommandList props={props} commands={commands} anchor={panelRef} menuRef={commandMenuRef} />
         <ImagePicker fileRef={fileRef} onFiles={board.addFiles} />
         <ComposerToolbar
           model={props.model}
@@ -720,6 +778,7 @@ export function PromptBar(props: PromptBarProps): JSX.Element {
             contexts: props.contexts,
             onCompact: props.onCompact,
             compacting: props.compacting,
+            compactBusy: props.compactBusy,
           }}
           panelRef={panelRef}
           addMenuRef={addMenuRef}
@@ -804,6 +863,7 @@ interface ComposerLimitsInput {
   contexts?: ContextUsage[];
   onCompact?: () => void;
   compacting?: boolean;
+  compactBusy?: boolean;
 }
 
 interface ComposerToolbarProps {
@@ -949,10 +1009,9 @@ function ModelControls({
       modelKey={modelKey}
       usage={limits.contextUsage}
       contexts={limits.contexts}
-      preferences={model.preferences ?? {}}
-      onPreferences={model.onPreferences}
       onCompact={limits.onCompact}
       compacting={limits.compacting}
+      compactBusy={limits.compactBusy}
       usedBy={rolesInUse(modelKey, roles, Boolean(onRoles) && view.shown.on)}
       project={project}
     />

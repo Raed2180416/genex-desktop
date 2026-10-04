@@ -290,7 +290,7 @@ describe("which messages and nights a reopen is for", () => {
         efforts: { builder: "high" },
       },
       effort: "medium",
-      preferences: { contextWindow: 400_000 },
+      preferences: { fast: true },
     });
     assert.deepEqual(
       {
@@ -311,7 +311,7 @@ describe("which messages and nights a reopen is for", () => {
         judgeModel: "gpt-5.6-luna",
         efforts: { builder: "high" },
         effort: "medium",
-        preferences: { contextWindow: 400_000 },
+        preferences: { fast: true },
       },
     );
 
@@ -855,7 +855,7 @@ describe("the chat's message, from the queue to the reopened night (chat-dispatc
         message: {
           model: "gpt-5.6-terra",
           effort: "medium",
-          preferences: { contextWindow: 400_000 },
+          preferences: { fast: true },
           autopilot: { hours: 2, roles },
         },
         planner: "gpt-5.6-terra",

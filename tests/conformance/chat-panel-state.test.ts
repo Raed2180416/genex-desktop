@@ -20,6 +20,8 @@ import { localToolModel, signInRequested, subscriptionBlocksSend } from "../../s
 import { MODEL_KEY_SEPARATOR, modelKey, parseModelKey } from "../../src/renderer/model-key.ts";
 import { exportedWords } from "../../src/renderer/words.ts";
 import { leadFrameOf } from "../../src/renderer/state/agent-screens.ts";
+import { compactControl } from "../../src/renderer/chat/compact-control.ts";
+import { ComposerCommand, commandMatches, commandQuery } from "../../src/renderer/chat/composer-commands.ts";
 import type { AgentScreenFrame } from "../../src/shared/agent-screen.ts";
 
 type Code = EngineDescriptor["status"]["code"];
@@ -317,5 +319,60 @@ describe("the running build's lead screen", () => {
     assert.equal(leadFrameOf({ frames, trails: {} }, "kart", "run_a")?.handle, "new");
     assert.equal(leadFrameOf({ frames, trails: {} }, "kart", "run_c"), undefined);
     assert.equal(leadFrameOf({ frames, trails: {} }, null, "run_a"), undefined);
+  });
+});
+
+describe("Compact now in the context panel", () => {
+  it("is offered for every engine with a session, and for a local Ollama chat", () => {
+    const cases: Array<[engine: string | null, supportsSessions: boolean | undefined, shown: boolean]> = [
+      ["claude-code", true, true],
+      ["codex", true, true],
+      ["bonsai", true, true],
+      ["ollama", false, true],
+      ["ollama", undefined, true],
+      ["some-api", false, false],
+      ["some-api", undefined, false],
+      [null, undefined, false],
+    ];
+    for (const [engine, supportsSessions, shown] of cases)
+      assert.equal(
+        compactControl({ engine, supportsSessions, compacting: false, busy: false }).shown,
+        shown,
+        `${engine} sessions=${supportsSessions}`,
+      );
+  });
+
+  it("is disabled while it runs, and while a turn or a build is under way", () => {
+    const at = (compacting: boolean, busy: boolean) =>
+      compactControl({ engine: "claude-code", supportsSessions: true, compacting, busy }).disabled;
+    assert.equal(at(false, false), false);
+    assert.equal(at(true, false), true);
+    assert.equal(at(false, true), true);
+  });
+});
+
+describe("the composer's / commands", () => {
+  it("opens only for a message that is a command being typed, with the caret at its end", () => {
+    const cases: Array<[text: string, caret: number | null, query: string | null]> = [
+      ["/", 1, ""],
+      ["/com", 4, "com"],
+      ["/COMPACT", 8, "compact"],
+      ["/compact", 3, null],
+      ["/compact now", 12, null],
+      ["hello /compact", 14, null],
+      [" /compact", 9, null],
+      ["//", 2, null],
+      ["/com\npact", 9, null],
+      ["", 0, null],
+      ["/compact", null, null],
+    ];
+    for (const [text, caret, query] of cases) assert.equal(commandQuery(text, caret), query, JSON.stringify(text));
+  });
+
+  it("lists the commands this chat offers whose names start with what was typed", () => {
+    assert.deepEqual(commandMatches("", [ComposerCommand.Compact]), [ComposerCommand.Compact]);
+    assert.deepEqual(commandMatches("comp", [ComposerCommand.Compact]), [ComposerCommand.Compact]);
+    assert.deepEqual(commandMatches("x", [ComposerCommand.Compact]), []);
+    assert.deepEqual(commandMatches("", []), [], "a chat that cannot compact offers no /compact");
   });
 });

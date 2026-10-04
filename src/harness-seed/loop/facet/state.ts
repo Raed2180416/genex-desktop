@@ -218,6 +218,10 @@ export interface RoundCounters {
   iterationsThisRound: number;
   circuitBreak: string | null;
   startIteration: number;
+  /** What the builder's last turn sent its provider (`DelegateResult.contextTokens`); null when it reported none. */
+  lastContextTokens: number | null;
+  /** The notes file a handover was written into, for the fresh session after it to read first. */
+  handoverNotes: string | null;
 }
 
 /**
@@ -681,6 +685,8 @@ export async function createFacetLoopState(ctx: HarnessCtx, raw: FacetLoopOption
     iterationsThisRound: 0,
     circuitBreak: null,
     startIteration: (options.resumeState?.iterations ?? 0) + 1,
+    lastContextTokens: null,
+    handoverNotes: null,
     roundEstimate: () =>
       loop.emaBuildMs === null
         ? { runMs: loop.minIterationMs }

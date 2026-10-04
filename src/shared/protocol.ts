@@ -281,13 +281,27 @@ export interface RunReference {
 export const DIRECTOR_LOOP_ENV = "STUDIO_DIRECTOR_LOOP";
 
 /**
- * What of the studio's own environment the harness it spawns is handed for the director's loop:
- * that one variable, when it is set. The harness's environment is an allow-list, so without
- * this the override never reached the runs the harness starts from chat.
+ * The studio's environment variable that turns on the facet workers' handover for a run whose
+ * budgets do not say (`RunSpec.budgets.workerHandover`): "1" while it is tried on real builds.
+ * The seed's copy is loop/facet/phases/handover.ts `WORKER_HANDOVER_ENV`.
  */
-export function directorLoopEnv(env: Readonly<Record<string, string | undefined>>): Record<string, string> {
-  const named = env[DIRECTOR_LOOP_ENV]?.trim();
-  return named ? { [DIRECTOR_LOOP_ENV]: named } : {};
+export const WORKER_HANDOVER_ENV = "STUDIO_WORKER_HANDOVER";
+
+/** The studio's own variables a run's harness reads; nothing else of its environment is handed on. */
+const HARNESS_RUN_ENV = [DIRECTOR_LOOP_ENV, WORKER_HANDOVER_ENV] as const;
+
+/**
+ * What of the studio's own environment the harness it spawns is handed: the run overrides it
+ * reads, each when it is set. The harness's environment is an allow-list, so without this an
+ * override never reached the runs the harness starts from chat.
+ */
+export function harnessRunEnv(env: Readonly<Record<string, string | undefined>>): Record<string, string> {
+  const handed: Record<string, string> = {};
+  for (const name of HARNESS_RUN_ENV) {
+    const value = env[name]?.trim();
+    if (value) handed[name] = value;
+  }
+  return handed;
 }
 
 export interface RunSpec {
@@ -327,6 +341,11 @@ export interface RunSpec {
     /** v2 loop knobs: the pre-evidence code review (default on) and its model half (default on for delegated engines). */
     review?: boolean;
     modelReview?: boolean;
+    /**
+     * A facet worker past its context limit hands over to a fresh session at the end of a round
+     * (harness-seed/loop/facet/phases/handover.ts). Absent: `WORKER_HANDOVER_ENV` decides.
+     */
+    workerHandover?: boolean;
   };
   engine?: string;
   /** The builders' model. Arrives as the composer's pick; the harness resolves it at launch. */

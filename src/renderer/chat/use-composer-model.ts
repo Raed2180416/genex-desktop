@@ -372,12 +372,6 @@ export function useComposerModel({
     rememberEffortPick(storage, { threadId, studio, modelKey: selected }, value);
   };
 
-  const pickPreferences = (value: ModelPreferences): void => {
-    const next = supportedPreferences(value, choices.find((choice) => choice.key === selected) ?? {});
-    setPreferences(next);
-    storage.setItem(storageKeyFor.preferences(studio, selected), JSON.stringify(next));
-  };
-
   return {
     ...view,
     preferences,
@@ -389,8 +383,6 @@ export function useComposerModel({
       onPick: pickModel,
       roles: sendRoles,
       ...(rolesApply ? { onRoles: pickRoles } : {}),
-      preferences,
-      onPreferences: pickPreferences,
       ...(view.effortApplies ? { effort: view.effort ?? null, efforts: view.efforts, onEffort: pickEffort } : {}),
     },
   };

@@ -1744,7 +1744,7 @@ describe("a failed studio tool on claude code (P06-F7)", () => {
 });
 
 describe("composer Claude context preferences", () => {
-  /** The settings one delegation hands Claude Code, for a composer preference. */
+  /** The settings one delegation hands Claude Code, for preferences as a composer saved them. */
   async function delegatedSettings(preferences: { contextWindow?: number; fast?: boolean }) {
     let options: Record<string, unknown> = {};
     const engine = await engineWithLogin(((request: { options: Record<string, unknown> }) => {
@@ -1770,22 +1770,21 @@ describe("composer Claude context preferences", () => {
     };
   }
 
-  it("keeps compaction settings alongside workspace read-denial permissions", async () => {
+  it("keeps workspace read-denial permissions whatever preferences were saved", async () => {
     const settings = await delegatedSettings({ contextWindow: 200_000, fast: true });
-    assert.equal(settings.autoCompactWindow, undefined, "unknown provider limits must not authorize a guessed window");
+    assert.equal(settings.autoCompactWindow, undefined, "Claude Code compacts on its own; no window is sent");
     assert.equal(settings.fastMode, undefined, "Fast is hidden/refused until this model advertises support");
-    assert.ok(settings.permissions.deny.length > 0, "context settings must never erase permission restrictions");
+    assert.ok(settings.permissions.deny.length > 0, "saved preferences must never erase permission restrictions");
   });
 
-  it("never sends a compaction point Claude Code would silently drop", async () => {
-    // Claude Code accepts an auto-compact window of 100K–1M and ignores anything else.
-    for (const contextWindow of [32_000, 64_000, 128_000, 1_500_000]) {
+  it("never sends a compaction point, even one an earlier build's picker saved", async () => {
+    for (const contextWindow of [32_000, 200_000, 1_000_000, 1_500_000]) {
       const settings = await delegatedSettings({ contextWindow });
-      assert.equal(settings.autoCompactWindow, undefined, `${contextWindow} is not a point Claude Code honors`);
+      assert.equal(settings.autoCompactWindow, undefined, `${contextWindow} is not sent: compaction is Auto only`);
     }
   });
 
-  it("unknown catalog limits offer no guessed compaction choices", async () => {
+  it("an unknown catalog limit is not guessed", async () => {
     const engine = await engineWithLogin((() => ({
       supportedModels: async () => [{ value: "future", displayName: "Future" }],
       close() {},
@@ -1794,7 +1793,6 @@ describe("composer Claude context preferences", () => {
     await engine.refreshModels();
     const models = await engine.models();
     assert.equal(models.find((model) => model.id === "future")?.contextWindow, 0);
-    assert.equal(models.find((model) => model.id === "future")?.contextChoices, undefined);
   });
 });
 

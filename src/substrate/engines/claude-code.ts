@@ -853,7 +853,6 @@ export class ClaudeCodeEngine implements Engine {
     const descriptor = (await this.models()).find((m) => m.id === (model ?? this.#model ?? DEFAULT_MODEL));
     const allowed = supportedPreferences(value, descriptor ?? {});
     return {
-      ...(allowed.contextWindow ? { autoCompactWindow: allowed.contextWindow } : {}),
       ...(allowed.fast !== undefined ? { fastMode: allowed.fast } : {}),
     };
   }
@@ -1260,7 +1259,10 @@ export class ClaudeCodeEngine implements Engine {
     run.turns++;
     if (fromAssistant && request.interviewTools?.length) recordStudioToolCalls(message, run, request.interviewTools);
     this.#reportActivity(message, run, request);
-    if (fromAssistant) this.#observeTelemetry(stream, request.onEvent, run.sessionId);
+    if (!fromAssistant) return;
+    this.#observeTelemetry(stream, request.onEvent, run.sessionId);
+    // A subagent's request is its own context, not the one the session's next turn starts from.
+    if (!message.parent_tool_use_id) run.contextTokens = requestTokens(message) ?? run.contextTokens;
   }
 
   /** A system message: the session's init, a compaction boundary, and a telemetry reading. */
@@ -1281,6 +1283,7 @@ export class ClaudeCodeEngine implements Engine {
   #reportCompaction(stream: object, run: RunState, request: DelegateRequest): void {
     this.#markCompaction(stream);
     run.usage.compactions = (run.usage.compactions ?? 0) + 1;
+    run.contextTokens = undefined;
     request.onEvent?.({
       type: DelegateEventType.Context,
       payload: {
@@ -1368,6 +1371,7 @@ export class ClaudeCodeEngine implements Engine {
       ...(run.sessionId ? { sessionId: run.sessionId } : {}),
       ...(run.studioToolCalls.length ? { studioToolCalls: run.studioToolCalls } : {}),
       ...(!run.ok && run.errorText ? { errorText: run.errorText } : {}),
+      ...(run.contextTokens ? { contextTokens: run.contextTokens } : {}),
     };
   }
 
@@ -1531,6 +1535,8 @@ interface RunState {
   usage: Usage;
   /** Set by the deadline timer: the abort that follows is the time budget's, not the user's. */
   deadlineHit: boolean;
+  /** What the main loop's last request sent (`DelegateResult.contextTokens`); none after a compaction. */
+  contextTokens: number | undefined;
   /** The turns every result so far counted: a steered session can answer in several results. */
   resultTurns: number;
   /** A steerable session's input and the messages it took (claude-steer.ts); null otherwise. */
@@ -1555,6 +1561,7 @@ function newRunState(usage: Usage, cliInstallation: ClaudeInstallation): RunStat
     studioToolCalls: [],
     usage,
     deadlineHit: false,
+    contextTokens: undefined,
     resultTurns: 0,
     feed: null,
     control: { release: () => {} },
@@ -1589,6 +1596,7 @@ function runPartialState(
     sessionId: run.sessionId,
     model: run.modelUsed,
     requestedModel: request.model ?? defaultModel,
+    contextTokens: run.contextTokens,
   };
 }
 
@@ -1696,6 +1704,14 @@ function recordSessionTotals(usage: Usage, result: SdkResult): void {
   if (byModel) usage.by_model = byModel;
   if (isCount(result.duration_api_ms)) usage.duration_api_ms = result.duration_api_ms;
   if (isCount(result.ttft_ms)) usage.ttft_ms ??= result.ttft_ms;
+}
+
+/** The tokens one assistant reply's request sent, every input kind counted; null when it reported none. */
+function requestTokens(message: Record<string, unknown>): number | null {
+  const usage = (message.message as { usage?: Record<string, unknown> } | undefined)?.usage;
+  if (!usage || !isCount(usage.input_tokens)) return null;
+  const cached = [usage.cache_read_input_tokens, usage.cache_creation_input_tokens].filter(isCount);
+  return cached.reduce((sum, tokens) => sum + tokens, usage.input_tokens);
 }
 
 /** A finite, non-negative number: a count or a duration a CLI can honestly have reported. */

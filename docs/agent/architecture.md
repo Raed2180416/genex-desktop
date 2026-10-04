@@ -461,9 +461,9 @@ come last (`claudeJudgeContent`). `sweepJudgeTranscripts` runs only when the eng
 
 **Provider receipts** distinguish the requested model from the reported one; absent metadata stays
 unknown, and provider telemetry stays in `claude-telemetry.ts` — the app never infers a quota
-percentage from token counts. Auto-compact points, Fast and effort come from what each provider
-advertises: Claude Code's points are only those its `autoCompactWindow` setting honors (100K–1M,
-capped at the model's window), and Codex offers none. Local runtimes, Bonsai sessions and
+percentage from token counts. Fast and effort come from what each provider advertises; no
+provider is sent a compaction point, since every one compacts on its own (Auto) and Compact now
+is the manual control. Local runtimes, Bonsai sessions and
 checkpoints are specified in [local models](../local-models.md) and
 [connections and context](../connections-and-context.md).
 

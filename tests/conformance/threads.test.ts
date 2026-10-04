@@ -798,3 +798,182 @@ describe("context management", () => {
     assert.ok(events.some((event) => event.data.type === "thread_updated" && event.data.title === "rooftop chase"));
   });
 });
+
+/**
+ * Compact now on a chat whose engine keeps a provider session (Claude Code, Codex, a local
+ * session). The log summary alone changed nothing there: the next turn resumed the same session
+ * with all of its history. Now the session writes its own handover, and the next turn starts a
+ * fresh one briefed with it.
+ */
+describe("Compact now on a session chat", () => {
+  type DelegateRequest = import("../../src/substrate/engines/types.ts").DelegateRequest;
+  const HANDOVER = "The plaza has a working fountain; the market stalls are next. Files: src/plaza.js.";
+  /**
+   * A session engine that answers a read-only resume with a handover and anything else with a
+   * turn. `gate` holds the handover until it settles; `overlaps` records, for each other turn,
+   * whether a handover was still being written when it started.
+   */
+  function sessionEngine(
+    requests: DelegateRequest[],
+    {
+      fail = false,
+      gate = Promise.resolve(),
+      overlaps = [],
+    }: { fail?: boolean; gate?: Promise<void>; overlaps?: boolean[] } = {},
+  ) {
+    let sessions = 0;
+    let handingOver = false;
+    return {
+      ...vendorEngine([]),
+      delegate: async (request: DelegateRequest) => {
+        requests.push(request);
+        const handover = request.readOnly === true && Boolean(request.resume);
+        if (!handover) overlaps.push(handingOver);
+        if (handover && fail) throw new Error("You've hit your session limit");
+        if (handover) {
+          handingOver = true;
+          await gate;
+          handingOver = false;
+        }
+        return {
+          ok: true,
+          engine: "vendor",
+          summary: handover ? HANDOVER : "done",
+          turns: 1,
+          usage: {},
+          sessionId: request.resume ?? `ses_${++sessions}`,
+        };
+      },
+    } satisfies Engine;
+  }
+  const turnsEnded = (count: number) => (events: Array<{ data: { type: string } }>) =>
+    events.filter((e) => e.data.type === "turn_ended").length >= count;
+  /** How long a message sent during the handover is watched for being taken: the queue takes one at once. */
+  const QUEUE_HOLD_MS = 1500;
+  /** A game chat on the session engine, after its first turn. */
+  async function chatAfterOneTurn(
+    rig: Rig,
+    requests: DelegateRequest[],
+    options: Parameters<typeof sessionEngine>[1] = {},
+  ) {
+    rig.core.engines.register(sessionEngine(requests, options));
+    const game = `plaza-${rigs.length}`;
+    await rig.core.games.scaffold(game, { title: "Plaza chat" });
+    const thread = await rig.core.threadForGame(game);
+    await rig.core.sendUserMessage("Build a plaza with a fountain.", { engine: "vendor", thread });
+    await waitForLog(rig.core, turnsEnded(1), 30000, "first turn");
+    return thread;
+  }
+
+  it("the session writes the handover, and the next turn starts a fresh session briefed with it", async () => {
+    const rig = await startRig({ replies: [] });
+    rigs.push(rig);
+    const requests: DelegateRequest[] = [];
+    const thread = await chatAfterOneTurn(rig, requests);
+    assert.equal(requests.at(-1)?.resume, undefined);
+    await rig.core.sendUserMessage("Make the water glow at night.", { engine: "vendor", thread });
+    await waitForLog(rig.core, turnsEnded(2), 30000, "second turn");
+
+    await rig.core.compactThread(thread, { engine: "vendor" });
+    const summaryTurn = requests.at(-1);
+    assert.equal(summaryTurn?.resume, "ses_1", "the session that remembers the chat writes the handover");
+    assert.equal(summaryTurn?.readOnly, true, "and changes nothing in the game");
+    const compacted = customEvents(await rig.core.store.listEvents(thread), "compacted");
+    assert.deepEqual(
+      compacted.map((p) => [p.summary, p.engine, p.messages]),
+      [[HANDOVER, "vendor", 3]],
+      "it replaces the first exchange (the ask, the build's record, the reply); the later one stays verbatim",
+    );
+
+    await rig.core.sendUserMessage("Now add the market stalls.", { engine: "vendor", thread });
+    await waitForLog(rig.core, turnsEnded(3), 30000, "turn after compaction");
+    const next = requests.at(-1);
+    assert.equal(next?.resume, undefined, "a fresh session, not the compacted one");
+    assert.match(String(next?.prompt), /The plaza has a working fountain; the market stalls are next/);
+    assert.match(String(next?.prompt), /Now add the market stalls\./);
+    assert.match(
+      String(next?.prompt),
+      /Recent conversation[\s\S]*user: Make the water glow at night\./,
+      "the latest exchanges stay verbatim",
+    );
+    assert.doesNotMatch(String(next?.prompt), /user: Build a plaza/, "the first exchange is the handover's");
+    assert.doesNotMatch(
+      String(next?.prompt),
+      /Original request/,
+      "the handover says what was asked; a kept message is not the original",
+    );
+  });
+
+  it("a message sent while the session writes its handover waits in the queue, then starts the fresh session", async () => {
+    const rig = await startRig({ replies: [] });
+    rigs.push(rig);
+    const requests: DelegateRequest[] = [];
+    const overlaps: boolean[] = [];
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const thread = await chatAfterOneTurn(rig, requests, { gate, overlaps });
+
+    const compacting = rig.core.compactThread(thread, { engine: "vendor" });
+    await waitForLog(
+      rig.core,
+      (events) => customEvents(events, "session_activity").some((p) => p.phase === "compacting"),
+      30000,
+      "the handover under way",
+    );
+    // Sent now, the message is stamped with the session the compaction is ending.
+    await rig.core.sendUserMessage("Now add the market stalls.", { engine: "vendor", thread });
+    const taken = await waitForLog(
+      rig.core,
+      // The first message's record is there already; the second is this one's.
+      (events) => customEvents(events, "coordinator_message_processing").length > 1,
+      QUEUE_HOLD_MS,
+      "the message taken",
+    ).then(
+      () => true,
+      () => false,
+    );
+    assert.equal(taken, false, "it waits in the queue while the handover is written");
+    release();
+    await compacting;
+    await waitForLog(rig.core, turnsEnded(2), 30000, "the queued message's turn");
+
+    assert.deepEqual(overlaps, [false, false], "no turn ran beside the handover");
+    const next = requests.at(-1);
+    assert.equal(next?.resume, undefined, "the queued message starts the fresh session, not the compacted one");
+    assert.match(String(next?.prompt), /The plaza has a working fountain; the market stalls are next/);
+  });
+
+  it("a compaction the host could not record as the session's end still lands, and still ends it", async () => {
+    const rig = await startRig({ replies: [] });
+    rigs.push(rig);
+    const requests: DelegateRequest[] = [];
+    const thread = await chatAfterOneTurn(rig, requests);
+    const { store } = rig.core;
+    const update = store.updateThread.bind(store);
+    store.updateThread = async (...args: Parameters<typeof update>) => {
+      const metadata = args[1]?.metadata as Record<string, unknown> | undefined;
+      if (metadata && "contractor" in metadata && metadata.contractor === null) throw new Error("EIO: write failed");
+      return update(...args);
+    };
+
+    await rig.core.compactThread(thread, { engine: "vendor" });
+    assert.equal(customEvents(await rig.core.store.listEvents(thread), "compacted").length, 1);
+    await rig.core.sendUserMessage("Now add the market stalls.", { engine: "vendor", thread });
+    await waitForLog(rig.core, turnsEnded(2), 30000, "turn after compaction");
+    assert.equal(requests.at(-1)?.resume, undefined, "the saved session was not forgotten, but is not resumed");
+  });
+
+  it("a handover the session could not write leaves the chat's session as it was", async () => {
+    const rig = await startRig({ replies: [] });
+    rigs.push(rig);
+    const requests: DelegateRequest[] = [];
+    const thread = await chatAfterOneTurn(rig, requests, { fail: true });
+    await rig.core.compactThread(thread, { engine: "vendor" }).catch(() => {});
+    assert.equal(customEvents(await rig.core.store.listEvents(thread), "compacted").length, 0);
+    await rig.core.sendUserMessage("Now add the market stalls.", { engine: "vendor", thread });
+    await waitForLog(rig.core, turnsEnded(2), 30000, "turn after the failed compaction");
+    assert.equal(requests.at(-1)?.resume, "ses_1", "nothing was summarised, so nothing was forgotten");
+  });
+});

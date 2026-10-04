@@ -23,6 +23,8 @@ import { HostMethod } from "../host-methods.ts";
 import { plannerModel } from "../model-roles.ts";
 import { runRef } from "../repo.ts";
 import { EventKind, RunEvent } from "../run-events.ts";
+import { compactedSummary } from "../compaction-log.ts";
+import { handoverSection } from "../session-compact-prompts.ts";
 import { chatSoFar, LEAD_SET_ASIDE } from "./lead-session-prompts.ts";
 import type { AnyRecord, HarnessCtx, HarnessEvent, Run } from "../../types/harness.d.ts";
 import type { Night } from "./night.ts";
@@ -154,14 +156,21 @@ export function leadSeat({
   return { ...seat, chatSession: false, sessionId: own, bookmarked: null };
 }
 
-/** The chat's latest messages, as a fresh lead session is told them (empty when the chat has none). */
+/**
+ * The chat's latest messages, as a fresh lead session is told them (empty when the chat has none),
+ * after the handover its compaction wrote when it was compacted (session-compact.ts).
+ */
 export async function freshChat(ctx: HarnessCtx, threadId: string): Promise<string> {
-  const messages = await ctx.call(HostMethod.EventsMessages, { threadId }).catch(() => []);
-  const lines = (Array.isArray(messages) ? messages : [])
+  const listed = await ctx.call(HostMethod.EventsList, { threadId }).catch(() => []);
+  const events: HarnessEvent[] = Array.isArray(listed) ? listed : [];
+  // The messages the host's own `events.messages` would answer: every message event's, in order.
+  const lines = events
+    .flatMap((event) => (event?.data?.type === EventKind.Messages ? event.data.messages : []))
     .filter((m) => m?.role === "user" || m?.role === "assistant")
     .map((m) => ({ role: String(m.role), content: String(m.content ?? "") }))
     .filter((m) => m.content.trim());
-  return chatSoFar(lines);
+  const handover = compactedSummary(events);
+  return [handover ? handoverSection(handover) : "", chatSoFar(lines)].filter(Boolean).join("\n\n");
 }
 
 /**

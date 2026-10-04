@@ -33,6 +33,7 @@ import { clip, CLIP_BRIEF, CLIP_GAME_TITLE } from "./text.ts";
 import { SECOND_MS, sleep } from "./time.ts";
 import { recordFirstPreview } from "./first-preview.ts";
 import { canFallBack, runToolLoop } from "./tool-loop.ts";
+import { compactedSummary, endedByCompaction } from "./compaction-log.ts";
 import { TurnStop, sayInTurn } from "./turn-record.ts";
 import type { TurnOptions, TurnOutcome } from "./turn-loop.ts";
 import type { AnyRecord, CallResult, HarnessCtx, HarnessTool, ToolCtx, ToolOutcome } from "../types/harness.d.ts";
@@ -132,6 +133,8 @@ interface Handoff {
   reopening: boolean;
   /** The contractor session this chat resumes, if any. */
   resume: string | null;
+  /** The handover the chat's last compaction wrote, for a fresh session's brief; null when none. */
+  compacted: string | null;
   hasPriorAsk: boolean;
   project: string;
   descriptor: GameProject | null;
@@ -291,14 +294,17 @@ async function readChat(ctx: HarnessCtx, options: DelegatedOptions): Promise<Cha
   // mind that only sees the last line ("keep going" with no idea what the game is).
   const events = await ctx.call(HostMethod.EventsList, { threadId });
   const prior = lastContractorSession(events, engine);
-  const resume = options.resume || prior?.sessionId || null;
+  // A message sent while the chat was compacted carries the session the compaction ended.
+  const asked = endedByCompaction(events, options.resume) ? null : options.resume;
+  const resume = asked || prior?.sessionId || null;
+  const compacted = compactedSummary(events);
   // Which workspace gets the brief: THIS chat's folder, never the preview and never "the
   // newest game". Those two fallbacks were how a follow-up quietly wandered into a sibling.
   const games = await ctx.call(HostMethod.GameList);
   const project = resolveChatProject(options, games) ?? priorProject(prior, games);
   // A prior real ask means this chat is mid-conversation, whatever happened to its session.
   const hasPriorAsk = messages.some((m) => m.role === "user" && m.content?.trim() && m.content.trim() !== ask);
-  return { ask, messages, commission, launchTool, reopening, resume, hasPriorAsk, project, games };
+  return { ask, messages, commission, launchTool, reopening, resume, compacted, hasPriorAsk, project, games };
 }
 
 /**
@@ -415,6 +421,7 @@ async function briefWriter(
       engine: options.engine,
       launch,
       afterNight: options.afterNight ? afterNightNote(options.afterNight, options.engine, reopenGrant(handoff)) : null,
+      compacted: handoff.compacted,
     });
 }
 

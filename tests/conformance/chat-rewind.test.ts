@@ -282,6 +282,27 @@ test("the harness forgets every session recorded before a rewind, so the next tu
   assert.equal(messageQueueState(view).messages.has("b"), false);
 });
 
+test("a compaction forgets every session recorded before it, as a rewind does", () => {
+  const init = custom(19, "delegated.claude-code", { kind: "system", data: { subtype: "init", session_id: "ses-1" } });
+  const compacted = custom(20, "compacted", {
+    engine: "claude-code",
+    summary: "where the chat stands",
+    upTo: "0000019",
+  });
+  const view = harnessView([...conversation(), init, compacted], []);
+  assert.equal(lastContractorSession(view, "claude-code"), null, "the compacted session is not resumed");
+  assert.ok(
+    view.some((e) => e.data.type === "custom" && e.data.event_type === "compacted"),
+    "the compaction itself stays",
+  );
+  const later = custom(30, "contractor_session", { engine: "claude-code", sessionId: "ses-2", project: "p" });
+  assert.equal(
+    lastContractorSession(harnessView([...conversation(), compacted, later], []), "claude-code")?.sessionId,
+    "ses-2",
+    "a session opened after the compaction is resumed as usual",
+  );
+});
+
 test("a run's mirrored session never becomes the chat's session, rewound or not", () => {
   const directorInit = custom(20, "delegated.claude-code", {
     kind: "system",

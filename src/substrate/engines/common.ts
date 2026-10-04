@@ -86,6 +86,7 @@ export interface PartialDelegateState {
   cliVersion?: string | undefined;
   cliPath?: string | undefined;
   studioToolCalls?: DelegateResult["studioToolCalls"];
+  contextTokens?: number | undefined;
 }
 
 /** A build that ended early but left real work behind: an outcome to report, not an error. */
@@ -113,6 +114,7 @@ export function partialDelegateResult(
     // An interview call the stream already recorded is executed by the harness whatever ended
     // the session — a deadline or stop must not lose a launch the contractor asked for.
     ...(state.studioToolCalls?.length ? { studioToolCalls: state.studioToolCalls } : {}),
+    ...(state.contextTokens ? { contextTokens: state.contextTokens } : {}),
   };
 }
 
