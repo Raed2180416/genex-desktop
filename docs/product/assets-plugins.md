@@ -3,15 +3,15 @@
 ## Assets in a game
 
 Assets groups `assets/` and `public/assets/` files by source and generation, even before a
-build exists; deliveries and external changes refresh it. The preview grid hides repeated
-metadata; filenames stay labels and tooltips. Hover or focus reveals preview actions.
+build exists; deliveries and external changes refresh it. Cards hide metadata; filenames stay tooltips; hover shows one action; animation-only GLBs fold
+into their model.
 
-Opening a file previews images, audio/video, supported 3D models, textures or bounded text.
-Models have orbit and animation controls, without a metadata header. Unsupported formats and
-decoder failures explain themselves and offer Reveal in Finder. Media reads are bounded; offscreen previews load lazily.
+Opening a file shows it over the window with only Reveal in Finder and Close: images (click for
+full size), audio/video, 3D models playing their clips, textures or bounded text. Unsupported
+formats and decoder failures explain themselves. Media reads are bounded; offscreen previews load lazily.
 
 Chat shows game-folder files. Builds shows Loop workspace assets as thumbnails with their
-location until landing; checks and Blender passes on an asset are notes. Visual results use lazy two-column previews; sounds play in compact strips.
+location until landing; checks and Blender passes on an asset are notes. Visual results use lazy two-column previews; sounds play in compact rows.
 Chat offers Open in Assets and bounded batches. Job completion or “seen in game” observations
 do not prove correct integration or passing checks.
 

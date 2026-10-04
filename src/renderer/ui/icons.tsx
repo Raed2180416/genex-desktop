@@ -323,6 +323,15 @@ const glyphs = {
       <path d="M4.5 4.5V9H9" />
     </g>
   ),
+  // The Assets tab: four tiles, as the canvas lays files out.
+  assets: (
+    <>
+      <rect x="4" y="4" width="6.5" height="6.5" rx="1.8" />
+      <rect x="13.5" y="4" width="6.5" height="6.5" rx="1.8" />
+      <rect x="4" y="13.5" width="6.5" height="6.5" rx="1.8" />
+      <rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.8" />
+    </>
+  ),
   box: (
     <g className="a-lift">
       <path d="M12 3.5l7.5 4.2v8.6L12 20.5l-7.5-4.2V7.7z" />

@@ -1989,6 +1989,32 @@ export function fileManagerWords(platform: string): FileManagerWords {
   return FILE_MANAGER_WORDS[platform] ?? FINDER_WORDS;
 }
 
+// ── delivered assets ──────────────────────────────────────────────────────────────────────
+
+/** What the chat's asset cards, the Assets tab and the asset viewer say. */
+export const ASSET_WORDS = {
+  openInAssets: "Open in Assets",
+  /** How to move around a model in the viewer, and around a flat texture. */
+  modelHint: "Drag to turn · Scroll to zoom · Double-click to reset",
+  textureHint: "Scroll to zoom · Double-click to reset",
+  zoomIn: "See the picture at full size",
+  zoomOut: "Fit the picture",
+  loading: "Loading preview…",
+  animations: "Animations",
+  speed: "Speed",
+  playFailed: "This sound could not be played",
+} as const;
+
+/** "1 animation", "3 animations". */
+export function animationCountWords(count: number): string {
+  return count === 1 ? "1 animation" : `${count} animations`;
+}
+
+/** A model's animation files, named for the model: "Knight animations". */
+export function modelAnimationsWords(model: string): string {
+  return `${model} animations`;
+}
+
 // ── files the chat names ──────────────────────────────────────────────────────────────────
 
 /** A file link's words: what a click does, by how it opens (`shared/chat-files.ts`), and why it failed. */

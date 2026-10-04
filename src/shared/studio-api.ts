@@ -19,6 +19,7 @@ import type { NightReview } from "./run-review.ts";
 import type { CodexLoginState } from "./codex-login.ts";
 import type { ClaudeLoginState } from "./claude-login.ts";
 import type { ProjectAsset, ProjectAssets } from "./game-assets.ts";
+import type { ModelRig } from "./model-rig.ts";
 import type { UiEvent } from "./ui-events.ts";
 import type { GameFile } from "./game-file.ts";
 import type { ChatFileLink, ChatFileOpenOutside, ChatFileRef } from "./chat-files.ts";
@@ -375,6 +376,8 @@ export interface StudioApi {
   }): Promise<{ mimeType: string; data: Uint8Array<ArrayBuffer> }>;
   /** Which delivered files the game folder holds now; a build's files arrive when it lands. */
   presentProjectAssets(p: { project: string; files: string[] }): Promise<string[]>;
+  /** What these GLB and glTF files hold, read from their headers: meshes, clips and bones; other files are skipped. */
+  projectModelRigs(p: { project: string; files: string[] }): Promise<ModelRig[]>;
   projectAssets(project: string): Promise<ProjectAssets>;
   /**
    * One image from inside the game, contained and byte-sniffed. `maxPx` asks for a thumbnail;

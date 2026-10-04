@@ -68,6 +68,7 @@ const METHODS = [
   "presentProjectAssets",
   "previewProjectAsset",
   "projectAssets",
+  "projectModelRigs",
   // Publish's file list, shown in Studio's dialog before anything is uploaded (studio:plugins.genex-publish-review).
   "publicCopyFiles",
   "readGameFile",

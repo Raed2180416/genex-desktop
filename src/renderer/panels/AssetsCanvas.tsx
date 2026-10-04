@@ -2,6 +2,7 @@
 import type { JSX } from "react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { assetJobStalled, type ProjectAsset } from "../../shared/game-assets.ts";
+import { foldMotions, type FoldedMotions } from "../../shared/model-rig.ts";
 import { layoutAssets, type PendingJob } from "../assets-layout.ts";
 import { useCanvasView, gridTransform } from "../canvas-view.ts";
 import { boundsOf } from "../run-graph.ts";
@@ -12,11 +13,15 @@ import { Button } from "../ui/Button.tsx";
 import { EmptyState } from "../ui/EmptyState.tsx";
 import { AssetPreview } from "./AssetPreview.tsx";
 import { AssetTile } from "./AssetTile.tsx";
+import { AudioTile } from "../chat/AudioStrip.tsx";
+import { useModelRigs } from "../model-rigs.ts";
 import { type Notify, notifyProblem } from "../state/toasts.ts";
 import { typingIn } from "./keyboard.ts";
 import { Pending } from "../ui/Pending.tsx";
 
 const NO_PENDING: PendingJob[] = [];
+/** Nothing folded: before the models' headers are read. */
+const NOTHING_FOLDED: FoldedMotions = { clipsOf: new Map(), loose: [], motions: new Set() };
 /** The canvas's dot grid, in canvas pixels, and one press of zoom in or out. */
 const GRID_PX = 22;
 const ZOOM_STEP = 1.2;
@@ -55,15 +60,30 @@ const AssetGroups = memo(function AssetGroups({
   project,
   assets,
   selected,
+  folded,
   onOpen,
 }: {
   layout: Layout;
   project: string;
   assets: ProjectAsset[];
   selected: string | null;
+  folded: FoldedMotions;
   onOpen: (asset: ProjectAsset) => void;
 }): JSX.Element {
   const companions = useMemo(() => assets.map((a) => a.assetRef ?? a.file), [assets]);
+  const tile = (asset: ProjectAsset): JSX.Element =>
+    asset.kind === "audio" ? (
+      <AudioTile project={project} asset={asset} onOpen={() => onOpen(asset)} />
+    ) : (
+      <AssetTile
+        project={project}
+        asset={asset}
+        companions={companions}
+        clips={folded.clipsOf.get(asset.file)?.length ?? 0}
+        motion={folded.motions.has(asset.file)}
+        onOpen={() => onOpen(asset)}
+      />
+    );
   const card = (group: Group, asset: ProjectAsset): JSX.Element | null => {
     const rect = layout.rects[`asset:${asset.file}`];
     if (!rect) return null;
@@ -84,7 +104,7 @@ const AssetGroups = memo(function AssetGroups({
         onPointerDown={(event) => event.stopPropagation()}
         onClick={(event) => event.stopPropagation()}
       >
-        <AssetTile project={project} asset={asset} companions={companions} onOpen={() => onOpen(asset)} />
+        {tile(asset)}
       </div>
     );
   };
@@ -261,11 +281,35 @@ function useAssetSelection(project: string, assets: ProjectAsset[], focusJob: st
   return { selected, setSelected, previewAsset, setPreviewAsset };
 }
 
+/**
+ * The game's animation files folded into the models they move, by the models' headers (newest model
+ * first), or null until the headers are read. A folded file gets no card of its own.
+ */
+function useFoldedMotions(project: string, assets: ProjectAsset[]): FoldedMotions | null {
+  const newestFirst = useMemo(
+    () => [...assets].sort((a, b) => b.mtime.localeCompare(a.mtime)).map((asset) => asset.file),
+    [assets],
+  );
+  const rigs = useModelRigs(project, newestFirst);
+  return useMemo(() => (rigs ? foldMotions(rigs) : null), [rigs]);
+}
+
 export function AssetsCanvas({ project, onNotice, focusJob }: Props): JSX.Element {
   const { ledger, loadError, refresh, assets, pending } = useProjectAssets(project);
   const { selected, setSelected, previewAsset, setPreviewAsset } = useAssetSelection(project, assets, focusJob);
-  const layout = useMemo(() => layoutAssets(assets, pending), [assets, pending]);
-  const camera = useAssetsCamera(project, Boolean(ledger), layout);
+  const folded = useFoldedMotions(project, assets);
+  const carded = useMemo(
+    () =>
+      folded ? assets.filter((asset) => !folded.motions.has(asset.file) || folded.loose.includes(asset.file)) : [],
+    [assets, folded],
+  );
+  // Nothing is laid out until the models' headers are read, so no card shows that then folds away.
+  const headersRead = folded !== null;
+  const layout = useMemo(
+    () => layoutAssets(carded, headersRead ? pending : NO_PENDING),
+    [carded, pending, headersRead],
+  );
+  const camera = useAssetsCamera(project, Boolean(ledger) && headersRead, layout);
   const { view, viewport, onBackgroundDown, moved, panning } = camera;
 
   const reveal = useCallback(
@@ -314,7 +358,14 @@ export function AssetsCanvas({ project, onNotice, focusJob }: Props): JSX.Elemen
             transformOrigin: "0 0",
           }}
         >
-          <AssetGroups layout={layout} project={project} assets={assets} selected={selected} onOpen={openAsset} />
+          <AssetGroups
+            layout={layout}
+            project={project}
+            assets={assets}
+            selected={selected}
+            folded={folded ?? NOTHING_FOLDED}
+            onOpen={openAsset}
+          />
         </div>
       </div>
 
@@ -342,6 +393,7 @@ export function AssetsCanvas({ project, onNotice, focusJob }: Props): JSX.Elemen
           project={project}
           asset={previewAsset}
           assets={assets}
+          clips={assets.filter((asset) => folded?.clipsOf.get(previewAsset.file)?.includes(asset.file))}
           onClose={() => setPreviewAsset(null)}
           onReveal={() => reveal(previewAsset.assetRef ?? previewAsset.file)}
         />

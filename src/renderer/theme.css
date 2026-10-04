@@ -4116,44 +4116,268 @@ a:focus-visible {
   background: var(--chip-hover, var(--line-strong));
   color: var(--control-text-hover, var(--ink));
 }
-.asset-preview-action,
-.asset-viewer-controls {
-  opacity: 0;
-  transition: opacity 150ms ease-out;
-}
-.asset-tile:hover .asset-preview-action,
-.asset-tile:focus-within .asset-preview-action,
-.asset-row:hover .asset-preview-action,
-.asset-row:has(:focus-visible) .asset-preview-action,
-.asset-viewer-dialog:hover .asset-viewer-controls,
-.asset-viewer-dialog:focus-within .asset-viewer-controls {
-  opacity: 1;
-}
-.asset-preview-action {
-  background: color-mix(in srgb, var(--surface) 88%, transparent);
-}
-.asset-viewer-controls {
+/* ── Delivered assets ─────────────────────────────────────────────────────────────────────────
+ * The picture is the card: nothing on it at rest. Hover or focus brightens its outline, eases the
+ * picture in a little and shows one corner action; a model carries its animations as a chip. Every
+ * colour is the theme's, so a model, a picture and a sound sit the same way in light and dark. */
+.asset-tile::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 7%, transparent);
+  transition: box-shadow var(--duration-quick) ease-out;
   pointer-events: none;
 }
-.asset-viewer-controls button {
-  pointer-events: auto;
+.asset-tile:is(:hover, :focus-within)::after {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 22%, transparent);
+}
+.asset-tile img {
+  transition: transform var(--duration-medium) var(--ease-smooth-out);
+}
+.asset-tile:hover img {
+  transform: scale(1.035);
+}
+/* Glass over a picture: the page's own colour, so the action reads on any picture in either theme. */
+.asset-glass {
+  background: color-mix(in srgb, var(--background) 66%, transparent);
+  color: var(--ink);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+.asset-corner {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity var(--duration-quick) ease-out,
+    background-color var(--duration-quick) ease-out;
+}
+.asset-corner:hover {
+  background: color-mix(in srgb, var(--background) 88%, transparent);
+}
+.asset-tile:is(:hover, :focus-within) .asset-corner,
+.asset-corner:focus-visible {
+  opacity: 1;
+}
+.asset-chip {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 9px 0 8px;
+  border-radius: 8px;
+  font-family: var(--font-family-content);
+  font-size: 12px;
+  line-height: 16px;
+  pointer-events: none;
 }
 .asset-thumbnail {
   animation: fade-in 150ms ease-out;
 }
+/* A row for what has no picture: a sound, an animation, a file. The trailing slot shows the sound's
+   length at rest and gives way to the row's action on hover or focus. */
+.asset-row {
+  background: var(--inset);
+  transition: background-color var(--duration-quick) ease-out;
+}
+.asset-row:is(:hover, :has(:focus-visible)) {
+  background: color-mix(in oklab, var(--inset) 90%, var(--ink));
+}
+.asset-row-icon {
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  color: var(--ink-2);
+}
+.asset-row-rest,
+.asset-row-action {
+  transition: opacity var(--duration-quick) ease-out;
+}
+.asset-row-action {
+  opacity: 0;
+}
+.asset-row:is(:hover, :has(.asset-row-action:focus-visible)) .asset-row-rest {
+  opacity: 0;
+}
+.asset-row:hover .asset-row-action,
+.asset-row-action:focus-visible {
+  opacity: 1;
+}
+.asset-row-chevron {
+  color: var(--ink-3);
+  transition:
+    color var(--duration-quick) ease-out,
+    transform var(--duration-quick) ease-out;
+}
+.asset-row:hover .asset-row-chevron {
+  color: var(--ink);
+  transform: translateX(2px);
+}
+/* A sound's play button and waveform: ink on the row, so both themes read alike. */
+.audio-play {
+  background: var(--ink);
+  color: var(--background);
+  transition: transform var(--duration-quick) ease-out;
+}
+.audio-play:enabled:hover {
+  transform: scale(1.06);
+}
+.audio-bar {
+  background: color-mix(in srgb, var(--ink) 24%, transparent);
+}
+.audio-bar[data-played] {
+  background: var(--ink);
+}
+.audio-time,
+.asset-row-sub {
+  color: color-mix(in oklab, var(--ink) 62%, var(--inset));
+}
+.audio-time[data-live] {
+  color: var(--ink);
+}
 @media (hover: none) {
-  .asset-preview-action,
-  .asset-viewer-controls {
+  .asset-corner,
+  .asset-row-action {
     opacity: 1;
   }
+  .asset-row-rest {
+    opacity: 0;
+  }
+}
+
+/* ── Asset viewer ─────────────────────────────────────────────────────────────────────────────
+ * The file on the page's own colour, nothing around it but Reveal and Close; a model's animations
+ * in one floating bar. */
+.lightbox-scrim {
+  background: color-mix(in srgb, var(--background) 88%, transparent);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+.lightbox-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  min-width: 32px;
+  padding: 0 12px;
+  border-radius: 10px;
+  /* Solid, so it reads over a picture seen at full size as well as over the backdrop. */
+  background: color-mix(in oklab, var(--background) 90%, var(--ink));
+  color: var(--ink);
+  font-family: var(--font-family-content);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  cursor: pointer;
+  transition: background-color var(--duration-quick) ease-out;
+}
+.lightbox-button:hover {
+  background: color-mix(in oklab, var(--background) 82%, var(--ink));
+}
+.lightbox-button[data-icon-only] {
+  padding: 0;
+}
+.lightbox-media {
+  border-radius: 12px;
+}
+:root[data-theme="light"] .lightbox-media {
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 5%),
+    0 16px 48px rgb(0 0 0 / 14%);
+}
+.lightbox-panel {
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: var(--shadow-overlay);
+}
+.lightbox-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 28px;
+  translate: -50% 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: calc(100% - 48px);
+  overflow-x: auto;
+  padding: 6px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--popover) 92%, transparent);
+  box-shadow: var(--shadow-overlay);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+.lightbox-play {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-right: 4px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--background);
+  cursor: pointer;
+}
+.lightbox-chip {
+  flex: none;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 10px;
+  color: var(--ink-2);
+  font-family: var(--font-family-content);
+  font-size: 13px;
+  line-height: 20px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-quick) ease-out,
+    color var(--duration-quick) ease-out;
+}
+.lightbox-chip:hover {
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  color: var(--ink);
+}
+.lightbox-chip[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--ink) 12%, transparent);
+  color: var(--ink);
+}
+.lightbox-rule {
+  flex: none;
+  width: 1px;
+  height: 20px;
+  margin: 0 4px;
+  background: color-mix(in srgb, var(--ink) 10%, transparent);
 }
 @media (prefers-reduced-motion: reduce) {
   .asset-thumbnail {
     animation: none;
   }
-  .asset-preview-action,
-  .asset-viewer-controls {
+  .asset-tile::after,
+  .asset-tile img,
+  .asset-corner,
+  .asset-row,
+  .asset-row-rest,
+  .asset-row-action,
+  .asset-row-chevron,
+  .audio-play,
+  .lightbox-button,
+  .lightbox-chip {
     transition: none;
+  }
+  .asset-tile:hover img,
+  .audio-play:enabled:hover,
+  .asset-row:hover .asset-row-chevron {
+    transform: none;
   }
 }
 
@@ -4300,17 +4524,6 @@ a:focus-visible {
   [data-chat-status] .chat-chevron {
     animation: none;
   }
-}
-
-/* Match the viewer's neutral backdrop through the thumbnail's letterbox. */
-.asset-tile[data-tile-kind="model"],
-.asset-tile[data-tile-kind="audio"] {
-  background: #202329;
-}
-
-.asset-tile[data-tile-kind="model"] > button,
-.asset-tile[data-tile-kind="audio"] > button {
-  color: #b6bdc9;
 }
 
 /* ── Prompt composer ──────────────────────────────────────────────────────────

@@ -259,14 +259,17 @@ try {
     await capture("image-result");
     await op("click", { selector: "[data-testid=asset-preview] [aria-label=Close]" });
     await until(
-      async () => !(await snap()).controls.some((c) => c.label === "Zoom into image"),
+      async () => !(await snap()).controls.some((c) => c.label === "See the picture at full size"),
       "pointer closes modal over Live",
     );
     await clickInChat('[data-chat-assets] button[aria-label="Preview village-cover.png"]', -1);
-    await until(async () => (await snap()).controls.some((c) => c.label === "Zoom into image"), "image reopened");
+    await until(
+      async () => (await snap()).controls.some((c) => c.label === "See the picture at full size"),
+      "image reopened",
+    );
     await op("key", { surface: "desktop", key: "Escape", code: "Escape" });
     await until(
-      async () => !(await snap()).controls.some((c) => c.label === "Zoom into image"),
+      async () => !(await snap()).controls.some((c) => c.label === "See the picture at full size"),
       "keyboard closes image",
     );
     await clickInChat("[data-open-assets]");

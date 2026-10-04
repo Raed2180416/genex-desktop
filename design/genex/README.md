@@ -136,11 +136,21 @@ Withdrawn: nobody answered · …; a plan reads Plan approved · Auto). It opens
 asked, the command or path, the person's words and the reason. A lead's card never offers a mode, and a lead never brings a plan for approval.
 
 Delivered media uses the shared preview tile, including model thumbnails; several visuals form a
-two-column grid. Sounds are 36px strips: play, readable name, waveform seek and time. Hover or
-keyboard focus reveals filled 13px body-font actions: View 3D/Preview at bottom-right and Open in
-Assets over chat tiles or a strip's name. Only files present in the game folder appear; Loop-run
-files wait for the landed build result. Large deliveries reveal six previews at a time. Asset
-grids omit per-file metadata and job headers; model dialogs hide the visible title and show controls over the viewer. Chat build outcomes show
+two-column grid. The picture is the card and opens the viewer: nothing sits on it at rest; hover or
+focus brightens its 1px outline, eases the picture in 3.5% and shows one 28px glass corner action,
+Open in Assets (the four-tile glyph). Animation-only files (a rig and its clips, no mesh, read from
+the GLB header) never get a card: they ride on the model whose bones they move as a "3 animations"
+chip, or, when that model came earlier, share one 52px row (Knight animations · Wave · Jump) that
+opens it. Sounds are 44px rows: a filled ink play button, the name, a 40-bar waveform seek and the
+length, which gives way to Open in Assets on hover; the row is the player, with no dialog. Every
+colour is the theme's, so models, pictures and sounds sit alike in light and dark; the Assets tab's
+sound tile draws its waveform live the same way. Only files present in the game folder appear;
+Loop-run files wait for the landed build result. Large deliveries reveal six previews at a time.
+Asset grids omit per-file metadata and job headers. The viewer is the file on the page's own colour
+(88%, blurred), with only Reveal in Finder and Close in the top corner and no title; a click on a
+picture shows it at full size around the point clicked; a model opens playing its first clip, with
+play, the clips and speed in one floating bar and "Drag to turn · Scroll to zoom · Double-click to
+reset" above it. Chat build outcomes show
 the finished build card: capture, delivery status and Play; the card itself opens Builds.
 Only current-revision captures are selected from checks. Failures stay explicit; detailed checks
 and evidence limits remain in Builds/Studio. Learning counts link to Studio and omit zeros.

@@ -5,24 +5,15 @@ import { assetPreviewMode } from "../../shared/asset-preview.ts";
 import { SECOND_MS } from "../../shared/duration.ts";
 import type { ProjectAsset } from "../../shared/game-assets.ts";
 import { previewBytes } from "../asset-bytes.ts";
+import { assetTitle } from "../asset-names.ts";
+import { Icon } from "../ui/icons.tsx";
 
 /** A thumbnail's size in pixels, and the largest side of an image read for one. */
 const THUMB_WIDTH = 360;
 const THUMB_HEIGHT = 220;
 const IMAGE_THUMB_PX = 512;
-/** An audio file larger than this is not decoded for a waveform; the player opens it instead. */
-const AUDIO_THUMB_MAX_BYTES = 20 * 1024 * 1024;
-/** How long a clip may take to decode before its thumbnail gives up. */
+/** How long a video may take to decode before its thumbnail gives up. */
 const DECODE_TIMEOUT_MS = 15 * SECOND_MS;
-/** A waveform's bars, and how many samples each bar looks at, at most. */
-const WAVE_BARS = 80;
-const WAVE_SAMPLES_PER_BAR = 256;
-/** A waveform's geometry: where its first bar starts, the step between bars, a bar's width and its tallest and shortest heights. */
-const WAVE_LEFT_PX = 20;
-const WAVE_STEP_PX = 4;
-const WAVE_BAR_PX = 2;
-const WAVE_HEIGHT_PX = 150;
-const WAVE_MIN_BAR_PX = 2;
 /** The most thumbnails kept in memory; the oldest goes first. */
 const CACHE_MAX = 96;
 
@@ -30,15 +21,13 @@ const CACHE_MAX = 96;
 const MESSAGE = {
   cancelled: "Preview cancelled",
   unavailable: "Preview unavailable",
-  largeAudio: "Open player for this large audio file",
-  audioTimedOut: "Audio preview timed out",
   videoUnavailable: "Video preview unavailable",
   videoCodec: "Video codec unavailable",
   openPreview: "Open preview to inspect this file",
 } as const;
 
-/** The modes the card can draw a thumbnail for. */
-const THUMBNAIL_MODES = new Set(["image", "model", "texture", "audio", "video"]);
+/** The modes the card can draw a thumbnail for. A sound draws its own waveform (`AudioTile`). */
+const THUMBNAIL_MODES = new Set(["image", "model", "texture", "video"]);
 
 const cache = new Map<string, string>();
 let queue: Promise<unknown> = Promise.resolve();
@@ -96,48 +85,6 @@ async function viewerSnapshot(
   });
 }
 
-/** The loudest sample in one slice of the clip, looking at no more than a bar's share of samples. */
-function peakOf(data: Float32Array, start: number, end: number): number {
-  let peak = 0;
-  const stride = Math.max(1, Math.floor((end - start) / WAVE_SAMPLES_PER_BAR));
-  for (let j = start; j < end; j += stride) peak = Math.max(peak, Math.abs(data[j] ?? 0));
-  return peak;
-}
-
-/** A clip's first channel drawn as a waveform of bars. */
-async function waveform(
-  bytes: PreviewBytes,
-  canvas: HTMLCanvasElement,
-  ctx: CanvasRenderingContext2D,
-  signal: AbortSignal,
-): Promise<string> {
-  if (bytes.length > AUDIO_THUMB_MAX_BYTES) throw new Error(MESSAGE.largeAudio);
-  const decoder = new OfflineAudioContext(1, 1, 44100);
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    const audio = await Promise.race([
-      decoder.decodeAudioData(bytes.buffer),
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new Error(MESSAGE.audioTimedOut)), DECODE_TIMEOUT_MS);
-      }),
-    ]);
-    signal.throwIfAborted();
-    const data = audio.getChannelData(0);
-    ctx.fillStyle = "#202329";
-    ctx.fillRect(0, 0, THUMB_WIDTH, THUMB_HEIGHT);
-    ctx.fillStyle = "#afb9d0";
-    for (let i = 0; i < WAVE_BARS; i++) {
-      const start = Math.floor((i * data.length) / WAVE_BARS);
-      const end = Math.floor(((i + 1) * data.length) / WAVE_BARS);
-      const h = Math.max(WAVE_MIN_BAR_PX, peakOf(data, start, end) * WAVE_HEIGHT_PX);
-      ctx.fillRect(WAVE_LEFT_PX + i * WAVE_STEP_PX, THUMB_HEIGHT / 2 - h / 2, WAVE_BAR_PX, h);
-    }
-    return canvas.toDataURL("image/png");
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
 /** A clip's first frame, drawn onto the thumbnail's canvas. */
 function firstFrame(
   bytes: PreviewBytes,
@@ -176,13 +123,9 @@ function firstFrame(
   });
 }
 
-/** A clip's thumbnail: its waveform for audio, its first frame for video. */
+/** A video's thumbnail: its first frame. */
 async function clipThumbnail(project: string, file: string, mode: string, signal: AbortSignal): Promise<string> {
-  const result = await window.studio.previewProjectAsset({
-    project,
-    file,
-    maxBytes: mode === "audio" ? AUDIO_THUMB_MAX_BYTES : undefined,
-  });
+  const result = await window.studio.previewProjectAsset({ project, file });
   signal.throwIfAborted();
   const bytes = previewBytes(result.data);
   const canvas = document.createElement("canvas");
@@ -190,7 +133,6 @@ async function clipThumbnail(project: string, file: string, mode: string, signal
   canvas.height = THUMB_HEIGHT;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error(MESSAGE.unavailable);
-  if (mode === "audio") return waveform(bytes, canvas, ctx, signal);
   if (mode === "video") return firstFrame(bytes, result.mimeType, canvas, ctx, signal);
   throw new Error(MESSAGE.openPreview);
 }
@@ -286,12 +228,22 @@ function thumbnailState(src: string | null, error: boolean, supported: boolean):
 }
 
 /** What the thumbnail picture shows, for its alt text. */
-const ALT_KIND: Partial<Record<ProjectAsset["kind"], string>> = { model: "3D model", audio: "Audio waveform" };
+const ALT_KIND: Partial<Record<ProjectAsset["kind"], string>> = { model: "3D model" };
 
 /** What stands in for a thumbnail: why there is none, that it is loading, or the file's name. */
 function placeholderWords(error: boolean, supported: boolean, file: string): string | undefined {
   if (error) return MESSAGE.unavailable;
   return supported ? "Loading preview…" : file.split("/").at(-1);
+}
+
+/** An animation file draws nothing of its own: a figure and its name stand in. */
+function MotionStandIn({ file }: { file: string }): JSX.Element {
+  return (
+    <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-3 text-center text-ink-3">
+      <Icon name="character" size={22} />
+      <span className="max-w-full truncate text-micro">{assetTitle(file)}</span>
+    </span>
+  );
 }
 
 export function AssetThumbnail({
@@ -300,18 +252,22 @@ export function AssetThumbnail({
   companions,
   fallback,
   quiet = false,
+  motion = false,
 }: {
   project: string;
   asset: ProjectAsset;
   companions: string[];
   fallback: string | null;
   quiet?: boolean;
+  /** An animation-only file, which a render would show as an empty stage. */
+  motion?: boolean;
 }): JSX.Element {
-  const supported = THUMBNAIL_MODES.has(assetPreviewMode(asset.file));
+  const supported = !motion && THUMBNAIL_MODES.has(assetPreviewMode(asset.file));
   const { ref, src, error, fresh } = useThumbnail(project, asset, companions, fallback, supported);
   const placeholder = quiet ? null : (
     <span className="px-2 text-center text-micro">{placeholderWords(error, supported, asset.file)}</span>
   );
+  if (motion) return <MotionStandIn file={asset.file} />;
   return (
     <span
       ref={ref}

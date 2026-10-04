@@ -142,6 +142,7 @@ const FIXTURE_SAFE = [
   "studio:game.references",
   "studio:game.asset.preview",
   "studio:game.asset.present",
+  "studio:game.asset.rigs",
   "studio:game.assets",
   "studio:game.asset.still",
   "studio:engines",

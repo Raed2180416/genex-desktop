@@ -128,6 +128,7 @@ function gameCalls(bridge: BridgeCalls) {
     readReferenceStills: (project) => invoke("studio:game.references", { project }),
     previewProjectAsset: (p) => invoke("studio:game.asset.preview", p),
     presentProjectAssets: (p) => invoke("studio:game.asset.present", p),
+    projectModelRigs: (p) => invoke("studio:game.asset.rigs", p),
     projectAssets: (project) => invoke("studio:game.assets", { project }),
     readProjectAsset: (p) => invoke("studio:game.asset.still", p),
     installPackages: (project) => invoke("studio:packages.install", { project }),

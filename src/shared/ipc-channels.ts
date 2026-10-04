@@ -145,6 +145,7 @@ export const STUDIO_INVOKE_CHANNELS = {
   "studio:game.references": "readReferenceStills",
   "studio:game.asset.preview": "previewProjectAsset",
   "studio:game.asset.present": "presentProjectAssets",
+  "studio:game.asset.rigs": "projectModelRigs",
   "studio:game.assets": "projectAssets",
   "studio:game.asset.still": "readProjectAsset",
   "studio:run.feedback": "runFeedback",
@@ -322,6 +323,7 @@ export interface StudioInvokePayloads {
   "studio:game.references": { project: string };
   "studio:game.asset.preview": Arg<"previewProjectAsset", 0>;
   "studio:game.asset.present": Arg<"presentProjectAssets", 0>;
+  "studio:game.asset.rigs": Arg<"projectModelRigs", 0>;
   "studio:game.assets": { project: string };
   "studio:game.asset.still": Arg<"readProjectAsset", 0>;
   "studio:run.feedback": Arg<"runFeedback", 0>;

@@ -1945,6 +1945,12 @@ export class StudioCore {
     return this.#assets.presentProjectAssets(...args);
   }
 
+  projectModelRigs(
+    ...args: Parameters<AssetService["projectModelRigs"]>
+  ): ReturnType<AssetService["projectModelRigs"]> {
+    return this.#assets.projectModelRigs(...args);
+  }
+
   saveReferenceFrames(
     ...args: Parameters<AssetService["saveReferenceFrames"]>
   ): ReturnType<AssetService["saveReferenceFrames"]> {

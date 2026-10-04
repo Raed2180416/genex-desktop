@@ -67,6 +67,7 @@ export function registerGamesIpc(handle: IpcHandle, { core, runSummaryReader, pu
   // The Assets stage: what the game holds, joined with the project's own delivery ledger.
   handle("studio:game.asset.preview", async (payload) => core.previewProjectAsset(payload));
   handle("studio:game.asset.present", async (payload) => core.presentProjectAssets(payload));
+  handle("studio:game.asset.rigs", async (payload) => core.projectModelRigs(payload));
   handle("studio:game.assets", async (payload) => {
     if (!payload || typeof payload.project !== "string") throw new Error(MESSAGE.projectRequired);
     const events = await runSummaryReader.forProject(payload.project, core.mainThread);

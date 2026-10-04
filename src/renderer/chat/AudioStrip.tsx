@@ -1,14 +1,22 @@
-/** A delivered sound as one quiet row: play in place, see its shape, open it in Assets. */
+/**
+ * A delivered sound, played where it is: one quiet row in the chat (`AudioStrip`) and a tile on the
+ * Assets canvas (`AudioTile`), each with its waveform drawn in the theme's ink.
+ */
 import { type RefObject, useEffect, useRef, useState } from "react";
 import { Pause, Play } from "lucide-react";
 import { MINUTE_MS, SECOND_MS } from "../../shared/duration.ts";
 import type { ProjectAsset } from "../../shared/game-assets.ts";
 import { previewBytes } from "../asset-bytes.ts";
+import { assetTitle } from "../asset-names.ts";
+import { Icon } from "../ui/icons.tsx";
+import { ASSET_WORDS } from "../words.ts";
 import { audioPlayer, type OpenedAudio } from "./audio-player.ts";
-import { ResultButton } from "../ui/ResultButton.tsx";
 import { useAsyncEffect } from "../use-async-effect.ts";
 
-const BARS = 32;
+/** A waveform's bars. */
+const BARS = 40;
+/** A bar's shortest height, as a share of the waveform's. */
+const MIN_BAR_PCT = 12;
 /** How many sounds' waveforms stay in memory before the oldest is forgotten. */
 const WAVE_CACHE_CAP = 96;
 /** A file larger than this plays without a waveform: decoding it would cost more than it shows. */
@@ -26,16 +34,6 @@ const MESSAGE = {
 type Wave = { peaks: number[]; duration: number };
 const waves = new Map<string, Wave | null>();
 let queue: Promise<unknown> = Promise.resolve();
-
-/** `referee-whistle-one-sharp-st-cmucttyj.mp3` → `Referee whistle one sharp st`. */
-export function audioTitle(file: string): string {
-  const base = file.split("/").at(-1) ?? file;
-  let name = base.replace(/\.[a-z0-9]{1,5}$/i, "");
-  // Genex names its output `<prompt slug>-<8-character id>` inside the job's own folder.
-  if (/(^|\/)assets\/genex\/[0-9a-f-]{8,}\//i.test(file)) name = name.replace(/-[a-z0-9]{8}$/i, "");
-  name = name.replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
-  return name ? name.charAt(0).toUpperCase() + name.slice(1) : base;
-}
 
 const clock = (seconds: number): string => {
   const whole = Math.max(0, Math.round(seconds));
@@ -156,98 +154,163 @@ function useAudioPlayer(source: { project: string; file: string }, knownDuration
   return { time, duration, isPlaying, failed, toggle: player.toggle, seek, learnDuration };
 }
 
+/** The sound's player and waveform, as a strip and a tile both use them. */
+function useSound(project: string, asset: ProjectAsset, host: RefObject<HTMLDivElement | null>) {
+  const file = asset.assetRef ?? asset.file;
+  const key = JSON.stringify([project, file, asset.mtime, asset.bytes]);
+  const source = { project, file };
+  const player = useAudioPlayer(source, waves.get(key)?.duration ?? 0);
+  const wave = useWaveform(key, source, host, player.learnDuration);
+  const { time, duration, isPlaying } = player;
+  const progress = duration > 0 ? Math.min(1, time / duration) : 0;
+  const shownTime = isPlaying || time > 0 ? time : duration;
+  return { ...player, wave, progress, clockText: duration > 0 ? clock(shownTime) : "", live: isPlaying || time > 0 };
+}
+
+type Sound = ReturnType<typeof useSound>;
+
+/** Where a waveform stands, as its `data-thumbnail-state` says it. */
+function waveState(wave: Wave | null | undefined): string {
+  if (wave) return "ready";
+  return wave === null ? "unavailable" : "loading";
+}
+
+/** The round play button, filled in the theme's ink. */
+function PlayButton({ sound, name, className }: { sound: Sound; name: string; className: string }) {
+  const { isPlaying, failed, toggle } = sound;
+  return (
+    <button
+      type="button"
+      aria-label={`${isPlaying ? "Pause" : "Play"} ${name}`}
+      title={failed ? ASSET_WORDS.playFailed : undefined}
+      disabled={failed}
+      onClick={() => void toggle()}
+      className={`audio-play grid shrink-0 cursor-pointer place-items-center rounded-full disabled:cursor-default disabled:opacity-50 ${className}`}
+    >
+      {isPlaying ? (
+        <Pause aria-hidden size={12} fill="currentColor" strokeWidth={0} />
+      ) : (
+        <Play aria-hidden size={12} fill="currentColor" strokeWidth={0} className="translate-x-px" />
+      )}
+    </button>
+  );
+}
+
+/** The sound's shape: bars in ink up to where it has played, and a seek control over them. */
+function Waveform({ sound, name, className }: { sound: Sound; name: string; className: string }) {
+  const { wave, progress, duration, time, failed, seek } = sound;
+  const peaks = wave?.peaks ?? Array.from({ length: BARS }, () => 0.12);
+  return (
+    <div
+      data-thumbnail-state={waveState(wave)}
+      className={`relative flex shrink-0 items-center gap-0.5 rounded-sm has-[input:focus-visible]:bg-control-hover ${className}`}
+      aria-hidden={!duration}
+    >
+      {peaks.map((peak, i) => (
+        <span
+          key={i}
+          data-played={i / BARS < progress || undefined}
+          className="audio-bar flex-1 rounded-full"
+          style={{ height: `${Math.max(MIN_BAR_PCT, peak * 100)}%` }}
+        />
+      ))}
+      {duration > 0 && !failed && (
+        <input
+          type="range"
+          min={0}
+          max={duration}
+          step={0.01}
+          value={Math.min(time, duration)}
+          aria-label={`Seek ${name}`}
+          aria-valuetext={`${clock(time)} of ${clock(duration)}`}
+          onChange={(event) => void seek(Number(event.target.value))}
+          className="absolute inset-0 m-0 h-full w-full cursor-pointer opacity-0"
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * A delivered sound in the chat as one row: play in place, its shape, its length. With
+ * `onOpenAssets`, hovering the row swaps the length for Open in Assets.
+ */
 export function AudioStrip({
   project,
   asset,
-  onOpen,
   onOpenAssets,
 }: {
   project: string;
   asset: ProjectAsset;
-  onOpen: () => void;
   onOpenAssets?: () => void;
 }) {
-  const file = asset.assetRef ?? asset.file;
-  const name = audioTitle(asset.file);
-  const key = JSON.stringify([project, file, asset.mtime, asset.bytes]);
   const host = useRef<HTMLDivElement>(null);
-  const source = { project, file };
-  const { time, duration, isPlaying, failed, toggle, seek, learnDuration } = useAudioPlayer(
-    source,
-    waves.get(key)?.duration ?? 0,
-  );
-  const wave = useWaveform(key, source, host, learnDuration);
-
-  const progress = duration > 0 ? Math.min(1, time / duration) : 0;
-  const peaks = wave?.peaks ?? Array.from({ length: BARS }, () => 0.12);
+  const sound = useSound(project, asset, host);
+  const name = assetTitle(asset.file);
   return (
     <div
       ref={host}
       data-audio-strip={asset.file}
-      className="asset-row flex h-9 min-w-0 items-center gap-2 rounded-control bg-inset pr-3 pl-1"
+      className="asset-row flex h-11 min-w-0 items-center gap-2.5 rounded-xl pr-2 pl-1.5"
+    >
+      <PlayButton sound={sound} name={name} className="size-8" />
+      <span title={asset.file} className="min-w-0 flex-1 truncate text-chat-sub text-ink">
+        {name}
+      </span>
+      <Waveform sound={sound} name={name} className="h-[22px] w-[168px]" />
+      <span className="relative h-7 w-9 shrink-0">
+        <span
+          data-live={sound.live || undefined}
+          className={`audio-time absolute inset-0 flex items-center justify-end font-mono text-xs tabular-nums ${onOpenAssets ? "asset-row-rest" : ""}`}
+        >
+          {sound.clockText}
+        </span>
+        {onOpenAssets && (
+          <button
+            type="button"
+            data-open-assets
+            aria-label={ASSET_WORDS.openInAssets}
+            title={ASSET_WORDS.openInAssets}
+            onClick={onOpenAssets}
+            className="asset-row-action absolute top-0 -right-0.5 grid size-7 cursor-pointer place-items-center rounded-lg text-ink-2 hover:bg-control-hover hover:text-control-text-hover"
+          >
+            <Icon name="assets" size={16} />
+          </button>
+        )}
+      </span>
+    </div>
+  );
+}
+
+/** A sound on the Assets canvas: its waveform, play in place, its name and length; the tile opens the viewer. */
+export function AudioTile({ project, asset, onOpen }: { project: string; asset: ProjectAsset; onOpen: () => void }) {
+  const host = useRef<HTMLDivElement>(null);
+  const sound = useSound(project, asset, host);
+  const name = assetTitle(asset.file);
+  const fileName = asset.file.split("/").at(-1) ?? asset.file;
+  return (
+    <div
+      ref={host}
+      data-tile-kind="audio"
+      className="asset-tile relative h-full min-h-0 overflow-hidden rounded-card bg-inset"
     >
       <button
         type="button"
-        aria-label={`${isPlaying ? "Pause" : "Play"} ${name}`}
-        title={failed ? "This sound could not be played" : undefined}
-        disabled={failed}
-        onClick={() => void toggle()}
-        className="grid size-7 shrink-0 cursor-pointer place-items-center rounded-full text-ink transition-colors duration-150 hover:bg-control-hover disabled:cursor-default disabled:opacity-50 motion-reduce:transition-none"
-      >
-        {isPlaying ? (
-          <Pause aria-hidden size={14} fill="currentColor" strokeWidth={0} />
-        ) : (
-          <Play aria-hidden size={14} fill="currentColor" strokeWidth={0} className="translate-x-px" />
-        )}
-      </button>
-      <div className="relative flex min-w-0 flex-1 items-center">
-        <button
-          type="button"
-          title={asset.file}
-          onClick={onOpen}
-          className="min-w-0 flex-1 cursor-pointer truncate text-left text-chat-sub text-ink-2 hover:text-control-text-hover"
-        >
-          {name}
-        </button>
-        {/* Over the name's tail, so the waveform and time stay usable while it shows. */}
-        {onOpenAssets && (
-          <ResultButton
-            data-open-assets
-            onClick={onOpenAssets}
-            className="asset-preview-action absolute right-0 top-1/2 -translate-y-1/2"
-          >
-            Open in Assets
-          </ResultButton>
-        )}
+        aria-label={`Preview ${fileName}`}
+        title={fileName}
+        onClick={onOpen}
+        className="absolute inset-0 cursor-pointer rounded-card"
+      />
+      <div className="pointer-events-none absolute inset-0 flex flex-col justify-between p-3">
+        <Waveform sound={sound} name={name} className="pointer-events-auto mt-[18%] h-[28%] w-full" />
+        <div className="flex min-w-0 items-center gap-2">
+          <PlayButton sound={sound} name={name} className="pointer-events-auto size-7" />
+          <span className="min-w-0 flex-1 truncate text-micro text-ink">{name}</span>
+          <span data-live={sound.live || undefined} className="audio-time font-mono text-micro tabular-nums">
+            {sound.clockText}
+          </span>
+        </div>
       </div>
-      <div
-        className="relative flex h-5 w-24 shrink-0 items-center gap-px rounded-sm has-[input:focus-visible]:bg-control-hover"
-        aria-hidden={!duration}
-      >
-        {peaks.map((peak, i) => (
-          <span
-            key={i}
-            className={`w-0.5 flex-1 rounded-full ${i / BARS < progress ? "bg-ink-2" : "bg-ink-3/45"}`}
-            style={{ height: `${Math.max(12, peak * 100)}%` }}
-          />
-        ))}
-        {duration > 0 && !failed && (
-          <input
-            type="range"
-            min={0}
-            max={duration}
-            step={0.01}
-            value={Math.min(time, duration)}
-            aria-label={`Seek ${name}`}
-            aria-valuetext={`${clock(time)} of ${clock(duration)}`}
-            onChange={(event) => void seek(Number(event.target.value))}
-            className="absolute inset-0 m-0 h-full w-full cursor-pointer opacity-0"
-          />
-        )}
-      </div>
-      <span className="w-8 shrink-0 text-right font-mono text-xs tabular-nums text-ink-3">
-        {duration > 0 ? clock(isPlaying || time > 0 ? time : duration) : ""}
-      </span>
     </div>
   );
 }
