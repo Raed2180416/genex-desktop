@@ -131,6 +131,8 @@ describe("turn loop", () => {
             arguments: {
               filename: "lap-tools.mjs",
               reason: "I keep timing laps by hand",
+              title: "Time laps for you",
+              summary: ["I can now time the current lap myself."],
               contents: `export const tools = [{
                  name: "time_lap",
                  description: "time the current lap",
@@ -289,6 +291,8 @@ describe("full self-modification (M4)", () => {
             arguments: {
               filename: "ring-tools.mjs",
               reason: "I keep counting rings by hand",
+              title: "Count rings for you",
+              summary: ["I can now count the rings in a build myself."],
               contents: `export const tools = [{
                  name: "count_rings",
                  description: "count rings in the current build",
@@ -353,7 +357,13 @@ describe("full self-modification (M4)", () => {
           {
             id: "c1",
             name: "install_tool",
-            arguments: { filename: "broken-tools.mjs", reason: "oops", contents: "this is not valid javascript !!!" },
+            arguments: {
+              filename: "broken-tools.mjs",
+              reason: "oops",
+              title: "Try a new helper",
+              summary: ["I tried adding a helper."],
+              contents: "this is not valid javascript !!!",
+            },
           },
         ],
       },
@@ -386,6 +396,8 @@ describe("full self-modification (M4)", () => {
             arguments: {
               slug: "threejs-craft",
               reason: "learned that flat shading reads better in screenshots",
+              title: "Use flat shading in scenes",
+              summary: ["Flat shading reads better in screenshots."],
               contents: "---\nname: three.js craft\ndescription: updated\n---\n\n- Use flatShading.\n",
             },
           },
