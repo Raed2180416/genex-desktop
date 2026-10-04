@@ -14,7 +14,7 @@ answer is static. A running build is not the chat working: it is one card
 controls or narration.
 
 Neighboring tools group under a muted **Worked on N steps** disclosure of truncated rows;
-failures stay visible. Delivered assets appear as previews that open on click, with Open in
+failures stay visible. Delivered assets are previews that open on click, with Open in
 Assets on hover. Build updates use a short status and See it;
 a finished build is that card with Play; it opens Builds; checks stay in Builds and Studio.
 What Studio learned is one line with **Review in Studio**; builds that taught nothing add none.

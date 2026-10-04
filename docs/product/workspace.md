@@ -30,7 +30,7 @@ is missing, commands to copy, Retry.
 ## Main actions
 
 - **Home's first message** starts a game the model names, where the chip says; duplicates
-  never overwrite games. A greeting leaves it **Untitled game** until an idea. **New game**, the Games **+** and Command-N open home.
+  never overwrite games. A greeting stays **Untitled game** until an idea. **New game**, the Games **+** and Command-N open home.
 - **Settings → Games** moves new games to another empty folder (default `~/AI Games`).
 - **Settings → Privacy**: Share build metrics (off by default), See what would be sent and
   Delete what I shared ([PRIVACY](../../PRIVACY.md)).

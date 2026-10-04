@@ -3,11 +3,11 @@
 ## Assets in a game
 
 Assets groups `assets/` and `public/assets/` files by source and generation, even before a
-build exists; deliveries and external changes refresh it. Cards hide metadata; filenames stay tooltips; hover shows one action; animation-only GLBs fold
+build exists; deliveries and external changes refresh it. Cards hide metadata; animation-only GLBs fold
 into their model.
 
-Opening a file shows it over the window with only Reveal in Finder and Close: images (click for
-full size), audio/video, 3D models playing their clips, textures or bounded text. Unsupported
+Opening a file shows it with only Reveal in Finder and Close: images (click: full
+size), audio/video, 3D models playing their clips, textures or bounded text. Unsupported
 formats and decoder failures explain themselves. Media reads are bounded; offscreen previews load lazily.
 
 Chat shows game-folder files. Builds shows Loop workspace assets as thumbnails with their
