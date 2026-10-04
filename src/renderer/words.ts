@@ -46,7 +46,7 @@ import type { CommandState } from "./state/command-runs.ts";
 import type { JobState } from "./panels/plugins/genex/genex-view.ts";
 import { plural } from "../shared/skill-words.ts";
 import { type ScreenAct, ScreenDeed } from "../shared/agent-screen.ts";
-import { MINUTE_MS, SECOND_MS } from "../shared/duration.ts";
+import { HOUR_MS, MINUTE_MS, SECOND_MS } from "../shared/duration.ts";
 
 export type ToolIcon = "think" | "write" | "run" | "read" | "see" | "game";
 
@@ -112,7 +112,7 @@ function settle(words: StatusWords): StatusWords {
 /** Whole-status phrases: the chat's own work and the run stages that name no part. */
 const PHRASES: Array<[RegExp, (match: RegExpMatchArray) => StatusWords]> = [
   [/^thinking$/i, () => ({ line: "Thinking", short: "Thinking" })],
-  [/^compacting the conversation$/i, () => ({ line: "Tidying up the conversation", short: "Tidying up" })],
+  [/^compacting the conversation$/i, () => ({ line: "Compacting the conversation", short: "Compacting" })],
   [
     /^self-improving(?: · (.+))?$/i,
     (m) => ({ line: m[1] ? `Improving its own craft · ${m[1]}` : "Improving its own craft", short: "Improving" }),
@@ -1194,6 +1194,18 @@ export const screenDone = (act: ScreenAct | undefined): string => screenWords(ac
 /** A frame this recent is happening now. */
 const SCREEN_NOW_MS = 2 * SECOND_MS;
 
+/** A minute, in the seconds a running clock shows. */
+const SECONDS_PER_MINUTE = MINUTE_MS / SECOND_MS;
+
+/** "42s", "3m 5s", "2h 10m": a running clock, as short as the time allows, and nothing under a second. */
+export function clockWords(ms: number): string {
+  const seconds = Math.floor(ms / SECOND_MS);
+  if (ms < SECOND_MS) return "";
+  if (ms < MINUTE_MS) return `${seconds}s`;
+  if (ms < HOUR_MS) return `${Math.floor(ms / MINUTE_MS)}m ${seconds % SECONDS_PER_MINUTE}s`;
+  return `${Math.floor(ms / HOUR_MS)}h ${Math.floor((ms % HOUR_MS) / MINUTE_MS)}m`;
+}
+
 /** How long ago a screen's frame came: "now", "3s", "2m" on a node, "3s ago" where there is room. */
 export function screenAgo(at: number, now: number, { ago = false }: { ago?: boolean } = {}): string {
   const ms = Math.max(0, now - at);
@@ -1274,10 +1286,10 @@ export function seedUpgradeWords(seed: CustomPayload<typeof CustomEvent.SeedUpgr
   return `app update ${done}${keptNote}${moved}`;
 }
 
-/** The conversation's earlier messages were summarised. */
-export function compactionWords(compaction: CustomPayload<typeof CustomEvent.Compacted>): string {
-  const why = compaction.trigger === "auto" ? " — context was filling up" : "";
-  return `${compaction.messages ?? "the earlier"} messages summarised${why} · originals stay in the log`;
+/** The chat's row for a finished compaction: how many messages its summary replaced. */
+export function compactedWords(messages: number | null | undefined): string {
+  if (typeof messages !== "number") return "Compacted the conversation";
+  return `Compacted ${plural(messages, "message")}`;
 }
 
 /** The studio rewrote one of its own files while idle. */
@@ -1478,7 +1490,25 @@ export const ABOUT_WORDS = {
   failed: "Couldn't check for updates. Check your connection and try again.",
   restart: "Relaunch to update",
   download: "Download",
+  tagline: "The desktop app to build & publish games with AI",
+  versionLine: (version: string | null) => (version ? `Version ${version}` : "Development build"),
+  updates: "Updates",
+  website: "Website",
+  source: "Source code",
+  licenses: "Licenses",
+  copy: "Copy version info",
+  copied: "Copied",
+  /** What Copy version info puts on the clipboard, and the line beside it. */
+  info: (version: string | null, platform: string, arch: string) =>
+    `Genex ${version ?? "development build"} · ${PLATFORM_NAMES[platform] ?? platform} · ${arch}`,
 } as const;
+
+/** Platforms by the names people know them by. */
+const PLATFORM_NAMES: Partial<Record<string, string>> = {
+  [StudioPlatform.Mac]: "macOS",
+  [StudioPlatform.Windows]: "Windows",
+  [StudioPlatform.Linux]: "Linux",
+};
 
 // ── toasts ────────────────────────────────────────────────────────────────────────────────
 
@@ -1752,21 +1782,41 @@ export function permissionTitleWords(event: Partial<ToolPermissionEvent>): strin
   return toolAskWords(event, tool);
 }
 
+/** A saved rule's tool and what it names: `Bash(npm test:*)` is Bash and `npm test:*`. */
+function parsedRule(rule: string): { tool: string; content: string } {
+  const parsed = /^([^(]+)\(([\s\S]*)\)$/.exec(rule.trim());
+  return { tool: parsed?.[1]?.trim() ?? rule.trim(), content: parsed?.[2]?.trim() ?? "" };
+}
+
+/** `npm test:*` and `npm test *` both allow every command that starts with the prefix. */
+const commandPrefix = (content: string): string | undefined => /^(.+?)(?::\*| \*)$/.exec(content)?.[1]?.trim();
+
+/** A path in a person's home, as `~/…`. */
+const homePath = (path: string): string => path.replace(/^\/(?:Users|home)\/[^/]+(?=\/|$)/, "~");
+
 /** What one rule allows, and where. */
 function ruleGrantWords(rule: string, scope: RuleScope): string {
   const where = scope === RuleScope.Chat ? "in this chat" : "in this game";
-  const parsed = /^([^(]+)\(([\s\S]*)\)$/.exec(rule.trim());
-  const tool = parsed?.[1]?.trim() ?? rule.trim();
-  const content = parsed?.[2]?.trim() ?? "";
+  const { tool, content } = parsedRule(rule);
   if (tool === "Bash" && content) {
-    // `npm test:*` and `npm test *` both allow every command that starts with the prefix.
-    const prefix = /^(.+?)(?::\*| \*)$/.exec(content)?.[1]?.trim();
+    const prefix = commandPrefix(content);
     return prefix ? `Always allow ${prefix} commands ${where}` : `Always allow this command ${where}`;
   }
   if (tool === "Read" && content) return `Always allow reading ${rulePath(content)} ${where}`;
   if (PERMISSION_EDIT_TOOLS.has(tool) && content) return `Always allow editing ${rulePath(content)} ${where}`;
   if (tool === "WebFetch" && content.startsWith("domain:")) return `Always allow ${content.slice(7)} ${where}`;
   return `Always allow ${permissionToolName(tool)} ${where}`;
+}
+
+/** Settings → Permissions: a saved rule as the action it allows ("Run npm install"); the rule itself when unknown. */
+export function permissionRuleWords(rule: string): string {
+  const { tool, content } = parsedRule(rule);
+  if (!content) return rule;
+  if (tool === "Bash") return `Run ${commandPrefix(content) ?? content}`;
+  if (PERMISSION_READ_TOOLS.has(tool)) return `Read files in ${homePath(rulePath(content))}`;
+  if (PERMISSION_EDIT_TOOLS.has(tool)) return `Edit files in ${homePath(rulePath(content))}`;
+  if (tool === "WebFetch" && content.startsWith("domain:")) return `Open pages on ${content.slice(7)}`;
+  return rule;
 }
 
 function grantWords(grant: PermissionGrant): string {
@@ -1818,6 +1868,34 @@ export function permissionOutcomeWords(event: Partial<ToolPermissionEvent>): str
   if (withdrawn) return withdrawn;
   const message = nonEmpty(event.message);
   return message ? `Denied · ${message}` : "Denied";
+}
+
+/** What a request was about, in a few words: a command's first line, a file's path, a page's host, a tool's name. */
+function permissionSubjectWords(event: Partial<ToolPermissionEvent>): string {
+  if (isPlanRequest(event)) return "the plan";
+  const tool = event.tool ?? "";
+  if (tool === "Bash") {
+    const command = nonEmpty(event.subject) ?? nonEmpty(event.input?.command);
+    return command?.split("\n")[0]?.trim() || "a command";
+  }
+  if (PERMISSION_EDIT_TOOLS.has(tool) || PERMISSION_READ_TOOLS.has(tool)) return permissionPath(event) ?? "a file";
+  if (tool === "WebFetch") {
+    const address = nonEmpty(event.subject) ?? nonEmpty(event.input?.url);
+    return address ? webHost(address) : "a web page";
+  }
+  return nonEmpty(event.displayName) ?? (permissionToolName(tool) || "a tool");
+}
+
+/**
+ * An answered request in one line, what came of it and then what it was about ("Allowed · npm
+ * install three"); a plan approval says the mode it continues in. The rest opens below it.
+ */
+export function permissionLineWords(event: Partial<ToolPermissionEvent>): string {
+  const approvedPlan = isPlanRequest(event) && event.state === ToolPermissionState.Allowed && event.mode;
+  if (approvedPlan) return permissionOutcomeWords(event);
+  const denied = event.state !== ToolPermissionState.Allowed && !PERMISSION_WITHDRAWN[event.by ?? ""];
+  const outcome = denied ? "Denied" : permissionOutcomeWords(event);
+  return `${outcome} · ${permissionSubjectWords(event)}`;
 }
 
 /**

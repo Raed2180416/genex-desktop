@@ -7,9 +7,12 @@ import { describe, it } from "node:test";
 import {
   alwaysWords,
   bypassPermissionsWords,
+  permissionLineWords,
   permissionOutcomeWords,
+  permissionRuleWords,
   permissionTitleWords,
 } from "../../src/renderer/words.ts";
+import { allowedActions } from "../../src/renderer/permission-actions.ts";
 import type { PermissionGrant, ToolPermissionEvent } from "../../src/shared/permissions.ts";
 
 const ask = (fields: Partial<ToolPermissionEvent>): Partial<ToolPermissionEvent> => ({
@@ -119,6 +122,51 @@ describe("alwaysWords", () => {
   });
 });
 
+describe("permissionLineWords", () => {
+  it("says an answered request in one line: what came of it, then what it was about", () => {
+    const install = { tool: "Bash", input: { command: "npm install three" }, by: "user" } as const;
+    assert.equal(
+      permissionLineWords(ask({ ...install, state: "allowed", granted: "once" })),
+      "Allowed · npm install three",
+    );
+    assert.equal(
+      permissionLineWords(ask({ ...install, state: "allowed", granted: "always" })),
+      "Always allowed · npm install three",
+    );
+    assert.equal(
+      permissionLineWords(ask({ ...install, state: "denied", message: "Use pnpm instead" })),
+      "Denied · npm install three",
+    );
+    assert.equal(
+      permissionLineWords(ask({ ...install, state: "denied", by: "turn" })),
+      "Withdrawn when the turn ended · npm install three",
+    );
+  });
+
+  it("names a command by its first line, a file by its path, a page by its host and any other tool by its name", () => {
+    const allowed = { state: "allowed", by: "user", granted: "once" } as const;
+    assert.equal(
+      permissionLineWords(ask({ ...allowed, tool: "Bash", input: { command: "npm test\nnpm run build" } })),
+      "Allowed · npm test",
+    );
+    assert.equal(
+      permissionLineWords(ask({ ...allowed, tool: "Edit", input: { file_path: "/games/isle/src/main.js" } })),
+      "Allowed · /games/isle/src/main.js",
+    );
+    assert.equal(
+      permissionLineWords(ask({ ...allowed, tool: "WebFetch", input: { url: "https://threejs.org/docs/" } })),
+      "Allowed · threejs.org",
+    );
+    assert.equal(permissionLineWords(ask({ ...allowed, tool: "Bash", input: {} })), "Allowed · a command");
+  });
+
+  it("says a plan's answer alone, with the mode it continues in", () => {
+    const plan = { tool: "ExitPlanMode", plan: "1. Jump", by: "user" } as const;
+    assert.equal(permissionLineWords(ask({ ...plan, state: "allowed", mode: "auto" })), "Plan approved · Auto");
+    assert.equal(permissionLineWords(ask({ ...plan, state: "denied", message: "Smaller" })), "Denied · the plan");
+  });
+});
+
 describe("permissionOutcomeWords", () => {
   it("says how the person answered", () => {
     assert.equal(
@@ -178,5 +226,36 @@ describe("bypassPermissionsWords", () => {
         "Claude will run commands and change files anywhere on this computer without asking. Rewind restores only the game folder.",
         platform,
       );
+  });
+});
+
+describe("Settings → Permissions: what is always allowed, by action", () => {
+  it("says a saved rule in plain words, keeping the raw rule for anything it does not know", () => {
+    const cases: Array<[string, string]> = [
+      ["Bash(npm install:*)", "Run npm install"],
+      ["Bash(git status)", "Run git status"],
+      ["WebFetch(domain:threejs.org)", "Open pages on threejs.org"],
+      ["Read(//Users/you/refs/**)", "Read files in ~/refs"],
+      ["Edit(//Users/you/Games/kart/**)", "Edit files in ~/Games/kart"],
+      ["Read(src/**)", "Read files in src"],
+      ["mcp__genex__make_sound", "mcp__genex__make_sound"],
+    ];
+    for (const [rule, words] of cases) assert.equal(permissionRuleWords(rule), words, rule);
+  });
+
+  it("groups each action once, with every game that allows it, the most shared first", () => {
+    const actions = allowedActions([
+      { project: "angler", title: "Island Angler", rules: ["Bash(npm test:*)", "Bash(npm install:*)"] },
+      { project: "rally", title: "Neon Rally", rules: ["Bash(npm install:*)", "WebFetch(domain:kenney.nl)"] },
+      { project: "gone", title: "", rules: [] },
+    ]);
+    assert.deepEqual(
+      actions.map((action) => [action.rule, action.games.map((game) => game.project)]),
+      [
+        ["Bash(npm install:*)", ["angler", "rally"]],
+        ["Bash(npm test:*)", ["angler"]],
+        ["WebFetch(domain:kenney.nl)", ["rally"]],
+      ],
+    );
   });
 });

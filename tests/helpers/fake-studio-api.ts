@@ -62,6 +62,7 @@ const METHODS = [
   "restartToUpdate",
   "checkForUpdates",
   "openUpdateDownload",
+  "appAbout",
   "bootstrap",
   "performanceMark",
   "send",
@@ -228,6 +229,7 @@ function defaults(): Partial<Record<StudioMethod, () => unknown>> {
     retrySandboxSetup: ready,
     setUpSandbox: () => ({ outcome: "installed", state: ready() }),
     readyUpdate: () => null,
+    appAbout: () => ({ version: "0.1.0", platform: "darwin", arch: "arm64" }),
     bootstrap: () => ({
       threadId: "thread-main",
       layout: {},

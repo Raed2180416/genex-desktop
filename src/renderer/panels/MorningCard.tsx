@@ -8,7 +8,9 @@ import { LearningSummary } from "../chat/LearningSummary.tsx";
  * the answer to one of the three questions a person actually has at 8 am — what happened, what
  * does it look like now, and can I play it.
  */
-import type { JSX } from "react";
+import { type JSX, type ReactNode, useEffect, useState } from "react";
+import { SECOND_MS } from "../../shared/duration.ts";
+import type { RunSummary } from "../../shared/run-summary.ts";
 import { useRunSummary } from "../use-run-summary.ts";
 import { RunOutcome } from "./RunOutcome.tsx";
 import { MorningAction, morningWords } from "../morning-words.ts";
@@ -19,7 +21,33 @@ import { Markdown } from "../ui/Markdown.tsx";
 import { FileText } from "../ui/FileText.tsx";
 import { AssetResults } from "../chat/AssetResults.tsx";
 import type { AssetDeliveredPayload } from "../../shared/game-assets.ts";
-import { Pending } from "../ui/Pending.tsx";
+import { Presence, type PresenceChild } from "../ui/Presence.tsx";
+
+/** How long a finished build's card keeps the place of a result that has not come yet. */
+const RESULT_WAIT_MS = 3 * SECOND_MS;
+/** The key the result and its kept place share, so the result lands in that place without moving. */
+const RESULT_KEY = "result";
+
+/** Whether a missing result may still come: for its first moments, and never once it has. */
+function useResultWait(arrived: boolean): boolean {
+  const [expired, setExpired] = useState(false);
+  useEffect(() => {
+    if (arrived) return;
+    const timer = setTimeout(() => setExpired(true), RESULT_WAIT_MS);
+    return () => clearTimeout(timer);
+  }, [arrived]);
+  return !arrived && !expired;
+}
+
+/** The result's card, its silent place while it may still come, or nothing. */
+function resultPlace(
+  outcome: RunSummary | null,
+  waiting: boolean,
+  card: (summary: RunSummary) => ReactNode,
+): PresenceChild[] {
+  if (outcome) return [{ key: RESULT_KEY, node: card(outcome) }];
+  return waiting ? [{ key: RESULT_KEY, node: <div aria-hidden className="build-card-place" /> }] : [];
+}
 
 export interface MorningCardProps {
   runId?: string | null;
@@ -75,6 +103,7 @@ export function MorningCard({
   onNotice,
 }: MorningCardProps): JSX.Element {
   const outcome = useRunSummary(project, runId);
+  const waiting = useResultWait(outcome !== null);
   const words = morningWords({
     rounds,
     kept,
@@ -146,22 +175,24 @@ export function MorningCard({
   return (
     <div data-testid="morning-card" className="flex min-w-0 flex-col gap-1.5">
       {words.summary && <Markdown text={words.summary} />}
-      {/* The result loads after the card shows; its card's place is kept meanwhile, so nothing moves. */}
-      {!outcome && <Pending label="Loading build result…" className="build-card-place text-xs" />}
-      {outcome && (
-        <RunOutcome
-          conversation
-          capturePath={after}
-          summary={outcome}
-          onPlay={() => {
-            if (project && outcome.head)
-              return window.studio
-                .showBuild(project, outcome.head)
-                .then(() => onShowLive?.())
-                .catch((error) => onNotice?.(String(error), ToastTone.Error));
-          }}
-        />
-      )}
+      {/* The result loads after the card shows: its place is kept, silently, while it may still come, so
+          nothing moves when it lands; a result that never comes closes the place, a late one opens in it. */}
+      <Presence>
+        {resultPlace(outcome, waiting, (summary) => (
+          <RunOutcome
+            conversation
+            capturePath={after}
+            summary={summary}
+            onPlay={() => {
+              if (project && summary.head)
+                return window.studio
+                  .showBuild(project, summary.head)
+                  .then(() => onShowLive?.())
+                  .catch((error) => onNotice?.(String(error), ToastTone.Error));
+            }}
+          />
+        ))}
+      </Presence>
       {assets?.length ? <AssetResults deliveries={assets} onOpenAssets={onOpenAssets} /> : null}
       {showBecause && (
         <div className="text-chat text-ink-3">

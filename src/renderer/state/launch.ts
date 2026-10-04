@@ -69,6 +69,12 @@ export function launchNamed(state: LaunchState, id: string, title: string): Laun
   return { ...state, launch: { ...state.launch, phase: LaunchPhase.Opening, title } };
 }
 
+/** The game is made: the sidebar lists it under its own row from now on, while its chat opens. */
+export function launchMade(state: LaunchState, id: string, project: string): LaunchState {
+  if (!current(state, id)) return state;
+  return { ...state, launch: { ...state.launch, project } };
+}
+
 export function launchOpened(
   state: LaunchState,
   id: string,
@@ -101,6 +107,22 @@ export function launchFailed(state: LaunchState, id: string): LaunchState {
 /** Home's composer took the words back. */
 export function returnTaken(state: LaunchState): LaunchState {
   return state.returned ? { ...state, returned: null } : state;
+}
+
+/** How the sidebar shows a launch: one row, a placeholder until its game is listed, then the game's own. */
+export interface LaunchInSidebar {
+  /** The placeholder row stands in for a game not made (or not listed) yet. */
+  placeholder: boolean;
+  title: string | null;
+  /** The listed game the launch is becoming: its row looks selected and working. */
+  project: string | null;
+}
+
+/** The sidebar's one row for a launch, given which games the library lists. */
+export function launchInSidebar(launch: Launch | null, listed: (project: string) => boolean): LaunchInSidebar {
+  if (!launch) return { placeholder: false, title: null, project: null };
+  const project = launch.project && listed(launch.project) ? launch.project : null;
+  return { placeholder: project === null, title: launch.title, project };
 }
 
 export type LaunchStore = StoreApi<LaunchState>;

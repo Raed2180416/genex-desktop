@@ -16,6 +16,7 @@ import { SECOND_MS } from "../../shared/duration.ts";
 import type { ComposerSendOptions } from "../../shared/composer.ts";
 import type { GameUpdate } from "../../shared/game-library.ts";
 import { HarnessState } from "../../shared/protocol.ts";
+import type { GameName } from "../../shared/game-project.ts";
 import type { Bootstrap, ConversationRecord, GameProject, StudioApi } from "../../shared/studio-api.ts";
 import { UiEvent } from "../../shared/ui-events.ts";
 import { shouldWelcome } from "../onboarding/state.ts";
@@ -48,6 +49,7 @@ import {
   launchFailed,
   launchFinished,
   launchHanded,
+  launchMade,
   launchNamed,
   launchOpened,
   launchStarted,
@@ -437,12 +439,14 @@ async function enterProject(
 const UNTITLED_GAME = "Untitled game";
 let launches = 0;
 
-/** The name for a launch's game: the model's, else Untitled game. Never fails. */
-async function launchTitle(api: StudioApi, input: LaunchInput): Promise<string> {
+/** The name for a launch's game: the model's, else Untitled game, waiting for an idea. Never fails. */
+async function launchName(api: StudioApi, input: LaunchInput): Promise<GameName> {
   const { engine, model } = parseModelKey(input.modelKey);
   const request = { prompt: input.text, ...(engine ? { engine } : {}), ...(model ? { model } : {}) };
   const named = await api.nameGame(request).catch(() => null);
-  return named?.title.trim() || UNTITLED_GAME;
+  const title = named?.title.trim();
+  if (!title) return { title: UNTITLED_GAME, provisional: true };
+  return named?.provisional ? { title, provisional: true } : { title };
 }
 
 /** The new chat opens on home's model and effort, the ones its first message was written for. */
@@ -458,11 +462,14 @@ async function launchGame(ctx: StudioContext, input: LaunchInput): Promise<void>
   if (launch.getState().launch) return;
   const id = `launch-${++launches}`;
   launch.setState((state) => launchStarted(state, { id, text: input.text, extras: input.extras, at: ctx.now() }), true);
-  const title = await launchTitle(api, input);
+  const { title, provisional } = await launchName(api, input);
   launch.setState((state) => launchNamed(state, id, title), true);
   try {
-    const where = input.parent ? [{ parent: input.parent }] : [];
-    const game = await api.createGame(title, ...where);
+    const options = { ...(input.parent ? { parent: input.parent } : {}), ...(provisional ? { provisional } : {}) };
+    const game = await api.createGame(title, ...(Object.keys(options).length ? [options] : []));
+    // The launch learns its game as the library lists it, so its placeholder row never sits
+    // beside the game's own while the chat opens (a library refresh can land first).
+    launch.setState((state) => launchMade(state, id, game.name), true);
     stores.library.setState((state) => gameAdded(state, game), true);
     const record = await enterProject(ctx, game.name, {
       beforeOpen: (opened) => keepComposerChoice(storage, opened.id, input),

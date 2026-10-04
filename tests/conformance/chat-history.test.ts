@@ -13,7 +13,8 @@ import { CustomEvent, customPayload } from "../../src/shared/custom-events.ts";
 import { measuredContext } from "../../src/shared/context.ts";
 import { EventKind } from "../../src/shared/event-log.ts";
 import { EngineId } from "../../src/shared/providers.ts";
-import { toEntries } from "../../src/renderer/chat-entries.ts";
+import { EntryKind, toEntries } from "../../src/renderer/chat-entries.ts";
+import { compactedWords } from "../../src/renderer/words.ts";
 import { withLiveTail } from "../../src/renderer/use-chat-history.ts";
 import type { EventData, EventEnvelope } from "../../src/substrate/types.ts";
 const event = (id: number, data: EventData): EventEnvelope => ({
@@ -1020,4 +1021,25 @@ test("a message handed to a night's lead reads where it was sent, its answer is 
     state.some((e) => e.id === "000003"),
     false,
   );
+});
+
+test("a finished compaction stays in the chat as its own row, never folded into the work around it, and opens to its summary", () => {
+  const summary = "We're building Island Angler. Next: bigger waves.";
+  const entries = toEntries([
+    event(1, { type: "messages", messages: [{ role: "user", content: "Make the waves bigger" }] }),
+    custom(2, CustomEvent.Compacted, { summary, messages: 42, trigger: "auto", upTo: "000001" }),
+    event(3, { type: "messages", messages: [{ role: "assistant", content: "The waves are taller now." }] }),
+  ]);
+  const compaction = entries.find((entry) => entry.kind === EntryKind.Compaction);
+  assert.deepEqual(compaction && { messages: compaction.messages, summary: compaction.summary }, {
+    messages: 42,
+    summary,
+  });
+  assert.ok(
+    !entries.some((entry) => entry.kind === EntryKind.Activity),
+    "nothing about the compaction is folded into a work row",
+  );
+  assert.equal(compactedWords(42), "Compacted 42 messages");
+  assert.equal(compactedWords(1), "Compacted 1 message");
+  assert.equal(compactedWords(undefined), "Compacted the conversation");
 });

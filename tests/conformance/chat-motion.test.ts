@@ -8,7 +8,9 @@ import { describe, it } from "node:test";
 import { continuedEntrance } from "../../src/renderer/chat/transcript-motion.ts";
 import { PresencePhase, presenceDone, presenceList } from "../../src/renderer/ui/presence-list.ts";
 import { sizeGlide } from "../../src/renderer/ui/motion.ts";
-import { LABEL_DWELL_MS, steadyLabel } from "../../src/renderer/ui/label-motion.ts";
+import { heldStatus, LABEL_DWELL_MS, steadyLabel } from "../../src/renderer/ui/label-motion.ts";
+import { clockWords } from "../../src/renderer/words.ts";
+import { HOUR_MS, MINUTE_MS, SECOND_MS } from "../../src/shared/duration.ts";
 
 describe("a status label stays long enough to read", () => {
   it("shows the first label at once", () => {
@@ -32,6 +34,50 @@ describe("a status label stays long enough to read", () => {
       wakeAt: null,
     });
     assert.deepEqual(steadyLabel(thinking, "Thinking", 10), { shown: thinking, wakeAt: null });
+  });
+
+  it("keeps every label on show for at least a second", () => {
+    const sending = { text: "Sending", since: 0 };
+    assert.equal(steadyLabel(sending, "Thinking", SECOND_MS - 1).shown, sending);
+    assert.equal(steadyLabel(sending, "Thinking", SECOND_MS).shown.text, "Thinking");
+  });
+});
+
+describe("the status line holds its words, their clock and their waiting together", () => {
+  const thinking = { label: "Thinking", since: 1000, waiting: false };
+
+  it("keeps the shown words' start and waiting while newer words wait their turn", () => {
+    const asking = { label: "Waiting for your answer", since: 5000, waiting: true };
+    assert.equal(heldStatus(thinking, "Thinking", asking), thinking);
+  });
+
+  it("starts again when new words come on show", () => {
+    const tool = { label: "Running a tool", since: 5000, waiting: false };
+    assert.equal(heldStatus(thinking, "Running a tool", tool), tool);
+  });
+
+  it("keeps the clock running while the same words stay, whatever start the work reports", () => {
+    assert.equal(heldStatus(thinking, "Thinking", { ...thinking, since: 7000 }), thinking);
+  });
+
+  it("follows the work's waiting while the same words stay", () => {
+    assert.deepEqual(heldStatus(thinking, "Thinking", { label: "Thinking", since: 7000, waiting: true }), {
+      ...thinking,
+      waiting: true,
+    });
+  });
+});
+
+describe("the status clock shows whole seconds, from the first", () => {
+  it("shows nothing under a second", () => {
+    assert.equal(clockWords(0), "");
+    assert.equal(clockWords(SECOND_MS - 1), "");
+  });
+
+  it("counts seconds, then minutes and seconds, then hours and minutes", () => {
+    assert.equal(clockWords(SECOND_MS), "1s");
+    assert.equal(clockWords(65 * SECOND_MS), "1m 5s");
+    assert.equal(clockWords(2 * HOUR_MS + 10 * MINUTE_MS), "2h 10m");
   });
 });
 

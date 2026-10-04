@@ -555,10 +555,19 @@ describe("the in-window update prompt", () => {
         },
       },
       check: async () => ({ status: UpdateCheckStatus.Off, current: "0.1.0", update: null }),
+      about: () => ({ version: "0.1.0", platform: "darwin", arch: "arm64" }),
     });
     const invoke = (channel: string) => listeners.get(channel)!(studio, undefined);
     return { invoke, restarts };
   }
+
+  it("answers what is running for Settings → About, in a fixture profile too", async () => {
+    for (const fixture of [false, true])
+      assert.deepEqual(await updateRig(fixture).invoke("studio:update.about"), {
+        ok: true,
+        value: { version: "0.1.0", platform: "darwin", arch: "arm64" },
+      });
+  });
 
   it("answers the downloaded update, and restarts into it on the person's word", async () => {
     const { invoke, restarts } = updateRig(false);

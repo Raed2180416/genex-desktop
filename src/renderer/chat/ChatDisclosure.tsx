@@ -1,6 +1,6 @@
 import { useId, useRef, useState, type ReactNode, type HTMLAttributes } from "react";
 import { Icon } from "../ui/icons.tsx";
-import { useTextFade, useWidthGlide } from "../ui/label-motion.ts";
+import { useSteadyLabel, useTextFade, useWidthGlide } from "../ui/label-motion.ts";
 import { Presence } from "../ui/Presence.tsx";
 
 /** Shared reading and expansion grammar for work, outcomes and learning: the body opens and closes in place. */
@@ -26,9 +26,10 @@ export function ChatDisclosure({
   const [expanded, setExpanded] = useState(false);
   const open = controlled ?? expanded;
   const id = useId();
-  // New words ("Worked on 3 steps") fade in as the label's width glides to them, the chevron along.
+  // New words ("Worked on 3 steps") stay a second before the next, and fade in as the label's width
+  // glides to them, the chevron along.
   const labelBox = useRef<HTMLSpanElement>(null);
-  const words = typeof label === "string" ? label : "";
+  const words = useSteadyLabel(typeof label === "string" ? label : "");
   useTextFade(labelBox, words);
   useWidthGlide(labelBox, words);
   return (
@@ -42,7 +43,7 @@ export function ChatDisclosure({
         className="chat-disclosure"
       >
         <span ref={labelBox} className="min-w-0 truncate">
-          {label}
+          {typeof label === "string" ? words : label}
         </span>
         {suffix}
         <Icon name="chevron-right" size={14} className={`chat-chevron ${open ? "rotate-90" : ""}`} />

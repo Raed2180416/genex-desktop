@@ -22,6 +22,7 @@ import type { Studio } from "../state/studio.ts";
 import { Room, roomOf } from "../state/threads.ts";
 import { ToastTone } from "../state/toasts.ts";
 import { Icon } from "../ui/icons.tsx";
+import { useSteadyLabel } from "../ui/label-motion.ts";
 import { pickPromptIdea } from "../prompt-ideas.ts";
 import { prefersReducedMotion } from "../ui/media-queries.ts";
 import { PromptBar, type ComposerExtras } from "../ui/PromptBar.tsx";
@@ -31,6 +32,7 @@ import { useHomeComposerModel } from "./use-home-composer.ts";
 import type { ShellChrome } from "./use-shell-chrome.ts";
 import { HomeBackdropButton } from "./HomeBackdropButton.tsx";
 import { HomeFolderChip } from "./HomeFolderChip.tsx";
+import { StatusOrb } from "../ui/StatusOrb.tsx";
 
 /** Home's words. */
 const MESSAGE = {
@@ -245,6 +247,8 @@ function LaunchingHome({
   composer: JSX.Element;
 }): JSX.Element {
   const named = launch.title !== null;
+  // Naming can take a moment or no time at all: each status stays a second, as the chat's do.
+  const status = useSteadyLabel(named ? MESSAGE.openingStatus : MESSAGE.namingStatus);
   return (
     <section
       data-home="launching"
@@ -267,9 +271,13 @@ function LaunchingHome({
         </div>
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden px-4 py-5">
           <UserMessage text={launch.text} />
-          <span role="status" data-shimmer className="chat-status-shimmer text-body-sm">
-            {named ? MESSAGE.openingStatus : MESSAGE.namingStatus}
-          </span>
+          {/* The chat's own status line, in its type, with its loader: the chat this becomes. */}
+          <div data-chat-status className="chat-status-line">
+            <StatusOrb />
+            <span role="status" data-shimmer className="chat-status-shimmer">
+              {status}
+            </span>
+          </div>
         </div>
         <div className="min-w-0 shrink-0 px-3.5 pt-1 pb-3.5">{composer}</div>
       </div>

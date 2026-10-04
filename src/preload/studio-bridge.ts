@@ -176,6 +176,7 @@ function studioCalls(bridge: BridgeCalls) {
     readyUpdate: () => invoke("studio:update"),
     restartToUpdate: () => invoke("studio:update.restart"),
     checkForUpdates: () => invoke("studio:update.check"),
+    appAbout: () => invoke("studio:update.about"),
     openUpdateDownload: () => invoke("studio:update.download"),
     engines: () => invoke("studio:engines"),
     providerUsage: () => invoke("studio:provider-usage"),

@@ -1,8 +1,10 @@
 /**
  * Empty-state wireframes: small 3D line scenes drawn on a 160×116 2D canvas. Strokes fade with
  * depth in six alpha buckets per colour, so a scene costs a handful of canvas paths per frame.
- * Geometry lives in world units; each scene brings its own camera.
+ * Geometry lives in world units; each scene brings its own camera. The idea's computer is opaque
+ * and has its own module (`wire-computer.ts`).
  */
+import { computerYaw, drawComputer } from "./wire-computer.ts";
 
 /** The scene an empty state draws; the value is also its canvas's data-wire. */
 export const WireKind = {
@@ -23,6 +25,8 @@ export interface WireColors {
   ink: Rgb;
   muted: Rgb;
   fill: Rgb;
+  /** What the art stands on: the opaque computer's faces are painted in it. */
+  page: Rgb;
 }
 interface Camera {
   yaw: number;
@@ -42,6 +46,8 @@ export const WIDTH = 160;
 export const HEIGHT = 116;
 /** The idea → building hand-off, in seconds. */
 export const HANDOFF = 1.4;
+/** The idea's turn, as the computer's yaw at `t` seconds (`wire-computer.ts`). */
+export const ideaSpin = computerYaw;
 /** One still frame per scene under Reduce Motion. */
 export const STILL: Record<WireKind, number> = {
   [WireKind.Idea]: 0,
@@ -252,9 +258,8 @@ function stopPlate(): Line[] {
 }
 let stopPlateLines: Line[] | null = null;
 
-/** Where the crane picks up: the pallet the idea's cube lands on. */
+/** Where the crane picks up: its pallet. */
 const PICK_ANGLE = -0.95;
-const PALLET: Vec3 = [3 * Math.cos(PICK_ANGLE), 0.4, -3 * Math.sin(PICK_ANGLE)];
 /** Where the crane stacks: the jib's angle and the trolley's reach at each end of the slew. */
 const DROP_ANGLE = 0.55;
 const PICK_REACH = 3.0;
@@ -522,10 +527,9 @@ function blockFades(u: number): { placed: number; fresh: number } {
 
 /**
  * A tower crane on one 12 s loop: the hook lowers, lifts the fresh block from the pallet, slews,
- * stacks it and returns. `noFresh` hides the pallet block while the idea's own cube stands in.
- * The first-launch welcome draws the same crane as its Workers.
+ * stacks it and returns. The first-launch welcome draws the same crane as its Workers.
  */
-export function crane(t: number, noFresh = false): Line[] {
+export function crane(t: number): Line[] {
   const L: Line[] = [];
   const add = lineAdder(L);
   const u = ((t % CRANE_LOOP) + CRANE_LOOP) % CRANE_LOOP;
@@ -552,7 +556,7 @@ export function crane(t: number, noFresh = false): Line[] {
   if (pose.attached) craneLoad(add, pose);
   const { placed, fresh } = blockFades(u);
   if (placed > 0.01) box(L, pB[0], 2.0, pB[2], 0.4, 0.4, 0.4, DROP_ANGLE, 1, placed);
-  if (fresh > 0.01 && !noFresh) box(L, pA[0], 0.4, pA[2], 0.4, 0.4, 0.4, PICK_ANGLE, 1, fresh);
+  if (fresh > 0.01) box(L, pA[0], 0.4, pA[2], 0.4, 0.4, 0.4, PICK_ANGLE, 1, fresh);
   return L;
 }
 
@@ -715,85 +719,7 @@ function strokeLines(ctx: CanvasRenderingContext2D, L: Line[], cam: Camera, colo
   });
 }
 
-/** The idea's cube, drawn directly: faint accent faces and one ink outline. */
-function cube(
-  ctx: CanvasRenderingContext2D,
-  cam: Camera,
-  spin: number,
-  lift: number,
-  fill: number,
-  pulled: number,
-  colors: WireColors,
-) {
-  const C: Vec3 = [PALLET[0], 0.4 + lift, PALLET[2]],
-    h = 0.4,
-    co = Math.cos(spin),
-    si = Math.sin(spin);
-  const P = (x: number, y: number, z: number) =>
-    project([C[0] + x * co + z * si, C[1] + y, C[2] - x * si + z * co], cam);
-  const V = [
-    P(-h, -h, -h),
-    P(h, -h, -h),
-    P(h, -h, h),
-    P(-h, -h, h),
-    P(-h, h, -h),
-    P(h, h, -h),
-    P(h, h, h),
-    P(-h, h, h),
-  ];
-  if (fill > 0.01) {
-    ctx.fillStyle = rgba(colors.fill, 0.14 * fill);
-    for (const f of [
-      [0, 1, 2, 3],
-      [4, 5, 6, 7],
-      [0, 1, 5, 4],
-      [1, 2, 6, 5],
-      [2, 3, 7, 6],
-      [3, 0, 4, 7],
-    ]) {
-      ctx.beginPath();
-      ctx.moveTo(V[f[0]][0], V[f[0]][1]);
-      for (let i = 1; i < 4; i++) ctx.lineTo(V[f[i]][0], V[f[i]][1]);
-      ctx.closePath();
-      ctx.fill();
-    }
-  }
-  ctx.strokeStyle = rgba(colors.ink, 0.9 - 0.15 * pulled);
-  ctx.beginPath();
-  for (const [a, b] of [
-    [0, 1],
-    [1, 2],
-    [2, 3],
-    [3, 0],
-    [4, 5],
-    [5, 6],
-    [6, 7],
-    [7, 4],
-    [0, 4],
-    [1, 5],
-    [2, 6],
-    [3, 7],
-  ] as Vec2[]) {
-    ctx.moveTo(V[a][0], V[a][1]);
-    ctx.lineTo(V[b][0], V[b][1]);
-  }
-  ctx.stroke();
-}
-
-/** The idea's camera looks at the pallet from close by; the crane's camera takes in the whole site. */
-const IDEA_CAM: Camera = {
-  yaw: 0,
-  pitch: 0.52,
-  scale: 42.5,
-  cx: 80,
-  cy: 38,
-  dist: 7.5,
-  tx: PALLET[0],
-  ty: 0.4,
-  tz: PALLET[2],
-  y0: 0,
-  R: 1.2,
-};
+/** The crane's camera takes in the whole site. */
 const CRANE_CAM: Camera = {
   yaw: 0.2,
   pitch: 0.3,
@@ -807,32 +733,9 @@ const CRANE_CAM: Camera = {
   y0: 0,
   R: 4.5,
 };
-const IDEA_SPIN0 = PICK_ANGLE + 0.1,
-  IDEA_SPIN = (2 * Math.PI) / 9;
-/** The idea's slow tumble (one turn per 9 s) and 3 px float, as angles and world lift at time t. */
-export const ideaSpin = (t: number) => IDEA_SPIN0 - IDEA_SPIN * t;
-export const ideaLift = (t: number) => -0.07 * (0.5 - 0.5 * Math.cos((t * Math.PI) / 3.2));
 
-function interpolateCamera(z: number): Camera {
-  const li = (a: number, b: number) => a + (b - a) * z,
-    ex = (a: number, b: number) => a * (b / a) ** z;
-  return {
-    yaw: li(IDEA_CAM.yaw, CRANE_CAM.yaw),
-    pitch: li(IDEA_CAM.pitch, CRANE_CAM.pitch),
-    scale: ex(IDEA_CAM.scale, CRANE_CAM.scale),
-    cx: li(IDEA_CAM.cx, CRANE_CAM.cx),
-    cy: li(IDEA_CAM.cy, CRANE_CAM.cy),
-    dist: ex(IDEA_CAM.dist, CRANE_CAM.dist),
-    tx: li(PALLET[0], 0),
-    ty: li(0.4, 0),
-    tz: li(PALLET[2], 0),
-    y0: 0,
-    R: li(IDEA_CAM.R, CRANE_CAM.R),
-  };
-}
-
-/** What a canvas should show: one scene at time t, or the hand-off `s` seconds in (from the cube's pose). */
-export type WireFrame = { kind: WireKind; t: number } | { kind: "handoff"; s: number; spin: number; lift: number };
+/** What a canvas should show: one scene at time t, or the hand-off `s` seconds in (from the computer's yaw). */
+export type WireFrame = { kind: WireKind; t: number } | { kind: "handoff"; s: number; spin: number };
 
 export function drawWire(ctx: CanvasRenderingContext2D, frame: WireFrame, colors: WireColors, scale: number) {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -841,9 +744,10 @@ export function drawWire(ctx: CanvasRenderingContext2D, frame: WireFrame, colors
   ctx.lineWidth = 0.9;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
-  if (frame.kind === "handoff") return drawHandoff(ctx, frame.s, frame.spin, frame.lift, colors);
+  if (frame.kind === "handoff") return drawHandoff(ctx, frame.s, frame.spin, colors);
   const t = frame.t;
-  if (frame.kind === WireKind.Idea) return cube(ctx, IDEA_CAM, ideaSpin(t), ideaLift(t), 1, 0, colors);
+  if (frame.kind === WireKind.Idea)
+    return drawComputer(ctx, { yaw: ideaSpin(t), t, boot: null, alpha: 1 }, colors, colors.page);
   if (frame.kind === WireKind.Building) return strokeLines(ctx, crane(t), CRANE_CAM, colors);
   if (frame.kind === WireKind.Stopped)
     return strokeLines(
@@ -877,24 +781,22 @@ export function drawWire(ctx: CanvasRenderingContext2D, frame: WireFrame, colors
 }
 
 /**
- * The idea's cube becomes the crane's first block: it squares up to the nearest quarter turn
- * (0–0.6 s), the view pulls back to the site (0.15–0.8 s) while the cube's fill fades
- * (0.4–1.0 s), and the crane rises out of the floor behind a scan line (0.5–1.2 s).
+ * The idea's computer hands over to the crane: it turns to face you (0–0.6 s) as its screen boots
+ * (0.15–0.9 s), then fades (0.8–1.2 s) while the crane rises out of the floor behind a scan line
+ * (0.7–1.4 s).
  */
-function drawHandoff(ctx: CanvasRenderingContext2D, s: number, spin0: number, lift0: number, colors: WireColors) {
-  const quarter = Math.PI / 2,
-    target = PICK_ANGLE + Math.round((spin0 - PICK_ANGLE) / quarter) * quarter;
-  const settle = easeOut(clamp(s / 0.6));
-  const pulled = ease(clamp((s - 0.15) / 0.65));
-  const rise = ease(clamp((s - 0.5) / 0.7));
-  const cam = interpolateCamera(pulled);
+function drawHandoff(ctx: CanvasRenderingContext2D, s: number, spin0: number, colors: WireColors) {
+  const front = Math.round(spin0 / (2 * Math.PI)) * 2 * Math.PI;
+  const settle = ease(clamp(s / 0.6));
+  const boot = s < 0.15 ? null : easeOut(clamp((s - 0.15) / 0.75));
+  const rise = ease(clamp((s - 0.7) / 0.7));
   if (rise > 0) {
     const Y = 100 - 94 * rise;
     ctx.save();
     ctx.beginPath();
     ctx.rect(0, Y, WIDTH, HEIGHT - Y);
     ctx.clip();
-    strokeLines(ctx, crane(0, true), cam, colors);
+    strokeLines(ctx, crane(0), CRANE_CAM, colors);
     ctx.restore();
     if (rise < 1) {
       ctx.strokeStyle = rgba(colors.accent, 0.45 * Math.sin(Math.PI * rise));
@@ -904,5 +806,6 @@ function drawHandoff(ctx: CanvasRenderingContext2D, s: number, spin0: number, li
       ctx.stroke();
     }
   }
-  cube(ctx, cam, spin0 + (target - spin0) * settle, lift0 * (1 - settle), 1 - clamp((s - 0.4) / 0.6), pulled, colors);
+  const pose = { yaw: lerp(spin0, front, settle), t: 0, boot, alpha: 1 - clamp((s - 0.8) / 0.4) };
+  drawComputer(ctx, pose, colors, colors.page);
 }

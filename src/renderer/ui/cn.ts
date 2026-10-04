@@ -16,6 +16,7 @@ const TYPE_SCALE_ROLES = [
   "text-body-sm",
   "text-chat",
   "text-step",
+  "text-status",
   "text-chat-sub",
   "text-reply-h1",
   "text-reply-h2",

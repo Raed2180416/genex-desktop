@@ -1016,6 +1016,8 @@ export interface GameLibraryEntry {
   trustProjectSettings?: boolean;
   cover?: GameCover;
   primaryThreadId?: string;
+  /** The title waits for the game's first idea; any title given since clears it. */
+  provisional?: boolean;
 }
 // ↑ src/shared/game-library.ts
 
@@ -1095,6 +1097,8 @@ export interface GameProject {
   shape: ProjectShape;
   /** `shape.own`: the folder brought its own game, so the studio builds it and serves its output. */
   built: boolean;
+  /** Named before anyone said what the game is: its first idea renames it in place (`nameFromIdea`). */
+  provisional?: boolean;
 }
 // ↑ src/shared/game-project.ts
 

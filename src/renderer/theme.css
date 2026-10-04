@@ -220,6 +220,16 @@
   --text-sm--line-height: 20px;
 }
 
+/* Current work's shimmer: a bright sweep across the line, then a rest before the next. */
+@keyframes shimmer-sweep {
+  0% {
+    background-position: 140% center;
+  }
+  78%,
+  100% {
+    background-position: -40% center;
+  }
+}
 /* Existing graph/status effects use the same palette as the shared controls. */
 @keyframes shimmer-text {
   0% {
@@ -758,6 +768,12 @@
   font-size: 15px;
   line-height: 22px;
   letter-spacing: -0.26px;
+}
+/* The live status line: what the chat is doing now, a size under the chat it sits in. */
+@utility text-status {
+  font-size: 12px;
+  line-height: 18px;
+  letter-spacing: -0.1px;
 }
 @utility text-chat-sub {
   font-size: 14px;
@@ -2247,6 +2263,9 @@ button.chat-header-title:hover {
   border-radius: 10px;
   object-fit: cover;
   user-select: none;
+  /* A divider-coloured edge drawn over the picture, so a white icon still reads as a tile on a white page. */
+  outline: 1px solid var(--line);
+  outline-offset: -1px;
 }
 .extension-icon-large {
   width: 64px;
@@ -2281,6 +2300,7 @@ button.chat-header-title:hover {
   align-items: center;
   justify-content: center;
   border: 1px dashed var(--line-strong);
+  outline: none;
   color: var(--color-icon);
 }
 .extension-copy {
@@ -2728,12 +2748,13 @@ button.chat-header-title:hover {
 
 /* Only current work animates. History and disclosures mount without entrance choreography. */
 .chat-status-shimmer {
+  --shimmer-rest: color-mix(in oklab, var(--ink-3) 82%, var(--background));
   color: var(--ink-3);
-  background: linear-gradient(90deg, var(--ink-3) 35%, var(--ink) 50%, var(--ink-3) 65%);
-  background-size: 200% 100%;
+  background: linear-gradient(100deg, var(--shimmer-rest) 36%, var(--ink) 50%, var(--shimmer-rest) 64%);
+  background-size: 260% 100%;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: shimmer-text 1.4s linear infinite;
+  animation: shimmer-sweep 2.1s cubic-bezier(0.45, 0, 0.25, 1) infinite;
 }
 @media (prefers-reduced-motion: reduce) {
   .chat-status-shimmer {
@@ -2802,6 +2823,10 @@ button.chat-header-title:hover {
   color: var(--ink);
   background: var(--control-hover, var(--hover));
 }
+/* A disclosure's chevron sits a little closer to its words than the gap between other parts. */
+.chat-disclosure > svg:last-child {
+  margin-inline-start: -2px;
+}
 /* The status line without details to open: laid out as its disclosure is, so nothing moves when one comes. */
 .chat-status-line {
   display: flex;
@@ -2812,6 +2837,38 @@ button.chat-header-title:hover {
   padding-block: 4px;
   color: var(--ink-3);
 }
+/* The live line is a size under the chat: its loader, then its words and clock, then its chevron. */
+:is([data-chat-status] .chat-disclosure, [data-chat-status] .chat-status-line, .chat-status-line[data-chat-status]) {
+  gap: 8px;
+  font-size: 12px;
+  line-height: 18px;
+  letter-spacing: -0.1px;
+}
+.chat-status-words {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+/* The loader's place: it closes while the work waits on the user, the line's gap after it too, so
+   the words slide rather than jump (ui/LoadingState.tsx). */
+.chat-status-orb-slot {
+  display: flex;
+  flex: none;
+  width: 14px;
+  overflow: hidden;
+  transition:
+    width var(--duration-fast) var(--ease-smooth-out),
+    margin-inline-end var(--duration-fast) var(--ease-smooth-out),
+    opacity var(--duration-quick) ease-out;
+}
+.chat-status-orb-slot[data-gone] {
+  width: 0;
+  margin-inline-end: -8px;
+  opacity: 0;
+}
+.chat-status-orb {
+  flex: none;
+}
 /* The status line's clock, after its words in their type, figures and resting ink. Its width is the
    words' own (`--clock-width`, ui/LoadingState.tsx), so a change of width can glide. */
 .chat-clock {
@@ -2820,11 +2877,17 @@ button.chat-header-title:hover {
   width: var(--clock-width, auto);
   white-space: nowrap;
 }
-/* Waiting on the user has no clock; the line's gap before it goes too. */
+/* Its space after the words is its own, so a clock with nothing to show yet (under a second) takes none. */
+.chat-clock > :not(:empty) {
+  padding-inline-start: 4px;
+}
+/* Waiting on the user has no clock. */
 .chat-clock[aria-hidden="true"] {
   width: 0;
-  margin-inline-start: -6px;
   opacity: 0;
+}
+.chat-clock {
+  font-variant-numeric: tabular-nums;
 }
 [data-chat-transcript] img {
   outline: 1px solid rgb(255 255 255 / 0.1);
@@ -2848,6 +2911,21 @@ button.chat-header-title:hover {
 }
 .chat-tool-frame > * + * {
   border-block-start: 1px solid var(--line);
+}
+/* A compaction's summary: one framed box, read in a size under the chat, scrolling when long. */
+.chat-compaction-summary {
+  margin-block-start: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+[data-chat-transcript] .chat-compaction-summary .prose {
+  font-size: 14px;
+  line-height: 21px;
+  color: var(--ink-2);
 }
 .chat-tool-detail {
   padding: 10px;
@@ -3865,6 +3943,62 @@ a:focus-visible {
 .settings-rows > .appearance-row > :first-child {
   gap: 2px;
 }
+/* One block of related settings on the card surface, as Appearance's theme card. */
+.settings-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+}
+/* A card that is a list: its rows reach nearly to its edge and carry their own padding. */
+.settings-card[data-list] {
+  padding: 4px;
+}
+/* A card that is one row: what it is on the left, its actions on the right. */
+.settings-card[data-row] {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding-block: 12px;
+}
+.appearance-section .settings-subtitle {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  color: var(--ink);
+}
+.appearance-section .settings-card-title {
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 20px;
+  color: var(--ink);
+}
+/* A folder path as a read-only field: its icon, the parent (cut first when long), the folder's own name whole. */
+.settings-path {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  height: 36px;
+  padding-inline: 12px;
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--field) 55%, var(--card));
+  box-shadow: inset 0 0 0 1px var(--field);
+  font: 13px / 1 var(--font-family-code);
+}
+/* A row of a list card: a hit area with its own padding and a hairline above all but the first. */
+.settings-list-row {
+  border-radius: 12px;
+}
+.settings-list-row + .settings-list-row,
+.settings-list-group + .settings-list-group {
+  border-top: 1px solid var(--line);
+}
 .appearance-typography h3 {
   margin-block-end: 8px;
 }
@@ -4144,7 +4278,6 @@ a:focus-visible {
 .chat-clock {
   transition:
     width var(--duration-fast) var(--ease-smooth-out),
-    margin-inline-start var(--duration-fast) var(--ease-smooth-out),
     opacity var(--duration-quick) ease-out;
 }
 /* The reply being written grows smoothly line by line; its height follows the text (ui/animate-height.tsx). */
@@ -4154,6 +4287,7 @@ a:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   .chat-chevron,
   .chat-clock,
+  .chat-status-orb-slot,
   .build-card-text,
   :is([data-chat-scroll], [data-pending-questions]) details::details-content {
     transition: none;
@@ -4457,10 +4591,11 @@ a:focus-visible {
   background: var(--orange);
   vertical-align: 1px;
 }
+/* The menus' divider (as `DropdownMenuSeparator`), never the control edge: lighter than the panel's frame. */
 .picker-sep {
   height: 1px;
   margin: 6px 10px;
-  background: var(--line-strong);
+  background: color-mix(in oklab, var(--foreground) 8%, transparent);
 }
 .picker-caption {
   margin: 0;

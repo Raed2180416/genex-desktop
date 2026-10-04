@@ -223,7 +223,9 @@ next turn opens a fresh session briefed with the handover and the recent convers
 names the session it ended, which a turn never resumes (`loop/compaction-log.ts`). A message sent
 while Compact now runs waits in the chat's queue until it is over, then starts that fresh session. After a
 paused build the run's controls are granted per turn and keep working, and a Resume seats a fresh
-lead told the handover before the chat's latest messages (`freshChat`).
+lead told the handover before the chat's latest messages (`freshChat`). While it runs the live
+status reads **Compacting the conversation**; afterwards the chat keeps its own row,
+**Compacted N messages**, in the work rows' type, which opens to the handover in one framed box.
 
 A Bonsai response stopped by its output limit cannot dispatch partial tool arguments. The session
 retains usage and existing work, asks for a smaller edit at most twice, then reports a recoverable

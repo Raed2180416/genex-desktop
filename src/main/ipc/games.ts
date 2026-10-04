@@ -38,7 +38,10 @@ export function registerGamesIpc(handle: IpcHandle, { core, runSummaryReader, pu
   // A chosen folder is the renderer's word for a path: the core checks it by its real path before
   // anything is written, as it does in `studio:game.location.pick`.
   handle("studio:game.create", async (payload) =>
-    core.createGame(payload.title, payload.parent === undefined ? {} : { parent: payload.parent }),
+    core.createGame(payload.title, {
+      ...(payload.parent === undefined ? {} : { parent: payload.parent }),
+      ...(payload.provisional === true ? { provisional: true } : {}),
+    }),
   );
   // The request is the user's own words, read by their own model; the name only names a folder later.
   handle("studio:game.name", async (payload) => core.nameGame(payload));

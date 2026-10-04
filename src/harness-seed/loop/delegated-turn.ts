@@ -7,7 +7,8 @@
  * finished build with Loop on, a reopen (reopen-run.ts) — is handed back for the chat to do once the
  * reply ends.
  */
-import { MIN_DELEGATE_TIMEOUT_MS } from "./config.ts";
+import { GIT_TIMEOUT_MS, MIN_DELEGATE_TIMEOUT_MS } from "./config.ts";
+import { GIT, gitAt } from "./git.ts";
 import {
   buildContractorBrief,
   isContinueAsk,
@@ -88,8 +89,7 @@ function outageWords(engine: string, kind: string, detail: string | undefined): 
 
 /** What the chat is told. */
 const MESSAGE = {
-  bareAsk: (engineLabel: string) =>
-    `${engineLabel} is the contractor here — it builds games from a brief and cannot ask questions back. Tell me what to build or change (a sentence is enough), or add a local model under Review → Models for quick back-and-forth.`,
+  bareAsk: "Hi! What should we make? Tell me about the game you have in mind — a sentence is enough to start.",
   delegationFailed: "delegation failed",
   alreadyBuilding: (detail: string) =>
     `${detail}. Your message was not sent to it — send it again once the current build finishes.`,
@@ -142,6 +142,8 @@ interface Handoff {
   descriptor: GameProject | null;
   projectDir: string | null;
   scaffolded: boolean;
+  /** Nothing has been made in this game yet: a first message there is a blank page, not code to inspect. */
+  fresh: boolean;
   /** "folder AI Games/rift", never an absolute path — the last two segments say it all. */
   folderLabel: string;
   extraReads: string[];
@@ -170,7 +172,7 @@ export async function runDelegatedTurn(ctx: HarnessCtx, options: DelegatedOption
   const { turnId, engine } = options;
   const chat = await readChat(ctx, options);
   if (isBareAskInFreshChat(chat)) {
-    await sayInTurn(ctx, turnId, MESSAGE.bareAsk(options.engineLabel));
+    await sayInTurn(ctx, turnId, MESSAGE.bareAsk);
     return { stopped: TurnStop.Done, round: 0, engine };
   }
   const handoff = await placeHandoff(ctx, options, chat);
@@ -269,7 +271,7 @@ async function folderChange(ctx: HarnessCtx, project: string, before: ContentSta
 /** The chat as the turn finds it, before any folder is chosen or made. */
 type ChatReading = Omit<
   Handoff,
-  "project" | "descriptor" | "projectDir" | "scaffolded" | "folderLabel" | "extraReads" | "startedAt"
+  "project" | "descriptor" | "projectDir" | "scaffolded" | "fresh" | "folderLabel" | "extraReads" | "startedAt"
 > & {
   project: string | null;
   games: GameProject[];
@@ -362,6 +364,7 @@ async function placeHandoff(ctx: HarnessCtx, options: DelegatedOptions, chat: Ch
       descriptor,
       projectDir,
       scaffolded: false,
+      fresh: await isFreshGame(ctx, chat, descriptor),
       folderLabel: folderLabel(projectDir, chat.project),
       extraReads,
       startedAt: Date.now(),
@@ -383,10 +386,30 @@ async function placeHandoff(ctx: HarnessCtx, options: DelegatedOptions, chat: Ch
     descriptor: created,
     projectDir: created.dir,
     scaffolded: true,
+    fresh: true,
     folderLabel: folderLabel(created.dir, project),
     extraReads,
     startedAt: Date.now(),
   };
+}
+
+/**
+ * Has nothing been made in this game yet? Asked only of a chat's first message, and only of the
+ * studio's own template: a game the studio just made is its one commit with nothing changed since.
+ * A look that fails says no, and the brief continues from the code as it always did.
+ */
+async function isFreshGame(ctx: HarnessCtx, chat: ChatReading, descriptor: GameProject | null): Promise<boolean> {
+  const firstMessage = !chat.hasPriorAsk && !chat.resume && !chat.compacted;
+  if (!firstMessage || !descriptor || descriptor.shape?.own) return false;
+  const where = { project: descriptor.name };
+  const options = { timeoutMs: GIT_TIMEOUT_MS.quick };
+  try {
+    const commits = await gitAt(ctx, where, GIT.commitCount, options);
+    const changes = await gitAt(ctx, where, GIT.status, options);
+    return commits.trim() === "1" && changes.trim() === "";
+  } catch {
+    return false;
+  }
 }
 
 /** "folder AI Games/rift", never an absolute path — the last two segments say it all. */
@@ -415,6 +438,7 @@ async function briefWriter(
       extraReads: handoff.extraReads,
       folderLabel,
       scaffolded: handoff.scaffolded,
+      fresh: handoff.fresh,
       shape: descriptor?.shape ?? null,
       ownShape: descriptor?.built === true,
       contractMissing: missing,

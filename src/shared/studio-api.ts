@@ -25,7 +25,7 @@ import type { ChatFileLink, ChatFileOpenOutside, ChatFileRef } from "./chat-file
 import type { ReferenceFrame } from "./protocol.ts";
 import type { ProviderUsageReport } from "./provider-usage.ts";
 import type { BootState, SandboxSetupResult } from "./boot.ts";
-import type { ReadyUpdate, UpdateCheckResult } from "./app-update.ts";
+import type { AppAbout, ReadyUpdate, UpdateCheckResult } from "./app-update.ts";
 import type { PermissionMode, PermissionSettingsView, ToolPermissionAnswer } from "./permissions.ts";
 import type { LiveBehindEvent } from "./live-behind.ts";
 import type { FieldRow, RunSharingDeleteResult, RunSharingStatus } from "./run-sharing.ts";
@@ -223,6 +223,8 @@ export interface StudioApi {
   checkForUpdates(): Promise<UpdateCheckResult>;
   /** Open the waiting downloadable release's page in the browser; false when none waits. */
   openUpdateDownload(): Promise<boolean>;
+  /** What is running (Settings → About): version, platform and architecture. */
+  appAbout(): Promise<AppAbout>;
   bootstrap(): Promise<Bootstrap>;
   send(text: string, options?: ComposerSendOptions): Promise<boolean>;
   answerPlan(threadId: string, id: string, approved: boolean): Promise<boolean>;
@@ -262,7 +264,8 @@ export interface StudioApi {
   hardware(): Promise<HardwareReport>;
   games(): Promise<GameProject[]>;
   /** A new game in a fresh folder of its own: in the games folder, or inside `parent` when the user chose one. */
-  createGame(title: string, options?: { parent?: string }): Promise<GameProject>;
+  /** `provisional`: the title waits for the game's first idea (`GameName.provisional`). */
+  createGame(title: string, options?: { parent?: string; provisional?: boolean }): Promise<GameProject>;
   /** A name for a game started from its first request, by the model picked for it; never fails for want of a model. */
   nameGame(request: GameNameRequest): Promise<GameName>;
   /**

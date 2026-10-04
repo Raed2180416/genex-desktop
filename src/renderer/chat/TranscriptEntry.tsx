@@ -11,7 +11,7 @@ import { Icon } from "../ui/icons.tsx";
 import { Markdown } from "../ui/Markdown.tsx";
 import { ResultButton } from "../ui/ResultButton.tsx";
 import { ToolRow } from "../ui/ToolChips.tsx";
-import { consentRequestedWords } from "../words.ts";
+import { compactedWords, consentRequestedWords } from "../words.ts";
 import { type Notify, notifyProblem } from "../state/toasts.ts";
 import { AssetResults } from "./AssetResults.tsx";
 import { ChatDisclosure } from "./ChatDisclosure.tsx";
@@ -122,10 +122,30 @@ export const TranscriptEntry = memo(function TranscriptEntry({
       );
     case EntryKind.Action:
       return <ActionEntry entry={entry} context={context} resume={resume} />;
+    case EntryKind.Compaction:
+      return <CompactionEntry messages={entry.messages} summary={entry.summary} />;
     default:
       return null;
   }
 });
+
+/** A finished compaction, in the work rows' type: it opens to the summary that replaced the messages. */
+function CompactionEntry({ messages, summary }: { messages: number | null; summary: string | null }): JSX.Element {
+  const label = compactedWords(messages);
+  if (!summary)
+    return (
+      <p data-compaction className="flex min-h-[30px] items-center text-chat text-ink-3">
+        {label}
+      </p>
+    );
+  return (
+    <ChatDisclosure data-compaction label={label} frame={false}>
+      <div data-compaction-summary className="chat-compaction-summary">
+        <Markdown text={summary} />
+      </div>
+    </ChatDisclosure>
+  );
+}
 
 /** A reply: its Markdown, and Run and Copy under a one-line shell command it offers in a game's chat. */
 function AssistantEntry({
@@ -225,7 +245,7 @@ function ActionEntry({
 }): JSX.Element {
   const { activeRunId } = context;
   if (entry.action === EntryAction.Permission && entry.permission)
-    return <PermissionOutcome event={entry.permission} outcome={entry.outcome} />;
+    return <PermissionOutcome event={entry.permission} />;
   if (entry.action === EntryAction.Consent) return <ConsentOutcome entry={entry} />;
   if (entry.action === EntryAction.Steer) {
     const held = entry.pending && entry.runId === activeRunId && (entry.expiresAt ?? 0) > Date.now();

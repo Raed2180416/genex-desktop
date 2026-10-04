@@ -86,7 +86,8 @@ export function PickerModels({ engine, name }: { engine: EngineDescriptor; name:
       role="group"
       aria-label={PICKER_MODELS_WORDS.group(name)}
       data-picker-models={engine.id}
-      className="mt-1 flex flex-col rounded-[14px] border border-line bg-card p-1.5"
+      // Inside its provider's card: a hairline under the account, not a second card.
+      className="mt-1 -mx-2.5 flex flex-col border-t border-line pt-2"
     >
       <div className="flex min-h-8 items-center gap-2 px-2.5">
         <span className="text-body-sm font-medium text-ink">{PICKER_MODELS_WORDS.title}</span>

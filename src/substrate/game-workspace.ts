@@ -173,6 +173,8 @@ export interface CreateOptions {
   parent?: string;
   /** Checked on the one real path the game is then created in, before anything is written. */
   allowed?: LocationCheck;
+  /** The title waits for the game's first idea (`GameLibraryEntry.provisional`). */
+  provisional?: boolean;
 }
 
 export interface ScaffoldOptions {
@@ -210,6 +212,9 @@ const MESSAGE = {
   LocationNotFolder: "Choose a folder, not a file.",
   LocationRefused: "Studio can't create games there. Choose another folder.",
 } as const;
+
+/** The entry a game made with a waiting title starts with. */
+const provisional = (waiting: boolean | undefined): GameLibraryEntry => (waiting ? { provisional: true } : {});
 
 /** Resolve existing ancestors too: legacy chats can precede the game folder on disk. */
 async function presentationPath(dir: string): Promise<string> {
@@ -509,7 +514,7 @@ export class GameWorkspaces {
     await ensureDir(this.root);
     if (options.parent !== undefined) {
       const parent = await this.location(options.parent, options.allowed);
-      if (parent !== (await realpath(this.root))) return this.#createIn(parent, title);
+      if (parent !== (await realpath(this.root))) return this.#createIn(parent, title, options.provisional);
     }
     const base = slugFromName(title);
     for (let suffix = 1; ; suffix++) {
@@ -518,7 +523,7 @@ export class GameWorkspaces {
       if (this.#aliases.has(name)) continue;
       if (!(await madeFolder(path.join(this.root, name)))) continue;
       await this.scaffold(name, { title });
-      await this.#rollCover(name);
+      await this.#rollCover(name, provisional(options.provisional));
       return this.#describe(name, this.dirFor(name));
     }
   }
@@ -552,7 +557,7 @@ export class GameWorkspaces {
    * an alias. The name is checked against the library and the alias set with no wait between, so
    * two games made at once never share one.
    */
-  async #createIn(parent: string, title: string): Promise<GameProject> {
+  async #createIn(parent: string, title: string, waiting?: boolean): Promise<GameProject> {
     const dir = await reserveNamedFolder(parent, folderNameFromTitle(title));
     // The new folder must be where the checked location is: a link swapped in since the check
     // would have put it somewhere else. It is empty, so it goes again, and nothing is recorded.
@@ -565,7 +570,7 @@ export class GameWorkspaces {
     this.#aliases.set(name, dir);
     await this.#saveIndex();
     await this.scaffold(name, { title });
-    await this.#rollCover(name);
+    await this.#rollCover(name, provisional(waiting));
     return this.#describe(name, dir);
   }
 
@@ -603,14 +608,17 @@ export class GameWorkspaces {
     return known;
   }
 
-  /** A new game rolls a look no other game has, and a seed, at birth; the first game is always Clouds. */
-  async #rollCover(name: string): Promise<void> {
+  /**
+   * A new game rolls a look no other game has, and a seed, at birth; the first game is always
+   * Clouds. `born` is what else the new game's entry starts with.
+   */
+  async #rollCover(name: string, born: GameLibraryEntry = {}): Promise<void> {
     const others = (await this.list()).some((game) => game.name !== name);
     const dir = await presentationPath(this.dirFor(name));
     const saved = this.#presentation.get(dir);
     if (saved?.cover) return;
     const cover = others ? rollCoverRecipe(await this.coverLooksInUse(name)) : firstCoverRecipe();
-    this.#presentation.set(dir, { ...saved, cover });
+    this.#presentation.set(dir, { ...saved, ...born, cover });
     await this.#saveIndex();
   }
 
@@ -652,7 +660,10 @@ export class GameWorkspaces {
       validateGameCover(patch.cover);
       changes.cover = patch.cover;
     }
-    this.#presentation.set(dir, { ...this.#presentation.get(dir), ...changes });
+    const entry: GameLibraryEntry = { ...this.#presentation.get(dir), ...changes };
+    // Any title given since the game was made is the one it keeps: its first idea renames it no more.
+    if (changes.title !== undefined) delete entry.provisional;
+    this.#presentation.set(dir, entry);
     await this.#saveIndex();
     return this.#describe(name, dir);
   }
@@ -761,6 +772,7 @@ export class GameWorkspaces {
       pinned: presentation?.pinned ?? false,
       cover: presentation?.cover,
       lastOpenedAt: this.#recents.find((row) => row.name === name)?.openedAt,
+      ...(presentation?.provisional ? { provisional: true } : {}),
       createdAt: parsed.createdAt ?? "",
       pathLabel: this.pathLabel(dir),
       library: isInside(this.root, dir),

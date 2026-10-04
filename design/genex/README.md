@@ -93,8 +93,10 @@ use the body font. A shown path is not repeated in the result.
 
 Working status belongs to the chat's own work (a turn, a plan, Stop, a pending permission). While only a build runs, chat shows one build card instead, and nothing under it: an 8px-inset 16px-radius composer-colored surface with the lead's latest non-black frame (88×55, 10px radius, omitted until one exists), "Building" and a chevron at 15px, one line of what is happening now at 14px ink-3 (the part at work, "and N more" when several are, else what the lead is doing — never "Running a tool"), and its clock on the right at 14px: the elapsed time, and under it in ink-3 the most it was given ("up to 10h", a cap, never "of 10h": a build may finish inside it; an ∞ build shows only the clock). The finished build is the same card: its capture, the outcome and chevron, one line of failed checks, parts added and duration ("4 parts added · 5h 17m"; orange and led by "1 check failed" when one failed), and Play on the right in the model pill's fill (`pill-quiet`, as every result button, “See it” included) with a filled play glyph. Nothing wraps under it. The whole card is one button to the build's graph on Builds (its title stretched over the card, tooltip "Open in Builds"): the pointer on it steps the card to composer-panel with a line-strong ring and inks the nudging chevron; keyboard focus rings the card in accent; Play sits above it, and the pointer on Play leaves the card unlit. Studio learning after a build is a static line. The composer placeholder during a build reads "Talk to the lead while it builds…" when its lead takes the chat (live chat), else "Sends when the build finishes…".
 The current status names the latest running tool, falling back to the actual task. Explicit
-reply, tool and waiting phases retain priority. Only current work shimmers, without a spinner;
-waiting for the user stays static. Elapsed time follows the status on its line in the same type and ink-3; its width glides as it changes or goes while the chat waits. Work disclosures reduce their surrounding reading space by 3px above and below; the live status uses a single reading gap after the last transcript row. Stop belongs to the PromptBar; activity and sidebar status lines have no Stop control. Planning names the current phase in this same status, without another status near the composer. Starting a build yields to actual conversation/worker activity; a cancelled plan is a historical entry, never a persistent current status. Empty conversations have no introduction or starter suggestions. Historical content does
+reply, tool and waiting phases retain priority. The live status line (home's Naming and Opening
+too) is 12/18 type after a 14px halftone plasma orb (the Live loader's, `ui/StatusOrb.tsx`), 8px
+apart; its words and clock shimmer together, a bright sweep then a rest (2.1s). Waiting for the
+user stays static, with no orb. Elapsed time follows the status on its line in the same type and ink-3, in tabular figures, from its first whole second (never "0s"), and restarts with each new status; its width glides as it comes, changes or goes while the chat waits. A disclosure's chevron sits 2px closer to its words than the line's other gaps. Work disclosures reduce their surrounding reading space by 3px above and below; the live status uses a single reading gap after the last transcript row. Stop belongs to the PromptBar; activity and sidebar status lines have no Stop control. Planning names the current phase in this same status, without another status near the composer. Starting a build yields to actual conversation/worker activity; a cancelled plan is a historical entry, never a persistent current status. Empty conversations have no introduction or starter suggestions. Historical content does
 not replay entrance animations. Streams use the same Markdown as final replies and bounded
 updates. Long work trails mount 30 steps at a time, workers initially show six, and history
 is paged/windowed. Studio build reports and learning use the same `ChatDisclosure` heading, body font and framed expansion as work logs; only genuine decisions get answer controls. Routine build decisions remain activity text, with failures visible. A new running build opens Builds once (after the idea-to-crane hand-off when Live shows the first-idea state); later tab choices remain with the user. There is one elapsed timer, without a second build-total line. Scroll-follow accounts for the composer/question dock changing height and
@@ -127,10 +129,11 @@ message. **Request details** discloses the reason and the tool input. A plan lea
 max(5rem, 45vh − 19rem); its last line fades over 32px while more lies below), then **Yes, in Auto mode** (left out where Auto is unavailable for the
 model), **Yes, and accept edits**, **Yes, and ask before changes** and a "Keep planning: what
 should change?" row. Continue confirms; put aside, a card reopens from Review permission request
-or Review plan. Settled, history keeps the title, the outcome in ink-3 (Allowed, Always allowed,
-Plan approved · Auto, Denied · words, Withdrawn when the work stopped, and for a build's lead's
-card nobody answered in five minutes Withdrawn: nobody answered) and the request under Request
-details. A lead's card never offers a mode, and a lead never brings a plan for approval.
+or Review plan. Settled, history keeps one disclosure line in the "Worked on N steps" type: the
+outcome, then what it was about (Allowed · npm install three, Always allowed · …, Denied · …,
+Withdrawn when the work stopped · …, and for a build's lead's card nobody answered in five minutes
+Withdrawn: nobody answered · …; a plan reads Plan approved · Auto). It opens to the question as
+asked, the command or path, the person's words and the reason. A lead's card never offers a mode, and a lead never brings a plan for approval.
 
 Delivered media uses the shared preview tile, including model thumbnails; several visuals form a
 two-column grid. Sounds are 36px strips: play, readable name, waveform seek and time. Hover or
@@ -149,9 +152,10 @@ composer (their height glides from one card to the next, which fades in), disclo
 turns) and the build card's first picture, which slides in. A reply being written grows line by line
 in a 150ms glide, except while the window rests (`renderer/motion-rest.ts`); work followed by a
 streaming reply stays in the transcript above it, so nothing moves when the reply is saved, and the
-saved reply does not enter again. A status label stays at least 400ms, then the newest fades in while
+saved reply does not enter again. A status label (and "Worked on N steps") stays at least a second, then the newest fades in while
 its width glides to it, the chevron sliding along and fading in and out with the work's details. A
-finished build card holds its place while its result loads. History, an opened chat and media never
+finished build card keeps its result's place, without words, for up to 3s while the result loads; a
+result that never comes closes the place, a late one opens in it. History, an opened chat and media never
 enter, and reduced motion shows every change at once. Only height and opacity move, a short layout of
 the chat's tail per frame while something moves.
 
@@ -391,11 +395,14 @@ Harness's own records never appear in the Harness conversation. An intentional S
 **Stopped**.
 
 The Live stage, Assets and an empty Activity share one empty state (`ui/EmptyState.tsx`):
-a 128×92 wireframe on a fading floor (cube, crane, teapot, the Harness glyph, the stopped game's
+a 128×92 wireframe on a fading floor (an old-school computer drawn as a blueprint — faces in the
+stage's colour, ink edges, hidden edges dashed, an accent screen with a blinking prompt, one turn
+per 9s (`ui/wire-computer.ts`) — then a crane, teapot, the Harness glyph, the stopped game's
 upright plate; theme colours, 30 fps only while visible, a still under Reduce Motion), a one-line
 15/20 title, a one-line 13/18 subtitle of at most 40 characters and a fixed 48px button slot. A
 title-only state (Game stopped) keeps no subtitle room: its title sits 6px under the art and its
-button 15px under the title. Idea → building plays the cube-to-crane handoff; any other change of
+button 15px under the title. Idea → building turns the computer to face you, boots its screen and
+hands off to the rising crane; any other change of
 scene cross-fades the art while the words rise out and in. Reuse it for new empty states.
 With no runs, Activity shows only that empty state, centred: **A self-improving harness**, “Runs and
 improvements will show up here.” and **Start building** (the last game chat, composer focused), or
