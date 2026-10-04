@@ -126,7 +126,7 @@ export function usePluginsPageData(
       unsubscribe();
     };
   }, [onPluginsRefresh, project, setError]);
-  return { connections, setConnections, builtins, catalog, index, setIndex };
+  return { connections, setConnections, builtins, catalog, index };
 }
 
 /**

@@ -2008,13 +2008,21 @@ export const PLUGINS_WORDS = {
   },
   more: {
     title: "More plugins",
-    failed: "Couldn’t load the plugin catalog.",
-    tryAgain: "Try again",
-    loading: "Loading plugins…",
+  },
+  /** The Marketplace while the catalog has nothing you don't have yet. */
+  marketplace: {
+    title: "Marketplace",
+    soon: "Coming soon",
+    text: "Plugins from more game dev tools are on the way.",
+  },
+  /** The MCP servers section before anyone has added one. */
+  servers: {
+    emptyTitle: "Connect any MCP server",
+    emptyText: "A command on this Mac, or a URL with browser sign-in. Agents in every game can use its tools.",
   },
   own: {
     title: "Make your own plugin",
-    text: "Local Blender and Genex Tools are plugins too: one folder with a manifest, tools and panels.",
+    text: "Local Blender and the Genex plugin are plugins too: one folder with a manifest, tools and panels.",
     guide: "Read the guide",
   },
   /** A plugin row's account, by what it needs next. */
@@ -2246,15 +2254,29 @@ export const GENEX_WORDS = {
     shared: "One balance for all your games. Failed generations are refunded.",
     outOfCredits: "Games still build with procedural assets and Local Blender.",
     paused: (kinds: string) => `Paused on Genex right now: ${kinds}.`,
-    off: "Turn on Genex Tools to connect your account.",
+    off: "Turn on the Genex plugin to connect your account.",
   },
-  makes: {
-    title: "What you can make",
-    intro: "Ask for any of these in a game chat, or describe your game and let the agent suggest assets.",
-    models: { title: "3D models", text: "Props, buildings and vehicles from a prompt or an image." },
-    characters: { title: "Characters", text: "Rigged characters and creatures, with animations." },
-    art: { title: "Textures and images", text: "Surfaces, sprites, concept art and short video." },
-    sound: { title: "Sound and music", text: "Effects, soundtracks and voice lines." },
+  /** Genex as the Plugins page shows it: the router, its line, and the tools it routes. */
+  router: {
+    name: "Game dev tools router",
+    description: "Genex · Tripo, Meshy, Uthana, ElevenLabs, GPT Image and more on one balance",
+    intro:
+      "The Genex plugin connects your agents to every game dev tool. Pay on demand, with one balance for every tool.",
+    toolsTitle: "Tools it routes",
+    toolsIntro:
+      "Ask in any game chat. Genex picks the tool, runs it on your balance and saves the file in your game. No accounts or keys of your own.",
+    /** Each routed tool's name and what it does, by `RoutedTool`. */
+    tools: {
+      tripo: { name: "Tripo", line: "3D · rig · animate" },
+      meshy: { name: "Meshy", line: "3D · characters" },
+      uthana: { name: "Uthana", line: "Rigging · animation" },
+      "gpt-image": { name: "GPT Image 2.5", line: "Images · sprites" },
+      "nano-banana": { name: "Nano Banana 2", line: "Textures" },
+      minimax: { name: "MiniMax H3 Max Turbo", line: "Video" },
+      blender: { name: "Blender", line: "Scenes · blockouts" },
+      elevenlabs: { name: "ElevenLabs", line: "SFX · music · voice" },
+      publishing: { name: "Genex", line: "Publishing" },
+    },
   },
   /** The Publish dialog on the game's stage, drawn by Studio. */
   publish: {
@@ -2330,15 +2352,6 @@ export const GENEX_WORDS = {
   review: {
     title: "Waiting for your review",
     button: (candidate: number | null) => (candidate === null ? "Review remesh" : `Review candidate ${candidate}`),
-  },
-  /** Genex's own MCP servers, as its page's Connections name them, by server id. */
-  connections: {
-    creator: { title: "Creator", text: "Game and animation search, your Genex games and generation status." },
-    blender: {
-      title: "Genex-hosted Blender",
-      text: "Optional. Blender on a Genex server instead of this Mac.",
-      setting: "Server address",
-    },
   },
   /** A generation's state, by `JobState`. */
   state: {

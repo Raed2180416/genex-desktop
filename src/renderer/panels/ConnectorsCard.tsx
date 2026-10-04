@@ -33,6 +33,7 @@ import {
   withToolAutoApproved,
 } from "./connectors/draft.ts";
 import { Pending } from "../ui/Pending.tsx";
+import { PLUGINS_WORDS } from "../words.ts";
 
 export interface ConnectorActions {
   add: () => void;
@@ -239,7 +240,17 @@ function CardNotices({
   return (
     <>
       {views === null && !error && <Pending label="Loading MCP servers…" className="extensions-empty" />}
-      {noServers && <p className="extensions-empty">Add a server to give agents tools from other apps.</p>}
+      {noServers && (
+        <div className="extension-row extension-servers-empty">
+          <span className="extension-icon extension-icon-row extension-icon-make" aria-hidden="true">
+            <Icon name="plugins" size={19} />
+          </span>
+          <span className="extension-copy">
+            <span className="extension-name">{PLUGINS_WORDS.servers.emptyTitle}</span>
+            <span className="extension-description">{PLUGINS_WORDS.servers.emptyText}</span>
+          </span>
+        </div>
+      )}
       {error && !drafting && (
         <p role="alert" className="extensions-error">
           {error}

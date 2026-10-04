@@ -22,11 +22,11 @@ Manage. Enabled, connected, signed in and permitted are different states.
 
 Plugins opens a workspace page with Plugins/Skills, search, rows and details. Plugins and MCP
 servers show their own pictures (manifest `icon`, MCP `serverInfo.icons`) or an initial. The
-list shows installed plugins, servers you added, More plugins when the catalog has something
-new, and the plugin guide. Install from GitHub takes a pasted link and pins its latest release
+list shows installed plugins (Genex as the game dev tools router), servers you added, the
+Marketplace (Coming soon until the catalog has something new) and the plugin guide. Install from GitHub takes a pasted link and pins its latest release
 (else the default branch's newest commit). Games build, preview and export without plugins.
-The host draws Genex's app-wide page (shared balance, what it makes, its servers as
-Connections) and Local Blender's runtime card. Connect, unapproved, reuses a saved account or
+The host draws Genex's app-wide page (shared balance, the tools it routes) and Local Blender's
+runtime card. Connect, unapproved, reuses a saved account or
 opens browser sign-in; setup survives restart and reinstall. Game spend is in the usage panel.
 Enabled Genex suggests assets in planning; workers use it once the account is ready. User
 preferences win; failures and fallbacks are disclosed.

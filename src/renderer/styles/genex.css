@@ -1,4 +1,4 @@
-/* Genex Tools: the plugin's own page (account card, what it makes, this game) and the promo card. */
+/* Genex Tools: the plugin's own page (account card, the tools it routes, this game), its picture and the promo card. */
 
 /* ── the Genex page ─────────────────────────────────────────────────────────────── */
 .extensions-title-actions {
@@ -130,6 +130,7 @@
   max-width: 68ch;
   text-wrap: pretty;
 }
+/* A plugin page's two-column glyph tiles (Local Blender's What it does). */
 .genex-makes {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -169,6 +170,83 @@
   font-size: 13px;
   line-height: 18px;
   text-wrap: pretty;
+}
+/* The tools Genex routes: each one's mark on a dark tile, like the marks on genex.games, in either theme. */
+.genex-tools {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
+  gap: 10px;
+}
+.genex-tool {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.genex-tool-mark {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: #1d1e21;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08);
+}
+.genex-tool-mark img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+.genex-tool-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+.genex-tool-name,
+.genex-tool-line {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.genex-tool-name {
+  font-size: 14px;
+  line-height: 20px;
+}
+.genex-tool-line {
+  color: var(--ink-3);
+  font: 12px / 16px var(--font-family-mono);
+}
+/* Genex's picture: the routed tools on a 2×2 board, a dark tile in either theme (RouterIcon). */
+.router-icon {
+  position: relative;
+  overflow: hidden;
+  background: #121214;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.09);
+}
+.router-tile {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 39.75%;
+  height: 39.75%;
+  border-radius: 27%;
+  background: #26272b;
+  box-shadow: inset 0 0 0 0.5px rgb(255 255 255 / 0.1);
+}
+.router-tile img {
+  width: 64%;
+  height: 64%;
+  object-fit: contain;
+  user-select: none;
 }
 .genex-jobs {
   display: flex;

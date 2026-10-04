@@ -468,8 +468,9 @@ entries carrying `id`, `name`, `publisher`, `description`, `category` (`assets`,
   before it is trusted. A failed fetch serves the last good entries with `stale: true` and an
   `error` the page shows, so the list never disappears because the network did.
 - **Fixture profiles are offline**: the marketplace is constructed with `offline: true` and never
-  calls out at all, reporting `Studio is offline in this profile`; the page's More plugins section
-  says it couldn't load the catalog and offers Try again. `studio:plugins.install-github`,
+  calls out at all, reporting `Studio is offline in this profile`; with nothing to list, the page's
+  Marketplace is only Coming soon (`[data-marketplace-soon]`), as it is whenever the catalog offers
+  nothing new. `studio:plugins.install-github`,
   `studio:plugins.lookup-github`, `studio:plugins.github-versions` and `studio:plugins.update` are
   in `FIXTURE_BLOCKED_CHANNELS`.
 - **Cataloged is not audited.** The index says where a plugin's code is pinned; Studio checks the
@@ -826,14 +827,14 @@ and checks their exit codes, refusals and JSON report.
 
 Run `npm run plugin:doctor -- src/plugins/example`: it must exit 0, probe `ready`, scan `safe`
 with no findings and no warnings. **Fixture profiles never fetch the marketplace index** — the
-marketplace is constructed offline, More plugins says it couldn't load the catalog, and the
+marketplace is constructed offline, the Marketplace shows only Coming soon, and the
 GitHub lookup, install and update channels are in `FIXTURE_BLOCKED_CHANNELS`; a readiness or smoke run that reaches GitHub is a defect, not a flake.
 The readiness run also asserts that no two controls inside `[data-stage-strip]` share a label,
 which is what the manifest's reserved-label and aria-uniqueness rules exist to protect.
 
 Run `node tests/e2e/run-build-smoke.mjs --packaged` after packaging to exercise the same plugin
 UI assertions from the actual app bundle, including the independent example, opaque frame,
-standard settings, toolbar, fabricated approval rejection, the More plugins offline line, the
+standard settings, toolbar, fabricated approval rejection, the offline Marketplace, the
 Install from GitHub window and `Scan: safe` on the example detail page. Also
 inspect the page and the toolbar visually: semantic interaction assertions do not prove
 background opacity or readable layout.

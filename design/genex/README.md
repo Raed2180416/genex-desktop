@@ -221,20 +221,26 @@ to workspace is a secondary button. Add is the page's one accent button: Install
 Add MCP server…, Import MCP configuration… | Create a plugin ↗, Load local plugin…. Rows wear the
 plugin's own picture (44px, 10px radius; 64px/14px on its page; 16px/4px in menus), full-bleed
 like a Dock icon, else its initial on a `--line-strong` tile; interface glyphs use the icon colour.
+Genex's row and page name it the game dev tools router ("Genex · Tripo, Meshy, …" as its line) and
+its picture is the routed tools' marks on a dark 2×2 board that is never empty: every 1.3s a row or
+column slides one step, one tool leaving as the next of eight slides in; still in menus and under
+reduced motion. Its Connect is the accent fill.
 Descriptions are one line with an ellipsis. A row's account is one step: Connect (with a tooltip;
 a locked saved sign-in reads the same), Finish in your browser · Cancel, Reconnect, or the
-balance in mono ink-2. MCP servers lists only servers the person added, each with its switch; a
-plugin's own server lives on its page as a Connection and appears in search as "Part of …".
-More plugins appears only when the catalog has something new, or as one quiet line with Try
-again. The list ends with Make your own plugin (dashed code tile, Read the guide ↗). Install from
+balance in mono ink-2. MCP servers lists only servers the person added, each with its switch,
+and before there is one a row with a dashed plug tile, "Connect any MCP server" and what can be
+connected; a plugin's own server appears in search as "Part of …". Below it the Marketplace: its
+title with no rule, a Coming soon badge and a shelf of dashed empty slots (a few faint glyphs, one
+accent slot pulsing), until the catalog offers something you lack; then More plugins lists it. The list ends with Make your own plugin (dashed code tile, Read the guide ↗). Install from
 GitHub is a lg dialog: GitHub link field, the plugin card (picture, name, "by owner", one line,
 Version · Change), one muted note, Cancel and the accent action.
 Every plugin page leads with one setup card (Genex's account, Local Blender's runtime) in the
 same 16px-radius surface (15px medium state, 14px ink-3 line, one filled action, a failure's
 reason in 13px red inside the card). Genex's connected card shows the green dot, identity and one
 24px Credits stat with "One balance for all your games"; no per-game numbers (those are in the
-usage panel). Then a two-column grid of 40px glyph tiles (What you can make / What it does),
-Connections, Skills as one line with Show all, and Information (Developer, Version, "Can" in
+usage panel). Then Genex's Tools it routes (each tool's mark on a dark 34px tile, its name and a
+mono line, in a grid of 12px-radius cards) or another plugin's two-column grid of 40px glyph tiles
+(What it does) and Connections; then Skills as one line with Show all, and Information (Developer, Version, "Can" in
 words, the trusted-code line). No plugin frames on Genex's or Blender's pages; Publish is a
 host-drawn lg dialog on the stage, "Publish to the web" with a globe after the title, for every open game: it first asks for
 what is missing, one line and one press (an accent-tinted line "Publishing goes through" the Genex
@@ -800,7 +806,7 @@ model's choice.
 
 The build smoke enters the full `[data-plugins-page]`, checks native preview occlusion, search
 across plugins/MCP, manifest Skills, pointer cursors, compact layout at 200% zoom, the plugins'
-own pictures, the Install from GitHub window, Genex's Connections, plugin details/scan
+own pictures, the Install from GitHub window, the tools Genex routes, plugin details/scan
 information and the example's sandboxed panel. It returns via
 sidebar navigation and retains the plugin lifecycle/toolbar checks. Passing
 `--studio-build-shot=/absolute/path.png` to `test:build-ui` also saves the page, Skills, empty

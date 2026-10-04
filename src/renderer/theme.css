@@ -2283,6 +2283,91 @@ button.chat-header-title:hover {
   border: 1px dashed var(--line-strong);
   color: var(--color-icon);
 }
+/* A section whose own card frames it needs no rule under its title (the Marketplace). */
+.extensions-section-heading-plain {
+  padding-block-end: 0;
+  border-block-end: 0;
+}
+/* MCP servers before anyone added one: what you can connect, as a row. */
+.extension-servers-empty {
+  padding-block: 12px;
+}
+.marketplace-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding-inline: 10px;
+  border-radius: 999px;
+  background: var(--accent-tint);
+  color: var(--icon-selected, var(--accent-ink));
+  font: 12px var(--font-family-mono);
+  white-space: nowrap;
+}
+.marketplace-soon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 28px 24px 26px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+.marketplace-soon p {
+  color: var(--ink-3);
+  font-size: 14px;
+  line-height: 1.6;
+  text-align: center;
+  text-wrap: balance;
+}
+.marketplace-shelf {
+  display: block;
+  width: 100%;
+  max-width: 720px;
+  height: auto;
+}
+.marketplace-slot {
+  fill: var(--soft);
+  stroke: var(--line-strong);
+  stroke-width: 1.2;
+  stroke-dasharray: 4 5;
+}
+.marketplace-glyph {
+  fill: none;
+  stroke: var(--ink-3);
+  stroke-opacity: 0.45;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.marketplace-arriving rect {
+  fill: var(--accent-tint);
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+.marketplace-arriving path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.marketplace-arriving {
+  animation: marketplace-arriving 2.8s ease-in-out infinite;
+}
+@keyframes marketplace-arriving {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .marketplace-arriving {
+    animation: none;
+  }
+}
 .extension-copy {
   display: flex;
   flex: 1;
