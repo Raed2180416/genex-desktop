@@ -4,9 +4,14 @@ This repository lists reviewed releases. It does not host games or require a Gen
 
 - `index.json`: current discoverable releases.
 - `records/<id>/<version>.json`: immutable release identity, retained after withdrawal.
-- `policy.json`: maintainer-owned artifact origins and reserved official identities.
-- `scripts/check-catalog.mjs`: dependency-free static release gate.
-- `.github/workflows/catalog.yml`: PR validation against the base branch's validator and policy.
+- `policy.json`: maintainer-owned artifact origins and reserved official identities. Each
+  official id lists its publisher and `repos`: the current source first, then repositories it
+  used to live in. Released records may name any of them and keep one identity; a new release
+  must name the first. No other id may name an official repository.
+- `scripts/check-catalog.mjs`: dependency-free static release gate; its identity rules are
+  tested by `node --test scripts/check-catalog.test.mjs`.
+- `.github/workflows/catalog.yml`: PR validation against the base branch's validator and policy:
+  the submitter's record first, then whether its artifact has been published.
 
 Artifacts live on the approved public HTTPS origin, at `<id>/<version>/<sha256>.json`.
 They are prebuilt base64 JSON envelopes, never npm installs or extraction hooks. Upload
