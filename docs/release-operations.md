@@ -81,8 +81,11 @@ repository `forge.config.cjs` publishes to and `package.json` names (`auto-updat
 holds the three together). `AUTO_UPDATE_ENABLED` is on and [PRIVACY](../PRIVACY.md) discloses
 the check. Linux copies ask GitHub's `releases/latest` every six hours instead
 ([release-check](../src/main/release-check.ts)) and offer the release page; nothing installs in
-place there. Settings → About and the app menu's Check for Updates ask on demand. Copies built
-before the switch (every `-rc` so far) never check: their users reinstall from a release.
+place there. Settings → About and the app menu's Check for Updates ask on demand. Squirrel.Mac
+runs one check at a time, the download inside it, so a check asked meanwhile answers from the
+running one (downloading), and the hourly checks stop once a version is downloaded: asked again,
+the release CDN answers 304 and Electron forgets the update. Copies built before the switch
+(every `-rc` so far) never check: their users reinstall from a release.
 
 Rules for every release, because each mistake strands installed copies:
 
