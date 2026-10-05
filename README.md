@@ -1,5 +1,7 @@
 # Genex
 
+<p align="center"><img src=".github/banner.png" alt="Genex: a desktop app for game dev with AI on macOS and Linux, Windows soon" width="100%"></p>
+
 A local macOS app for building three.js browser games with AI. Describe a game, review the
 running preview, and keep the project as ordinary local files. Optional loops build and judge
 candidate changes. Self-improvement is experimental, starts off, and can be enabled explicitly;
