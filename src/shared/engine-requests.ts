@@ -214,4 +214,6 @@ export interface DelegateResult {
    * turn starts from. Absent when the provider reported none, or compacted after its last request.
    */
   contextTokens?: number;
+  /** A `compact` delegation compacted the session, which goes on under the same id. */
+  compacted?: boolean;
 }

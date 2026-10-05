@@ -3,7 +3,10 @@ import { atomicWriteJson, isJsonObject } from "./fsx.ts";
 import { validateContextPolicy, type ContextPolicy, type ContextSettings } from "../shared/context.ts";
 import { EngineId } from "../shared/providers.ts";
 
-/** The engines whose context the studio compacts itself (every other engine's CLI owns it). */
+/**
+ * The engines whose context the studio compacts itself. Every other engine's CLI owns it and
+ * compacts at its own point (Claude Code, Codex): the studio sets no threshold for them.
+ */
 const STUDIO_COMPACTED_ENGINES: readonly string[] = [EngineId.Bonsai, EngineId.Ollama];
 /** Where the studio compacts a local engine's context when no threshold is set. */
 const LOCAL_DEFAULT_COMPACTION_PERCENT = 70;
@@ -17,21 +20,15 @@ const MESSAGE = {
   Unreadable:
     "Context settings could not be read. Repair or restore the host settings file before applying a custom threshold.",
   InvalidSelection: "Invalid context selection",
-  ProviderOwned:
-    "The native CLI owns compaction. Custom control is unavailable until this installation has been verified to enforce it.",
-  CustomUnverified: "Custom compaction is not verified for this provider installation.",
+  ProviderOwned: "The provider's CLI compacts its own sessions at its own point; the studio sets no threshold for it.",
+  ProviderCompacts: "The provider's CLI compacts its own sessions; a custom threshold applies only to local models.",
 } as const;
 
 export class ContextPreferences {
   readonly file: string;
   #tail: Promise<unknown> = Promise.resolve();
-  readonly control?: (engine: string, model: string) => Promise<{ supported: boolean; reason?: string }>;
-  constructor(
-    file: string,
-    control?: (engine: string, model: string) => Promise<{ supported: boolean; reason?: string }>,
-  ) {
+  constructor(file: string) {
     this.file = file;
-    this.control = control;
   }
   async #read(): Promise<Record<string, ContextPolicy>> {
     try {
@@ -55,21 +52,18 @@ export class ContextPreferences {
       specific = values[this.#key(engine, model, threadId)],
       base = values[this.#key(engine, model)];
     const local = STUDIO_COMPACTED_ENGINES.includes(engine);
-    const capability = local ? { supported: true } : ((await this.control?.(engine, model)) ?? { supported: false });
     return {
       policy: specific ?? base ?? { mode: "default" },
       inherited: !!threadId && !specific,
       owner: local ? "studio" : "provider",
-      configurable: capability.supported,
-      ...(local
-        ? { defaultPercent: LOCAL_DEFAULT_COMPACTION_PERCENT }
-        : { reason: capability.reason ?? MESSAGE.ProviderOwned }),
+      configurable: local,
+      ...(local ? { defaultPercent: LOCAL_DEFAULT_COMPACTION_PERCENT } : { reason: MESSAGE.ProviderOwned }),
     };
   }
   async set(engine: string, model: string, policy: unknown, threadId?: string): Promise<ContextSettings> {
     const value = policy === null ? null : validateContextPolicy(policy);
     if (value?.mode === "custom" && !(await this.get(engine, model, threadId)).configurable)
-      throw new Error(MESSAGE.CustomUnverified);
+      throw new Error(MESSAGE.ProviderCompacts);
     const operation = this.#tail.then(async () => {
       const values = await this.#read(),
         key = this.#key(engine, model, threadId);

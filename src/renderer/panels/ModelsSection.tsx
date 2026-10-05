@@ -540,7 +540,8 @@ function ProviderRow({
   );
 }
 
-export type ModelSettingsProps = { engines: EngineDescriptor[]; onEnginesRefresh: () => void };
+/** `onEnginesRefresh` settles once the engines are read again. */
+export type ModelSettingsProps = { engines: EngineDescriptor[]; onEnginesRefresh: () => Promise<void> | void };
 
 export function ModelProvidersSection({ engines, onEnginesRefresh }: ModelSettingsProps): JSX.Element {
   useEffect(() => {

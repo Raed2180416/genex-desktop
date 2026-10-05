@@ -19,14 +19,14 @@ Each chat keeps its model, effort and Loop; fresh games inherit the last picks. 
 serves every role: the slider offers the main agent's levels and others use their closest level.
 Workers and Reviewers run only in Loop. A new main-agent model keeps worker/reviewer picks.
 
-Settings keeps coding providers apart from Local Models (Bonsai/Ollama).
+Local Models (Bonsai/Ollama), separate from coding providers, downloads and deletes.
 
 ## What the model knows
 
 The context ring shows reported orchestrator usage and capacity; unknown stays unknown. Its panel
-offers Compact now, also typed as `/compact` (the next turn starts
-[fresh from a handover](../connections-and-context.md#compact-now)); every provider also compacts
-automatically at its own point. Then plan limits ([details](../connections-and-context.md#plan-limits)).
+offers Compact now, also typed as `/compact` (Claude Code and Codex use
+[their own](../connections-and-context.md#compact-now); others hand over); every provider, workers
+included, also compacts automatically at its own point. Then plan limits ([details](../connections-and-context.md#plan-limits)).
 
 Ollama uses a loaded model's reported runtime context, not its theoretical maximum. An unloaded
 model's planning budget is an estimate marked unknown. Tools and images require reported

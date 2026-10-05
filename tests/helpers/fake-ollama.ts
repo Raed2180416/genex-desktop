@@ -107,13 +107,15 @@ export interface FakeOllama {
 
 export async function startFakeOllama(options: FakeOllamaOptions = {}): Promise<FakeOllama> {
   const version = options.version ?? "0.32.14";
-  const models = options.models ?? [
-    {
-      name: "qwen3.6:27b",
-      size: 17_000_000_000,
-      capabilities: ["completion", "tools", "vision"],
-      contextLength: 262144,
-    },
+  const models = [
+    ...(options.models ?? [
+      {
+        name: "qwen3.6:27b",
+        size: 17_000_000_000,
+        capabilities: ["completion", "tools", "vision"],
+        contextLength: 262144,
+      },
+    ]),
   ];
   const replies = [...(options.replies ?? [])];
   const requests: FakeOllama["requests"] = [];
@@ -159,7 +161,13 @@ export async function startFakeOllama(options: FakeOllamaOptions = {}): Promise<
         res.write(`${JSON.stringify({ status: "success" })}\n`);
         return res.end();
       }
-      if (url === "/api/delete") return json({ status: "ok" });
+      if (url === "/api/delete") {
+        const name = (body as { model?: string } | null)?.model ?? "";
+        const index = models.findIndex((m) => m.name === name);
+        if (index < 0) return json({ error: `model '${name}' not found` }, 404);
+        models.splice(index, 1);
+        return json({ status: "ok" });
+      }
 
       if (url.startsWith("/v1/chat/completions")) {
         const scripted = options.respond?.(

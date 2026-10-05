@@ -88,8 +88,8 @@ A sign-in event names its own provider; its adjacent harness reply replaces dupl
 
 ## Install a coding CLI
 
-Install (Update for a CLI too old) in first launch, Settings → Model Providers and the chat's
-sign-in card installs Claude Code or Codex with its vendor's own installer, in the background:
+Install (Update for a CLI too old) in Settings → Model Providers and the chat's sign-in card, and
+Set up in first launch, installs Claude Code or Codex with its vendor's own installer, in the background:
 `install.sh` on macOS and Linux, `install.ps1` on Windows, from `claude.ai` and
 `chatgpt.com/codex`. Main fetches the script over HTTPS itself, runs it as the person with the
 contractor environment (no keys, none of the other vendor's variables; Codex with
@@ -185,17 +185,19 @@ the full history remains saved. It does not resume a native game coordinator or 
 The session checkpoint controls below describe game conversations and delegated build sessions.
 
 Auto-compaction policy is host-owned, by model or by chat-and-model; the composer states only that
-context compacts automatically and no longer edits the threshold. Saved policies still apply, and
-Compact now works for every engine ([below](#compact-now)). A chat can inherit its model policy again. Agents cannot change these controls. Unsupported native controls are disabled with
-their reason; installing a newer external CLI does not imply universal SDK compatibility.
+context compacts automatically and no longer edits the threshold. A threshold applies only to the
+local engines Studio compacts itself (Bonsai, Ollama): Claude Code and Codex compact at their own
+point, chats and workers alike, and a custom threshold for them is refused
+(`substrate/context-settings.ts`). Saved policies still apply, and Compact now works for every
+engine ([below](#compact-now)). A chat can inherit its model policy again. Agents cannot change
+these controls.
 The last checkpoint/native-compaction timestamp survives later usage events from the same
 provider, model, role and session. A different or unidentified session cannot borrow that time.
 Resetting policy also refreshes the displayed threshold to its effective inherited value.
 
-- **Codex:** Studio probes support for the native configuration field before offering a custom
-  threshold. It reads the exact session's metadata, retaining compaction boundaries separately
-  from later token counts. The percentage triggers native compaction; it is not a hard cap.
-  Fixed instructions/tools may still occupy more than that percentage afterwards.
+- **Codex:** compacts at its own point (about 90% of its window); Studio sends no
+  `model_auto_compact_token_limit`. It reads the exact session's metadata, retaining compaction
+  boundaries separately from later token counts.
 - **Claude Code:** supported SDK telemetry and compact-boundary events report session usage.
   Old in-flight measurements cannot restore usage from before a compaction. A Studio chat-log
   summary is not a native Claude-session compaction.
@@ -210,22 +212,49 @@ Resetting policy also refreshes the displayed threshold to its effective inherit
 
 Compact now is the context panel's button, or `/compact` typed as the whole message: "/" opens the
 composer's command list (`ui/ComposerCommandMenu.tsx`), which runs it instead of sending the text,
-and lists it as waiting while a turn or a build runs. It is model-agnostic; no provider's own
-compaction is asked for. On an engine with a
-session (Claude Code, Codex, Bonsai) the chat's latest session, resumed read-only for one short
-turn (`loop/session-compact.ts`), writes a handover that becomes the chat's `compacted` event; it covers the first exchange and all
-but the last four asks, which stay verbatim. Ollama,
-a chat with no session, or a session that wrote none falls back to the log summary
-(`loop/compact.ts`); a chat too short for that keeps its session. A `compacted` event ends the
-chat's sessions as a rewind does: the host forgets every session recorded before it in what the
-harness reads (`shared/chat-rewind.ts` `harnessView`) and clears the thread's `contractor`, so the
-next turn opens a fresh session briefed with the handover and the recent conversation. The event
-names the session it ended, which a turn never resumes (`loop/compaction-log.ts`). A message sent
-while Compact now runs waits in the chat's queue until it is over, then starts that fresh session. After a
-paused build the run's controls are granted per turn and keep working, and a Resume seats a fresh
-lead told the handover before the chat's latest messages (`freshChat`). While it runs the live
-status reads **Compacting the conversation**; afterwards the chat keeps its own row,
-**Compacted N messages**, in the work rows' type, which opens to the handover in one framed box.
+and lists it as waiting while a turn or a build runs (`loop/session-compact.ts`).
+
+On Claude Code and Codex (`EngineDescriptor.compactsNatively`) the chat's latest session compacts
+itself with the provider's own compaction and goes on under the same id. Claude Code is sent its
+`/compact` on the resumed session, as the Agent SDK documents; its `PostCompact` hook hands over
+the summary, without the model's scratch analysis. `codex exec` has no compaction command, so
+Codex compacts the thread on its app server (`codex app-server`, `thread/compact/start`,
+`substrate/engines/codex-app-server.ts`) and the next `exec resume` continues it; the app server
+has no `--ignore-user-config`, so where Studio borrows the person's sign-in it reads their Codex
+config while it runs, and no model turn or tool runs. The `compacted` event is marked `native`:
+it ends no session (`shared/chat-rewind.ts` `endsChatSessions`), so the next turn resumes it.
+Claude's summary rides on the event; Codex keeps its own sealed inside the session, so its event
+has none and a prompt built from the log keeps every message (`loop/prompt.ts`).
+
+Where the provider's own compaction did not run (Claude Code refuses a session with too little to
+compact), or on Bonsai, the chat's latest session, resumed read-only for one short turn, writes a
+handover that becomes the chat's `compacted` event; it covers the first exchange and all but the
+last four asks, which stay verbatim. Ollama, a chat with no session, or a session that wrote none
+falls back to the log summary (`loop/compact.ts`); a chat too short for that keeps its session. A
+handover or a summary ends the chat's sessions as a rewind does: the host forgets every session
+recorded before it in what the harness reads (`harnessView`) and clears the thread's
+`contractor`, so the next turn opens a fresh session briefed with the handover and the recent
+conversation. The event names the session it ended, which a turn never resumes
+(`loop/compaction-log.ts`). A message sent while Compact now runs waits in the chat's queue until
+it is over, then starts the next turn. After a paused build the run's controls are granted per
+turn and keep working, and a Resume seats a fresh lead told the handover before the chat's latest
+messages (`freshChat`). While it runs the live status reads **Compacting the conversation**;
+afterwards the chat keeps its own row, **Compacted N messages**, in the work rows' type, which
+opens to the summary in one framed box when there is one.
+
+### Switching the chat's model
+
+The person may switch a game chat's model at any message, and the chat stays one conversation
+(`loop/chat-continuity.ts`). A session goes on only while it is the chat's latest (`goesOn`): a
+model switched back to after another one answered starts a fresh session, since its own missed
+those turns, and Compact now works on that latest session only. A fresh session mid-conversation
+is briefed with the original request, the latest instruction, the last messages verbatim
+(`loop/brief-window.ts`: 20 messages, at most 18,000 characters) and the latest written summary
+(`compactedSummary`, which reads past a Codex compaction's sealed one). When that brief cannot
+carry everything since the last written summary, the log is first summarised on the new model
+(`briefSummary`, `loop/compact.ts`), which ends the earlier sessions as any written summary does;
+a short chat costs nothing extra. The new model gets the conversation, not the previous model's
+own context (files it read, commands it ran): it reads the game's folder as it needs.
 
 A Bonsai response stopped by its output limit cannot dispatch partial tool arguments. The session
 retains usage and existing work, asks for a smaller edit at most twice, then reports a recoverable
@@ -252,12 +281,11 @@ and counted once, including two between polls. Engine `Usage` reports what the p
 and leaves the rest absent, never 0: `output_tokens` includes reasoning (`reasoning_tokens` is its
 thinking share), `cache_write_tokens`, Claude's per-model `by_model`, `duration_api_ms`, `ttft_ms`
 and `compactions` ([evals](evals.md#what-the-app-records-for-evals)).
-Claude’s custom percentage threshold is still unavailable: a measured context window does not
-prove threshold enforcement. Every provider compacts automatically at its own point (Auto); the
-composer offers no compaction point and sends none (no `autoCompactWindow`, even from a preference
-an earlier build saved), and Compact now is the manual control on every engine
-([above](#compact-now)). Codex validates the configuration field before offering
-its native threshold; compaction boundaries and later token counts are retained separately.
+Every provider compacts automatically at its own point (Auto), chats and workers alike: the
+composer offers no compaction point and Studio sends none (no `autoCompactWindow`, even from a
+preference an earlier build saved, and no `model_auto_compact_token_limit`), and Compact now is
+the manual control on every engine ([above](#compact-now)). Codex compaction boundaries and later
+token counts are retained separately.
 See `claude-telemetry.test.ts` and `context-policy.test.ts` for the regression boundaries.
 
 ### Plan limits
@@ -508,8 +536,9 @@ Sol, and inspect the attributed host event. Disable an in-flight source and veri
 is refused without claiming the accepted remote operation was undone. Test project scoping
 with roots off and confirm another project's idle transport is not shown as connected.
 
-Exercise supported native compaction through the UI and correlate the precise provider session
-metadata/boundary with its meter. Restore temporary thresholds. Download/verify Bonsai through
+Exercise Compact now on Claude Code and Codex through the UI and correlate the precise provider
+session metadata/boundary with its meter; the next turn must resume the same session. Restore
+temporary local thresholds. Download/verify Bonsai through
 Model setup, close/reopen progress, then select it in the same chat. Make a real game edit, use
 the input in the actual preview, Stop/resume, and put its context under a controlled threshold.
 Record model inference separately from UI scaffolding and mark unsupported/live-unavailable

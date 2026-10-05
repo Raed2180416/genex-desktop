@@ -197,6 +197,18 @@ const SdkSystemSubtype = {
 /** The only `result` subtype that means the turn ended well. */
 const SDK_RESULT_SUCCESS = "success";
 
+/** Compact Now's command: Claude Code's own compaction of the resumed session (`DelegateRequest.compact`). */
+const COMPACT_COMMAND = "/compact";
+/** `/compact` runs no model turn; a CLI that did not know it may answer once, never build. */
+const COMPACT_MAX_TURNS = 1;
+/** How a compaction ended, as the status message after it reports (`compact_result`). */
+const CompactOutcome = {
+  Success: "success",
+  Failed: "failed",
+} as const;
+/** The hook Claude Code runs once it has compacted, handed the summary it wrote. */
+const POST_COMPACT_HOOK = "PostCompact";
+
 /** Content block types inside an SDK message, and the partial-stream events that carry text. */
 const SdkBlock = {
   Text: "text",
@@ -252,6 +264,7 @@ const MESSAGE = {
   JudgeLaunchTimeout: "time budget exhausted before judge launch",
   JudgeFailed: "Claude Code judge failed",
   JudgeEmpty: "the Claude Code judge gave no reply",
+  NotCompacted: "Claude Code did not compact the session",
 } as const;
 
 /**
@@ -444,6 +457,8 @@ export class ClaudeCodeEngine implements Engine {
    * build's lead and the run's coordinator, in the chat's mode (`leadAsks`).
    */
   readonly permissionPrompts = true;
+  /** Compact Now sends the resumed session Claude Code's own `/compact`. */
+  readonly compactsNatively = true;
   readonly engineHome: string;
   readonly systemHome: string;
   readonly #model: string | undefined;
@@ -1058,7 +1073,7 @@ export class ClaudeCodeEngine implements Engine {
     }
     // The running session, for what an answer asks of it after the answer (claude-permissions.ts).
     const running: RunningSession = { stream: null };
-    const options = await this.#delegateOptions(request, { cliInstallation, login, controller, running });
+    const options = await this.#delegateOptions(request, { cliInstallation, login, controller, running, run });
     const stream = query({ prompt: sessionPrompt(request, steer, run, controller.signal), options } as never);
     this.#catalogEpoch.set(stream, this.#catalog.epoch());
     running.stream = stream as RunningSession["stream"];
@@ -1100,7 +1115,7 @@ export class ClaudeCodeEngine implements Engine {
   async #delegateOptions(request: DelegateRequest, ctx: SessionContext): Promise<Record<string, unknown>> {
     const { cliInstallation, login, controller } = ctx;
     const interviewTools = request.interviewTools ?? [];
-    const maxTurns = request.maxTurns ?? this.#maxTurns;
+    const maxTurns = request.compact ? COMPACT_MAX_TURNS : (request.maxTurns ?? this.#maxTurns);
     const { cwd, directories, protectedPaths, rules } = await this.#contractorReach(request, login);
     const asks = asksOf(request);
     return {
@@ -1112,7 +1127,7 @@ export class ClaudeCodeEngine implements Engine {
       // lands, with the reason in the contractor's face — the after-the-fact reviewer once
       // "reverted" such files by deleting eleven merged modules. A lead's calls are screened by
       // the host there too, ahead of every allow rule.
-      ...sessionHooks(request, cwd),
+      ...sessionHooks(request, cwd, ctx.run),
       ...(maxTurns ? { maxTurns } : {}),
       ...(request.resume ? { resume: request.resume } : {}),
       ...modelOption(request.model ?? this.#model),
@@ -1276,6 +1291,9 @@ export class ClaudeCodeEngine implements Engine {
     const onMode = request.permissions?.onMode;
     if (onMode && reportsMode(message)) quietly(() => onMode(reportedMode(message)));
     if (message.subtype === SdkSystemSubtype.CompactBoundary) this.#reportCompaction(stream as object, run, request);
+    if (message.subtype === SdkSystemSubtype.Status && message.compact_result === CompactOutcome.Failed) {
+      run.compactError = String(message.compact_error ?? "") || MESSAGE.NotCompacted;
+    }
     this.#observeTelemetry(stream, request.onEvent, run.sessionId);
   }
 
@@ -1353,7 +1371,7 @@ export class ClaudeCodeEngine implements Engine {
     if (run.ok) this.#authFailure = null;
     this.#throwIfLimited(run);
     const model = request.model ?? this.#model;
-    return {
+    const result: DelegateResult = {
       ok: run.ok,
       summary: run.summary,
       usage: run.usage,
@@ -1373,6 +1391,7 @@ export class ClaudeCodeEngine implements Engine {
       ...(!run.ok && run.errorText ? { errorText: run.errorText } : {}),
       ...(run.contextTokens ? { contextTokens: run.contextTokens } : {}),
     };
+    return request.compact ? compactionResult(result, run) : result;
   }
 
   /**
@@ -1450,6 +1469,8 @@ interface SessionContext {
   controller: AbortController;
   /** The session once started, for what a person's answer asks of it afterwards. */
   running: RunningSession;
+  /** What the delegation learns, including the summary a compaction's hook hands over. */
+  run: RunState;
 }
 
 /** The folders a contractor session may reach, and the ones it may not. */
@@ -1543,6 +1564,10 @@ interface RunState {
   feed: SteerFeed | null;
   /** The mode picker's hold on the session, taken back once (claude-permissions.ts `liveControl`). */
   control: { release(): void };
+  /** The summary Claude Code's `PostCompact` hook handed over; null until it compacted. */
+  compactSummary: string | null;
+  /** Why it did not compact, as its status message said; null when it did not say. */
+  compactError: string | null;
 }
 
 /** A delegation that has not heard anything from its contractor yet. */
@@ -1565,6 +1590,8 @@ function newRunState(usage: Usage, cliInstallation: ClaudeInstallation): RunStat
     resultTurns: 0,
     feed: null,
     control: { release: () => {} },
+    compactSummary: null,
+    compactError: null,
   };
 }
 
@@ -1789,6 +1816,7 @@ function sessionPrompt(
   run: RunState,
   signal: AbortSignal,
 ): unknown {
+  if (request.compact) return COMPACT_COMMAND;
   if (!steer) return delegatePrompt(request);
   run.feed = steerFeed(steer, userFrame(request.prompt, briefImages(request)), signal, () => run.sessionId);
   return run.feed.prompt;
@@ -1816,12 +1844,43 @@ function delegatePrompt(request: DelegateRequest): unknown {
  * delegation has an owner map, and a lead's or coordinator's screen (`leadScreenHook`), which sees
  * every tool call before Claude Code's own rules do.
  */
-function sessionHooks(request: DelegateRequest, cwd: string): { hooks?: unknown } {
+function sessionHooks(request: DelegateRequest, cwd: string, run: RunState): { hooks?: unknown } {
   const preToolUse = [
     ...(request.ownership ? [{ matcher: EDIT_TOOLS_MATCHER, hooks: [ownershipHook(request.ownership, cwd)] }] : []),
     ...(request.leadAsks ? [{ hooks: [leadScreenHook(request.leadAsks)] }] : []),
   ];
-  return preToolUse.length ? { hooks: { PreToolUse: preToolUse } } : {};
+  const hooks = {
+    ...(preToolUse.length ? { PreToolUse: preToolUse } : {}),
+    ...(request.compact ? { [POST_COMPACT_HOOK]: [{ hooks: [compactSummaryHook(run)] }] } : {}),
+  };
+  return Object.keys(hooks).length ? { hooks } : {};
+}
+
+/** Keeps the summary Claude Code wrote when it compacted (`PostCompactHookInput.compact_summary`). */
+function compactSummaryHook(run: RunState) {
+  return async (input: { compact_summary?: unknown }): Promise<Record<string, never>> => {
+    if (typeof input.compact_summary === "string") run.compactSummary = input.compact_summary;
+    return {};
+  };
+}
+
+/**
+ * A Compact Now delegation's result: compacted when the session reported its compaction boundary,
+ * with the summary it wrote; otherwise not ok, with the reason Claude Code gave.
+ */
+function compactionResult(result: DelegateResult, run: RunState): DelegateResult {
+  if (!run.usage.compactions) {
+    const errorText = run.compactError ?? result.errorText ?? MESSAGE.NotCompacted;
+    return { ...result, ok: false, summary: "", stopReason: StopReason.Error, errorText };
+  }
+  return { ...result, ok: true, compacted: true, summary: compactSummaryText(run.compactSummary) };
+}
+
+/** The summary without the scratch analysis Claude Code's compaction prompt asks the model for first. */
+function compactSummaryText(raw: string | null): string {
+  const text = (raw ?? "").replace(/<analysis>[\s\S]*?<\/analysis>/g, "");
+  const inner = /<summary>([\s\S]*?)<\/summary>/.exec(text)?.[1];
+  return (inner ?? text).trim();
 }
 
 /**

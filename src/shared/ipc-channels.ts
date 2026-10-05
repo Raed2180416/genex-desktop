@@ -177,6 +177,7 @@ export const STUDIO_INVOKE_CHANNELS = {
   "studio:cli-install.status": "cliInstallStatus",
   "studio:pull-model": "pullModel",
   "studio:models.lookup": "lookupModel",
+  "studio:models.remove": "removeModel",
   "studio:reveal-project": "revealProject",
   "studio:game-file.read": "readGameFile",
   "studio:game-file.reveal": "revealGameFile",
@@ -355,6 +356,7 @@ export interface StudioInvokePayloads {
   "studio:cli-install.status": undefined;
   "studio:pull-model": { model: string };
   "studio:models.lookup": { model: string };
+  "studio:models.remove": { model: string };
   "studio:reveal-project": { project: string; file?: string };
   "studio:game-file.read": { threadId: string; path: string };
   "studio:game-file.reveal": { threadId: string; path: string };

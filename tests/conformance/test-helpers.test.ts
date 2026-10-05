@@ -1,13 +1,14 @@
 /**
  * The shared fakes and probes other suites build on: a renderer `window.studio`, a harness `ctx`,
- * whether a process still runs, and the check every test file runs for the child processes it
- * leaves. Their own contract, so a consumer's failure is about the code under test and not about
+ * whether a process still runs, the check every test file runs for the child processes it
+ * leaves, and the removal of a test's temporary folder. Their own contract, so a consumer's failure is about the code under test and not about
  * the helper.
  */
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
-import { writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { describe, it } from "node:test";
 import { TEST_PRELOAD, testEnv } from "../../scripts/affected-tests.mjs";
@@ -16,7 +17,7 @@ import { ctxRecorder } from "../helpers/ctx-recorder.ts";
 import { fakeStudioApi, installFakeStudio, STUDIO_METHODS } from "../helpers/fake-studio-api.ts";
 import { EXIT_GRACE_ENV } from "../helpers/leftover-children.ts";
 import { running } from "../helpers/processes.ts";
-import { tmpDir } from "../helpers/tmp.ts";
+import { REMOVE_PATIENCE_MS, removeTree, tmpDir } from "../helpers/tmp.ts";
 
 describe("fakeStudioApi", () => {
   it("answers every named call with a default, records it, and lets a test replace one", async () => {
@@ -163,5 +164,70 @@ describe("leftover children", { skip: process.platform === "win32" && "reads pro
     );
     assert.equal(exiting.error, undefined);
     assert.equal(exiting.status, 0, exiting.stdout);
+  });
+});
+
+describe("removeTree", () => {
+  /** A removal that fails with `codes`, one per call, then succeeds; and the waits between. */
+  function flakyRemoval(codes: (string | undefined)[]) {
+    const calls: string[] = [];
+    const waits: number[] = [];
+    const deps = {
+      rm: async (dir: string) => {
+        calls.push(dir);
+        if (calls.length > codes.length) return;
+        const code = codes[calls.length - 1];
+        throw Object.assign(new Error(`${code ?? "plain"}: ${dir}`), code ? { code } : {});
+      },
+      sleep: async (ms: number) => {
+        waits.push(ms);
+      },
+    };
+    return { deps, calls, waits };
+  }
+
+  for (const code of ["EBUSY", "EPERM", "ENOTEMPTY", "EMFILE", "ENFILE"])
+    it(`tries again while another process holds the folder (${code}), then removes it`, async () => {
+      const removal = flakyRemoval([code, code]);
+      await removeTree("/tmp/held", removal.deps);
+      assert.deepEqual(removal.calls, ["/tmp/held", "/tmp/held", "/tmp/held"]);
+      assert.equal(removal.waits.length, 2);
+    });
+
+  it("gives up once the hold outlasts its patience, with the error that held it", async () => {
+    const removal = flakyRemoval(Array.from({ length: 10_000 }, () => "EBUSY"));
+    await assert.rejects(removeTree("/tmp/held", removal.deps), { code: "EBUSY" });
+    assert.equal(
+      removal.waits.reduce((sum, ms) => sum + ms, 0),
+      REMOVE_PATIENCE_MS,
+    );
+  });
+
+  for (const code of ["EACCES", "ENOTDIR", undefined])
+    it(`fails at once on an error no hold explains (${code ?? "no code"})`, async () => {
+      const removal = flakyRemoval([code]);
+      await assert.rejects(removeTree("/tmp/held", removal.deps), /held/);
+      assert.equal(removal.calls.length, 1);
+      assert.deepEqual(removal.waits, []);
+    });
+
+  it("on Windows, removes a folder another process works in once that process lets go", {
+    skip: process.platform !== "win32" && "Windows refuses to remove a folder a process holds open",
+  }, async () => {
+    const dir = path.join(await tmpDir("remove-tree-"), "held");
+    await mkdir(dir);
+    await writeFile(path.join(dir, "file.txt"), "x");
+    // A process's working folder is held open without delete sharing, as a folder another
+    // process is walking is: Windows refuses to remove it until the process lets go.
+    const holder = spawn(process.execPath, ["-e", "process.stdin.resume()"], { cwd: dir, stdio: "pipe" });
+    await once(holder, "spawn");
+    await assert.rejects(rm(dir, { recursive: true, force: true }), { code: "EBUSY" });
+    await removeTree(dir, {
+      sleep: async () => {
+        holder.stdin.end();
+        if (holder.exitCode === null) await once(holder, "exit");
+      },
+    });
+    assert.equal(existsSync(dir), false);
   });
 });

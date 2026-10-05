@@ -33,11 +33,16 @@ import { codexSessionMetadata, type CodexSessionMetadata } from "./codex-session
  *     non-owned files are made read-only for the delegation (`ownership-locks.ts`) and the
  *     contractor's own sandbox does the refusing.
  */
-import { execFile } from "node:child_process";
-import { commandLaunch, spawnCommand } from "../command-launch.ts";
+import { spawnCommand } from "../command-launch.ts";
+import {
+  type CodexAppServer,
+  type CodexAppServerConnection,
+  type CodexCompaction,
+  compactCodexThread,
+  spawnCodexAppServer,
+} from "./codex-app-server.ts";
 import { stopChild } from "../process-tree.ts";
 import { relativizeWorkspace } from "../paths.ts";
-import { promisify } from "node:util";
 import { mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -143,6 +148,8 @@ export interface CodexEngineOptions {
   resolveCli?: typeof resolveCodingCli;
   /** Injected in tests. */
   execFn?: CodexExec;
+  /** Injected in tests: the app server Compact Now runs on (codex-app-server.ts). */
+  appServerFn?: CodexAppServer;
   /** Injected catalog refresh; production delegates to the selected CLI. */
   refreshCatalogue?: typeof refreshCodexCatalogue;
   readModels?: typeof readCodexModels;
@@ -191,9 +198,8 @@ const METADATA_POLL_MS = 5 * SECOND_MS;
 const STDERR_TAIL_CHARS = 4_000;
 /** How long a stopped CLI gets between SIGTERM and SIGKILL. */
 const KILL_GRACE_MS = 5 * SECOND_MS;
-/** The compaction-setting probe runs `codex debug models`, which answers in well under this. */
-const CONTEXT_PROBE_TIMEOUT_MS = 5 * SECOND_MS;
-const CONTEXT_PROBE_MAX_BUFFER = 16_384;
+/** The CLI command Compact Now's app server runs as (codex-app-server.ts). */
+const APP_SERVER_COMMAND = "app-server";
 /** The output cap every catalogue row advertises. */
 const CODEX_MAX_TOKENS = 128_000;
 /** The trace keeps this much of a thought, a tool result and a tool input. */
@@ -292,11 +298,7 @@ const MESSAGE = {
   CheckFailed: "Could not check the Codex connection. Try again.",
   NoToolLoop: "Codex has no tool-loop completion; use engine.delegate to build",
   CliMissing: "An external Codex CLI is required. Install or select an external Codex CLI, then Recheck.",
-  CompactionUnavailable: "Native compaction control unavailable",
-  ContextUnknown: "Select a model with a reported context capacity before setting a native compaction threshold.",
-  ProbeUnavailable: "Native configuration probe unavailable for this adapter.",
-  ProbeUnvalidated: "This Codex installation did not validate the compaction setting.",
-  ProbeFailed: "This Codex installation could not verify native compaction configuration.",
+  NotCompacted: "Codex did not compact the session",
 } as const;
 
 const RATE_LIMIT_PATTERNS = [/rate.?limit/i, /too many requests/i, /\b429\b/, /quota/i];
@@ -352,6 +354,8 @@ export class CodexEngine implements Engine {
   readonly id = EngineId.Codex;
   readonly label = "Codex";
   readonly kind = EngineKind.Delegated;
+  /** Compact Now compacts the resumed session on Codex's own app server (codex-app-server.ts). */
+  readonly compactsNatively = true;
   readonly engineHome: string;
   readonly systemHome: string;
   readonly #lockRecovery: string;
@@ -360,6 +364,7 @@ export class CodexEngine implements Engine {
   readonly #resolveCli: typeof resolveCodingCli;
   readonly #executable: string | undefined;
   #execFn: CodexExec | undefined;
+  readonly #appServerFn: CodexAppServer | undefined;
   #authStatusFn: CodexEngineOptions["authStatusFn"];
   #findBinaryFn: CodexEngineOptions["findBinaryFn"];
   #binary: string | null | undefined;
@@ -390,6 +395,7 @@ export class CodexEngine implements Engine {
     this.#executable = options.executable;
     this.#resolveCli = options.resolveCli ?? resolveCodingCli;
     this.#execFn = options.execFn;
+    this.#appServerFn = options.appServerFn;
     this.#authStatusFn = options.authStatusFn;
     this.#refreshCatalogue = options.refreshCatalogue ?? (options.execFn ? async () => {} : refreshCodexCatalogue);
     this.#findBinaryFn = options.findBinaryFn;
@@ -689,22 +695,8 @@ export class CodexEngine implements Engine {
     return this.#classify(err as Error);
   }
 
-  #contextProbe: { identity: string; result: Promise<{ supported: boolean; reason?: string }> } | null = null;
-  async contextControl(model: string): Promise<{ supported: boolean; reason?: string }> {
-    const capacity = (await this.models()).find((m) => m.id === model)?.contextWindow;
-    if (!capacity) return { supported: false, reason: MESSAGE.ContextUnknown };
-    if (this.#execFn) return { supported: false, reason: MESSAGE.ProbeUnavailable };
-    const installation = await this.#resolveCli(EngineId.Codex, this.#executable);
-    if (installation.status.state !== CodingCliState.Ready || !installation.status.path)
-      return { supported: false, reason: installation.status.detail };
-    const identity = JSON.stringify([installation.status.path, installation.status.version]);
-    if (this.#contextProbe?.identity !== identity) {
-      this.#contextProbe = { identity, result: probeCompactionSetting(installation.status.path, installation.env) };
-    }
-    return this.#contextProbe.result;
-  }
-
   async delegate(request: DelegateRequest): Promise<DelegateResult> {
+    if (request.compact) return this.#compact(request);
     const startedAt = Date.now();
     const cwd = path.resolve(request.cwd);
     const model = pickModel(request.model ?? this.#model);
@@ -765,6 +757,53 @@ export class CodexEngine implements Engine {
 
     this.#authFailure = null;
     return completedResult(this.id, run, { startedAt, model }, recordedCalls(bridge, request));
+  }
+
+  /**
+   * Compact Now: the resumed session compacts itself on Codex's app server and goes on under the
+   * same id. Its summary stays sealed inside the session, so the result carries none; the session
+   * file's watcher reports the compaction as it reports an automatic one.
+   */
+  async #compact(request: DelegateRequest): Promise<DelegateResult> {
+    const asked = { startedAt: Date.now(), model: pickModel(request.model ?? this.#model) };
+    const controller = abortControllerFor(request.signal);
+    const run = newCodexRun(this.id, request.resume);
+    const deadline = request.timeoutMs
+      ? setTimeout(() => {
+          run.deadlineHit = true;
+          controller.abort();
+        }, request.timeoutMs)
+      : null;
+    const metadata = this.#watchSessionMetadata(request, run, asked.startedAt, asked.model);
+    const interrupted = () => request.signal?.aborted || run.deadlineHit;
+    let outcome: CodexCompaction;
+    try {
+      const server = await this.#appServer(path.resolve(request.cwd), controller.signal);
+      outcome = await compactCodexThread(server, request.resume ?? "").finally(() => server.close());
+      await metadata.refresh();
+    } catch (err) {
+      if (!interrupted()) throw this.#classify(err as Error);
+      outcome = { compacted: false, error: null };
+    } finally {
+      await metadata.stop();
+      if (deadline) clearTimeout(deadline);
+    }
+    const partial = runPartialState(run, asked.startedAt, asked.model);
+    if (interrupted()) return partialDelegateResult(this.id, interruption(request.signal?.aborted), partial);
+    if (!outcome.compacted) {
+      const ending = { stopReason: StopReason.Error, errorText: outcome.error ?? MESSAGE.NotCompacted };
+      return partialDelegateResult(this.id, ending, partial);
+    }
+    return { ...completedResult(this.id, run, asked, []), compacted: true };
+  }
+
+  /** The app server Compact Now runs on: the binary, sign-in and profile this engine's exec turns use. */
+  async #appServer(cwd: string, signal: AbortSignal): Promise<CodexAppServerConnection> {
+    const { home, env, installation } = await this.#cli(signal, Boolean(this.#appServerFn));
+    const argv = [APP_SERVER_COMMAND, ...(await codexProfileArgs(home))];
+    if (this.#appServerFn) return this.#appServerFn({ argv, cwd, env, signal });
+    if (!installation?.path) throw new EngineError(EngineFailureKind.Unavailable, this.id, MESSAGE.CliMissing);
+    return spawnCodexAppServer(installation.path)({ argv, cwd, env, signal });
   }
 
   /** The studio's bridge for this delegation's tools, when it grants any. */
@@ -838,14 +877,13 @@ export class CodexEngine implements Engine {
       .join("\n\n");
   }
 
-  /** `codex exec` (or `exec resume`) for this delegation: model, sandbox, effort, context, stills. */
+  /** `codex exec` (or `exec resume`) for this delegation: model, sandbox, effort, stills. */
   async #delegateArgv(
     request: DelegateRequest,
     model: string | undefined,
     runDir: string,
     imagePaths: string[],
   ): Promise<string[]> {
-    const contextArgs = await this.#customCompactionArgs(request, model);
     return [
       "exec",
       ...(request.resume ? ["resume", request.resume] : []),
@@ -854,23 +892,9 @@ export class CodexEngine implements Engine {
       ...(chatMode(request) === PermissionMode.Bypass ? BYPASS_ARGS : sandboxArgs(runDir)),
       ...effortArgs(request.effort),
       ...(await this.preferenceArgs(request.model, request.preferences)),
-      ...contextArgs,
       ...imageArgs(imagePaths),
       "-",
     ];
-  }
-
-  /** The user's own compaction threshold, as Codex's token limit — only where this CLI can take it. */
-  async #customCompactionArgs(request: DelegateRequest, model: string | undefined): Promise<string[]> {
-    const policy = request.contextPolicy;
-    if (policy?.mode !== "custom") return [];
-    const capability = await this.contextControl(model ?? DEFAULT_MODEL);
-    if (!capability.supported) {
-      throw new EngineError(EngineFailureKind.Other, this.id, capability.reason ?? MESSAGE.CompactionUnavailable);
-    }
-    const descriptor = (await this.models()).find((m) => m.id === model);
-    if (!descriptor) throw new EngineError(EngineFailureKind.Other, this.id, MESSAGE.ContextUnknown);
-    return compactLimitArgs(Math.floor((descriptor.contextWindow * Number(policy.thresholdPercent)) / 100));
   }
 
   /** The CLI's event stream, read to the end: the chat's live rows, the lock guard, the log. */
@@ -1070,14 +1094,7 @@ export class CodexEngine implements Engine {
     onStderr?: (chunk: string) => void;
     onInstallation?: (installation: CodexInstallation) => void;
   }): Promise<AsyncIterable<Record<string, unknown>>> {
-    const login = await this.resolveLogin();
-    const home = login.home ?? this.systemHome;
-    invocation.signal.throwIfAborted();
-    const installation = this.#execFn
-      ? null
-      : await requireCodingCli(EngineId.Codex, this.#executable, invocation.signal);
-    invocation.signal.throwIfAborted();
-    const env = subscriptionEnv({ ...installation?.env, CODEX_HOME: home });
+    const { home, env, installation } = await this.#cli(invocation.signal, Boolean(this.#execFn));
     // --ignore-user-config must not make a keychain login fall back to file-only auth.
     // Codex discards root -c values when exec/resume has its own -c options.
     // All overrides must be in the leaf command, before the stdin prompt argument.
@@ -1092,6 +1109,22 @@ export class CodexEngine implements Engine {
     if (!binary) throw new EngineError(EngineFailureKind.Unavailable, this.id, MESSAGE.CliMissing);
     if (installation) invocation.onInstallation?.(installation);
     return streamCodex(binary, { ...invocation, argv, env });
+  }
+
+  /**
+   * The CLI a session runs on, the sign-in home it runs under and the environment that carries
+   * it. No installation is looked up when a test injected the process.
+   */
+  async #cli(
+    signal: AbortSignal,
+    injected: boolean,
+  ): Promise<{ home: string; env: Record<string, string>; installation: CodexInstallation | null }> {
+    const login = await this.resolveLogin();
+    const home = login.home ?? this.systemHome;
+    signal.throwIfAborted();
+    const installation = injected ? null : await requireCodingCli(EngineId.Codex, this.#executable, signal);
+    signal.throwIfAborted();
+    return { home, env: subscriptionEnv({ ...installation?.env, CODEX_HOME: home }), installation };
   }
 
   #classify(err: Error, extra = ""): EngineError {
@@ -1387,35 +1420,6 @@ function notConnectedDetail(cli: CodexAuthStatus): string {
   if (cli.method === "api_key") return MESSAGE.ApiKeyLogin;
   if (cli.loggedIn === false) return MESSAGE.NotConnected;
   return MESSAGE.CheckFailed;
-}
-
-/**
- * Whether this CLI takes a compaction threshold: fed a value of the wrong type, one that knows
- * the setting refuses it by name, and one that does not accepts anything.
- */
-function probeCompactionSetting(
-  binary: string,
-  env: NodeJS.ProcessEnv,
-): Promise<{ supported: boolean; reason?: string }> {
-  const args = ["-c", 'model_auto_compact_token_limit="studio-type-probe"', "debug", "models"];
-  return Promise.resolve()
-    .then(() => commandLaunch(binary, args))
-    .then((launch) =>
-      promisify(execFile)(launch.file, launch.args, {
-        env: subscriptionEnv(env),
-        timeout: CONTEXT_PROBE_TIMEOUT_MS,
-        maxBuffer: CONTEXT_PROBE_MAX_BUFFER,
-        windowsHide: true,
-        windowsVerbatimArguments: launch.windowsVerbatimArguments,
-      }),
-    )
-    .then(
-      () => ({ supported: false, reason: MESSAGE.ProbeUnvalidated }),
-      (e) =>
-        /invalid type.*expected i64[\s\S]*model_auto_compact_token_limit/.test(String(e.stderr))
-          ? { supported: true }
-          : { supported: false, reason: MESSAGE.ProbeFailed },
-    );
 }
 
 /** Stills written to files for `-i`: Codex takes pictures as paths. */
@@ -1838,11 +1842,6 @@ export function normaliseEffort(effort?: string): string {
 
 function pickModel(model?: string): string | undefined {
   return model && model !== DEFAULT_MODEL ? model : undefined;
-}
-
-/** The token count Codex compacts its context at. */
-function compactLimitArgs(tokens: number): string[] {
-  return ["-c", `model_auto_compact_token_limit=${tokens}`];
 }
 
 /** Where Codex finds the operator's host skills, under the home folder. */

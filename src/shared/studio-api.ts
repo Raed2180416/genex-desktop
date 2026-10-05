@@ -484,6 +484,8 @@ export interface StudioApi {
     | { ok: false; reason: "invalid" | "not_found" | "unavailable"; id?: string; error?: string }
   >;
   cancelModelDownload(): Promise<boolean>;
+  /** Delete a downloaded local model (Bonsai or Ollama) from this Mac. */
+  removeModel(model: string): Promise<boolean>;
   revealProject(project: string, file?: string): Promise<boolean>;
   /** A file the chat names, from that chat's game folder or its run's unlanded build. */
   readGameFile(threadId: string, path: string): Promise<GameFile>;

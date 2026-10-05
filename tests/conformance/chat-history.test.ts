@@ -16,6 +16,7 @@ import { EngineId } from "../../src/shared/providers.ts";
 import { EntryKind, toEntries } from "../../src/renderer/chat-entries.ts";
 import { compactedWords } from "../../src/renderer/words.ts";
 import { withLiveTail } from "../../src/renderer/use-chat-history.ts";
+import { removeTree } from "../helpers/tmp.ts";
 import type { EventData, EventEnvelope } from "../../src/substrate/types.ts";
 const event = (id: number, data: EventData): EventEnvelope => ({
   id: String(id).padStart(6, "0"),
@@ -79,7 +80,7 @@ test("history pages are bounded, ordered, gap-free, stable during appends, and p
     const reopened = await EventStore.open(root);
     assert.deepEqual(await reopened.chatState(thread), finished.context);
   } finally {
-    await fs.rm(root, { recursive: true, force: true });
+    await removeTree(root);
   }
 });
 
@@ -189,7 +190,7 @@ test("a chat checkpoint saved before readings were kept per role is rebuilt, and
     const reopened = mergeChatEvents(page.context, page.events);
     assert.equal(measuredContext(reopened, EngineId.ClaudeCode, "opus")?.promptTokens, 40_000);
   } finally {
-    await fs.rm(root, { recursive: true, force: true });
+    await removeTree(root);
   }
 });
 

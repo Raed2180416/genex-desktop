@@ -183,6 +183,9 @@ export class BonsaiEngine implements Engine {
   async defaultModel() {
     return (await this.models())[0]?.id ?? null;
   }
+  removeModel(id: string): Promise<void> {
+    return this.runtime.remove(id);
+  }
   async delegate(request: DelegateRequest) {
     const model = request.model ?? (await this.defaultModel());
     if (!model) throw new EngineError(EngineFailureKind.Unavailable, this.id, MESSAGE.DownloadFirst);

@@ -74,7 +74,7 @@ describe("first launch", () => {
     assert.deepEqual(claude({ engine: engine("not_installed", "missing") }), {
       kind: "action",
       action: "install",
-      label: "Install Claude Code",
+      label: "Set up Claude Code",
     });
     assert.deepEqual(claude({ engine: engine("needs_login", "incompatible") }), {
       kind: "action",
@@ -113,7 +113,7 @@ describe("first launch", () => {
     assert.deepEqual(codex({ engine: engine("not_installed", "missing") }), {
       kind: "action",
       action: "install",
-      label: "Install Codex",
+      label: "Set up Codex",
     });
     assert.deepEqual(codex({ engine: engine("ready") }), { kind: "on", label: "ChatGPT connected" });
   });
@@ -121,7 +121,7 @@ describe("first launch", () => {
   it("installs or updates a CLI in place and says so while it runs", () => {
     const view = (id: "claude-code" | "codex", input: Partial<ConnectInput>) =>
       connectView(id, { engine: engine("not_installed", "missing"), ...input });
-    assert.deepEqual(view("codex", { installing: true }), { kind: "busy", label: "Installing Codex…", cancel: false });
+    assert.deepEqual(view("codex", { installing: true }), { kind: "busy", label: "Setting up Codex…", cancel: false });
     assert.deepEqual(view("claude-code", { engine: engine("needs_login", "incompatible"), installing: true }), {
       kind: "busy",
       label: "Updating Claude Code…",

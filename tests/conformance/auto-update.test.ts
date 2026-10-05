@@ -14,9 +14,11 @@ import { UpdateAction, UpdateCheckStatus } from "../../src/shared/app-update.ts"
 import {
   AUTO_UPDATE_ENABLED,
   InstallCheck,
+  type PeriodicUpdateOptions,
   UpdateMode,
   askUpdater,
   createUpdateChecker,
+  startAutoUpdate,
   updateCheckNote,
   UPDATE_REPO,
   type UpdateAnnouncerDeps,
@@ -26,9 +28,12 @@ import {
   autoUpdateDecision,
   createUpdateAnnouncer,
   releaseVersion,
+  watchInstaller,
 } from "../../src/main/auto-update.ts";
+import { openStudioLog } from "../../src/main/logs.ts";
 
 import { ReleaseCheckKind } from "../../src/main/release-check.ts";
+import { tmpDir } from "../helpers/tmp.ts";
 
 const require = createRequire(import.meta.url);
 
@@ -262,6 +267,180 @@ test("an updater that never answers, or throws, fails the check instead of hangi
   });
   assert.equal(await askUpdater(throwing.updater, { timeoutMs: 1000 }), InstallCheck.Failed);
   assert.equal(throwing.listening(), 0);
+});
+
+/** Squirrel.Mac's refusal of a check asked while another runs, as Electron reports it. */
+function busyError(): Error {
+  return Object.assign(new Error("The command is disabled and cannot be executed"), {
+    code: 1,
+    domain: "RACCommandErrorDomain",
+  });
+}
+
+/**
+ * A stand-in for Squirrel.Mac behind Electron's autoUpdater: one check at a time, its download
+ * included, and a check asked while one runs refused at once with an error. The test plays the
+ * running check: `found` starts its download, `end` gives its last answer.
+ */
+function squirrel() {
+  type Listener = ((...args: unknown[]) => void) & { original?: (...args: unknown[]) => void };
+  const listeners = new Map<string, Set<Listener>>();
+  const emit = (event: string, ...args: unknown[]) => {
+    for (const listener of [...(listeners.get(event) ?? [])]) listener(...args);
+  };
+  const add = (event: string, listener: Listener) => {
+    const held = listeners.get(event) ?? new Set<Listener>();
+    held.add(listener);
+    listeners.set(event, held);
+  };
+  let running = false;
+  let checks = 0;
+  const updater = {
+    on(event: string, listener: (...args: unknown[]) => void) {
+      add(event, listener);
+      return updater;
+    },
+    once(event: string, listener: (...args: unknown[]) => void) {
+      const wrapped: Listener = (...args) => {
+        listeners.get(event)?.delete(wrapped);
+        listener(...args);
+      };
+      wrapped.original = listener;
+      add(event, wrapped);
+      return updater;
+    },
+    removeListener(event: string, listener: (...args: unknown[]) => void) {
+      for (const held of [...(listeners.get(event) ?? [])]) {
+        if (held === listener || held.original === listener) listeners.get(event)?.delete(held);
+      }
+      return updater;
+    },
+    checkForUpdates() {
+      checks++;
+      if (running) return emit("error", busyError());
+      running = true;
+      emit("checking-for-update");
+    },
+  };
+  return {
+    updater,
+    found: () => emit("update-available"),
+    end: (event: string, ...args: unknown[]) => {
+      running = false;
+      emit(event, ...args);
+    },
+    checks: () => checks,
+  };
+}
+
+test("Check for Updates during the background download says it is downloading, and asks Squirrel nothing", async () => {
+  const mac = squirrel();
+  const installer = watchInstaller(mac.updater, { timeoutMs: 1000 });
+  mac.updater.checkForUpdates(); // the check at launch
+  mac.found();
+  assert.equal(await installer.ask(), InstallCheck.Found);
+  assert.equal(mac.checks(), 1, "a second check is refused, which read as offline");
+});
+
+test("while the background check still asks the feed, Check for Updates takes its answer", async () => {
+  const mac = squirrel();
+  const installer = watchInstaller(mac.updater, { timeoutMs: 1000 });
+  mac.updater.checkForUpdates();
+  const answer = installer.ask();
+  mac.end("update-not-available");
+  assert.equal(await answer, InstallCheck.None);
+  assert.equal(mac.checks(), 1);
+});
+
+test("a check Squirrel refuses as busy waits for the running one instead of failing", async () => {
+  // Electron reports a check a moment after it starts, so a click can land in between.
+  const mac = squirrel();
+  mac.updater.checkForUpdates();
+  const answer = askUpdater(mac.updater, { timeoutMs: 1000 });
+  mac.found();
+  assert.equal(await answer, InstallCheck.Found);
+});
+
+test("once a version is downloaded, Check for Updates asks Squirrel nothing more", async () => {
+  // Asked again, Squirrel re-requests the same zip; answered 304, Electron reports no update and
+  // forgets the downloaded one, so Relaunch would close the windows and install nothing.
+  const mac = squirrel();
+  const installer = watchInstaller(mac.updater, { timeoutMs: 1000 });
+  mac.updater.checkForUpdates();
+  mac.found();
+  mac.end("update-downloaded", {}, "", "Genex 0.2.0");
+  assert.equal(await installer.ask(), InstallCheck.Downloaded);
+  mac.end("error", new Error("No update available, can't quit and install"));
+  assert.equal(await installer.ask(), InstallCheck.Downloaded, "it still installs at the next quit");
+  assert.equal(mac.checks(), 1);
+});
+
+test("an hourly check refused during the download leaves the download in view", async () => {
+  const mac = squirrel();
+  const installer = watchInstaller(mac.updater, { timeoutMs: 1000 });
+  mac.updater.checkForUpdates();
+  mac.found();
+  mac.updater.checkForUpdates(); // update-electron-app's hourly check, refused
+  assert.equal(await installer.ask(), InstallCheck.Found);
+  assert.equal(mac.checks(), 2);
+});
+
+test("after the background check ends, Check for Updates asks again, and a real failure still fails", async () => {
+  const mac = squirrel();
+  const installer = watchInstaller(mac.updater, { timeoutMs: 1000 });
+  mac.updater.checkForUpdates();
+  mac.end("error", new Error("The Internet connection appears to be offline."));
+  const current = installer.ask();
+  assert.equal(mac.checks(), 2);
+  mac.end("update-not-available");
+  assert.equal(await current, InstallCheck.None);
+  const failing = installer.ask();
+  mac.end("error", new Error("The Internet connection appears to be offline."));
+  assert.equal(await failing, InstallCheck.Failed);
+});
+
+/** startAutoUpdate over a stand-in for update-electron-app, writing into a real studio log. */
+async function periodicChecks() {
+  const dir = await tmpDir("auto-update-");
+  const log = openStudioLog(dir, { home: "/Users/someone", now: () => new Date(0) });
+  const downloaded: string[] = [];
+  let given: PeriodicUpdateOptions | null = null;
+  let stopped = 0;
+  await startAutoUpdate(
+    { log: (line) => log.write("update", line), downloaded: (name) => downloaded.push(name) },
+    async (options) => {
+      given = options;
+      return { stopUpdates: () => stopped++ };
+    },
+  );
+  assert.ok(given, "update-electron-app was started");
+  const options: PeriodicUpdateOptions = given;
+  return { options, downloaded, stopped: () => stopped, lines: () => log.tail(10) };
+}
+
+test("the update log keeps what the updater says, its errors included, and never throws", async () => {
+  const rig = await periodicChecks();
+  const { logger } = rig.options;
+  logger.log("feedURL", "https://update.electronjs.org/genex-games/genex-desktop/darwin-arm64/0.1.0");
+  logger.log("requestHeaders", { "User-Agent": "update-electron-app/3.3.0" });
+  logger.log("updater error");
+  assert.doesNotThrow(() => logger.log(busyError()));
+  logger.log("update-downloaded", [{}, "## What's Changed", "Genex 0.2.0"]);
+  const at = "1970-01-01T00:00:00.000Z [update]";
+  assert.deepEqual(rig.lines(), [
+    `${at} feedURL https://update.electronjs.org/genex-games/genex-desktop/darwin-arm64/0.1.0`,
+    `${at} requestHeaders`,
+    `${at} updater error`,
+    `${at} The command is disabled and cannot be executed`,
+    `${at} update-downloaded`,
+  ]);
+});
+
+test("once a version downloads, the hourly checks stop and the window hears of it", async () => {
+  const rig = await periodicChecks();
+  rig.options.onNotifyUser({ releaseName: "Genex 0.2.0" });
+  assert.equal(rig.stopped(), 1, "an hourly check would make Electron forget the download");
+  assert.deepEqual(rig.downloaded, ["Genex 0.2.0"]);
 });
 
 /** A checker over an announcer, a scripted installer and a scripted release check. */

@@ -9,6 +9,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import * as seedChatDispatch from "../../src/harness-seed/loop/chat-dispatch.ts";
 import * as seedCompletionPolicy from "../../src/harness-seed/loop/completion-policy.ts";
+import { endsSessions as seedEndsSessions } from "../../src/harness-seed/loop/compaction-log.ts";
 import * as seedDelegatedTurn from "../../src/harness-seed/loop/delegated-turn.ts";
 import * as seedInbox from "../../src/harness-seed/loop/run-inbox.ts";
 import * as seedQueue from "../../src/harness-seed/loop/message-queue.ts";
@@ -21,12 +22,12 @@ import * as seedSkills from "../../src/harness-seed/loop/skills.ts";
 import { SteerDelivery as seedSteerDelivery } from "../../src/harness-seed/loop/steer-delivery.ts";
 import * as seedTime from "../../src/harness-seed/loop/time.ts";
 import * as seedWakeSchedule from "../../src/harness-seed/loop/director/wake-schedule.ts";
-import * as seedHandover from "../../src/harness-seed/loop/facet/phases/handover.ts";
 import { DelegationRefusal as seedDelegationRefusal } from "../../src/harness-seed/loop/director/lead-session.ts";
 import { RESUME_RUN as seedResumeRun } from "../../src/harness-seed/loop/after-night.ts";
 import { REOPEN_RUN as seedReopenRun } from "../../src/harness-seed/loop/reopen-run-prompts.ts";
 import { tools as seedGameTools } from "../../src/harness-seed/tools/game-tools.ts";
 import * as seedVerdict from "../../src/harness-seed/loop/verdict.ts";
+import { endsChatSessions } from "../../src/shared/chat-rewind.ts";
 import * as coordinator from "../../src/shared/coordinator.ts";
 import {
   CUSTOM_EVENT_TYPES,
@@ -49,7 +50,7 @@ import {
 } from "../../src/shared/run-state.ts";
 import { applyEdits, SKILL_EDIT_OPS } from "../../src/shared/skill-edits.ts";
 import { EventKind, type EventEnvelope, MessageUsageSource } from "../../src/shared/event-log.ts";
-import { DIRECTOR_LOOP_ENV, harnessRunEnv, WORKER_HANDOVER_ENV } from "../../src/shared/protocol.ts";
+import { DIRECTOR_LOOP_ENV, harnessRunEnv } from "../../src/shared/protocol.ts";
 
 let clock = 0;
 const at = () => new Date(Date.UTC(2026, 8, 24, 0, 0, clock++)).toISOString();
@@ -189,6 +190,26 @@ describe("the coordinator contract (shared/coordinator.ts ↔ loop/run-inbox.ts)
           seedInbox.conversationThrough(events as never, messageId),
           messageId,
         );
+    });
+  }
+});
+
+describe("a compaction's end of the chat's sessions (shared/chat-rewind.ts ↔ loop/compaction-log.ts)", () => {
+  const records: Array<[name: string, data: Record<string, unknown>, ends: boolean]> = [
+    ["a handover", { type: "custom", event_type: "compacted", payload: { summary: "s", sessionId: "a" } }, true],
+    ["a log summary", { type: "custom", event_type: "compacted", payload: { summary: "s", upTo: "1" } }, true],
+    [
+      "the provider's own",
+      { type: "custom", event_type: "compacted", payload: { native: true, sessionId: "a" } },
+      false,
+    ],
+    ["another record", { type: "custom", event_type: "contractor_session", payload: { sessionId: "a" } }, false],
+    ["a message", { type: "messages", messages: [] }, false],
+  ];
+  for (const [name, data, ends] of records) {
+    it(`reads whether it ends them the same way: ${name}`, () => {
+      assert.equal(endsChatSessions(data as never), ends);
+      assert.equal(seedEndsSessions(data), ends);
     });
   }
 });
@@ -379,19 +400,14 @@ describe("vocabularies (src/shared ↔ the seed's copies)", () => {
     assert.equal(seedWakeSchedule.DIRECTOR_LOOP_ENV, DIRECTOR_LOOP_ENV);
   });
 
-  it("names the workers' handover switch in the studio's environment the same way", () => {
-    assert.equal(seedHandover.WORKER_HANDOVER_ENV, WORKER_HANDOVER_ENV);
-  });
-
   it("hands the harness only the run overrides of the studio's environment, each only when it is set", () => {
     const cases: Array<[env: Record<string, string | undefined>, handed: Record<string, string>]> = [
       [{}, {}],
-      [
-        { [DIRECTOR_LOOP_ENV]: "turn", [WORKER_HANDOVER_ENV]: "1" },
-        { [DIRECTOR_LOOP_ENV]: "turn", [WORKER_HANDOVER_ENV]: "1" },
-      ],
-      [{ [WORKER_HANDOVER_ENV]: " 1 " }, { [WORKER_HANDOVER_ENV]: "1" }],
-      [{ [WORKER_HANDOVER_ENV]: "  ", [DIRECTOR_LOOP_ENV]: "" }, {}],
+      [{ [DIRECTOR_LOOP_ENV]: "turn" }, { [DIRECTOR_LOOP_ENV]: "turn" }],
+      [{ [DIRECTOR_LOOP_ENV]: " turn " }, { [DIRECTOR_LOOP_ENV]: "turn" }],
+      [{ [DIRECTOR_LOOP_ENV]: "  " }, {}],
+      // The workers' handover switch of 2026-10-03 is gone with the handover: never handed on.
+      [{ STUDIO_WORKER_HANDOVER: "1" }, {}],
       [{ HOME: "/Users/someone", ANTHROPIC_API_KEY: "sk-ant-x", PATH: "/usr/bin", STUDIO_OTHER: "1" }, {}],
     ];
     for (const [env, handed] of cases) assert.deepEqual(harnessRunEnv(env), handed, JSON.stringify(env));

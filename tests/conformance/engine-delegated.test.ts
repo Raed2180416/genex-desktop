@@ -1862,3 +1862,123 @@ describe("choosing a fallback when an engine's status hangs (P01-F8)", () => {
     assert.equal((await registry.firstReady())?.id, "claude-code");
   });
 });
+
+/**
+ * Compact now on Claude Code: the chat's session compacts itself with Claude Code's own `/compact`
+ * (`DelegateRequest.compact`), as the SDK documents for a resumed session, and goes on under the
+ * same id. Its summary comes from the `PostCompact` hook; a refusal from the status message that
+ * reports the compaction's result. The stream below is the order a live CLI 2.1 sends.
+ */
+describe("Compact now on claude code", () => {
+  const SESSION = "ses-compact";
+  /** A query that runs the session's `PostCompact` hooks as the CLI does once it has compacted. */
+  function compactingQuery(messages: Array<Record<string, unknown>>, summary: string | null) {
+    const seen: Array<Record<string, any>> = [];
+    const fn = ((params: { prompt: unknown; options?: Record<string, any> }) => {
+      seen.push({ prompt: params.prompt, ...params.options });
+      return {
+        async *[Symbol.asyncIterator]() {
+          for (const message of messages) {
+            if (message.compact_result === "success" && summary !== null) {
+              for (const matcher of params.options?.hooks?.PostCompact ?? []) {
+                for (const hook of matcher.hooks) {
+                  await hook(
+                    {
+                      hook_event_name: "PostCompact",
+                      trigger: "manual",
+                      compact_summary: summary,
+                      session_id: SESSION,
+                    },
+                    undefined,
+                    { signal: new AbortController().signal },
+                  );
+                }
+              }
+            }
+            yield message;
+          }
+        },
+      };
+    }) as never;
+    return { fn, seen };
+  }
+  const status = (fields: Record<string, unknown>) => ({
+    type: "system",
+    subtype: "status",
+    session_id: SESSION,
+    ...fields,
+  });
+  const init = { type: "system", subtype: "init", model: "claude-opus-5-5", tools: [], session_id: SESSION };
+  const ended = {
+    type: "result",
+    subtype: "success",
+    is_error: false,
+    result: "",
+    num_turns: 0,
+    session_id: SESSION,
+    usage: { input_tokens: 0, output_tokens: 0 },
+  };
+
+  it("sends /compact to the resumed session and hands back the summary it wrote", async () => {
+    const { fn, seen } = compactingQuery(
+      [
+        status({ status: "compacting" }),
+        status({ status: null, compact_result: "success" }),
+        init,
+        {
+          type: "system",
+          subtype: "compact_boundary",
+          session_id: SESSION,
+          compact_metadata: { trigger: "manual", pre_tokens: 28_350, post_tokens: 1_736 },
+        },
+        { type: "user", message: { role: "user", content: "This session is being continued…" }, session_id: SESSION },
+        ended,
+      ],
+      "<analysis>\nWhat the person asked, in order.\n</analysis>\n\n<summary>\n1. The plaza has a fountain.\n</summary>",
+    );
+    const engine = await engineWithLogin(fn);
+    const events: Array<{ type: string; payload: any }> = [];
+    const result = await engine.delegate({
+      prompt: "",
+      cwd: await tmpDir("claude-compact-"),
+      resume: SESSION,
+      compact: true,
+      readOnly: true,
+      onEvent: (event) => events.push(event),
+    });
+
+    assert.equal(seen[0]?.prompt, "/compact", "Claude Code's own command, alone");
+    assert.equal(seen[0]?.resume, SESSION);
+    assert.equal(result.ok, true);
+    assert.equal(result.compacted, true);
+    assert.equal(result.sessionId, SESSION, "the same session goes on");
+    assert.equal(result.summary, "1. The plaza has a fountain.", "the summary, without the model's scratch analysis");
+    assert.ok(
+      events.some((e) => e.type === "context" && e.payload.compacted === true),
+      "the context meter restarts",
+    );
+  });
+
+  it("a compaction Claude Code refused is not compacted, and says why", async () => {
+    const { fn } = compactingQuery(
+      [
+        status({ status: "compacting" }),
+        status({ status: null, compact_result: "failed", compact_error: "Not enough messages to compact." }),
+        init,
+        ended,
+      ],
+      null,
+    );
+    const engine = await engineWithLogin(fn);
+    const result = await engine.delegate({
+      prompt: "",
+      cwd: await tmpDir("claude-compact-"),
+      resume: SESSION,
+      compact: true,
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.compacted, undefined);
+    assert.equal(result.errorText, "Not enough messages to compact.");
+    assert.equal(result.sessionId, SESSION, "the session is untouched and still resumable");
+  });
+});

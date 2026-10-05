@@ -14,6 +14,13 @@ Silicon, the portable GGUF elsewhere. The fit rule is weights + KV cache (0.5–
 within 72% of unified memory on Apple Silicon (⅔ elsewhere). Recommendations are estimates; the
 large-Mac models added on 22 September 2026 have not been measured in Studio.
 
+An installed model's row offers Delete (a trash button, then Cancel or Delete on the row). A Bonsai
+delete removes the receipt first, stops a server loaded with that model, then deletes its weights
+and its finished download record; the shared projector, notices and runtime go too once no other
+Bonsai model keeps a receipt, weights or partial download. It is refused, removing nothing, while
+a download runs or a request holds the server. An Ollama delete only reaches Ollama for a name its
+`/api/tags` lists, and a cached default naming the deleted model is chosen again.
+
 Add from Ollama takes an exact model name (`name`, `name:tag`, `namespace/name:tag`). ollama.com
 has no search API, so main reads that tag's manifest from `registry.ollama.ai` (strict name validation,
 8-second timeout), sums its layers and applies the same fit rule before offering
@@ -137,6 +144,9 @@ the core/harness, worktrees, integration and finish. Scripted responses prove pl
 model quality. The focused Settings UI runner covers routing, section switching, download error recovery and
 hydration after closing/reopening, using synthetic jobs. The build UI smoke covers both packing rows, failed-download recovery,
 installed state, local worker selection under Codex and subscription roles under Bonsai.
+
+`bonsai.test.ts` and `engine-ollama.test.ts` also cover Delete: what goes, what another model
+keeps, and refusals that remove nothing.
 
 `model-catalog.test.ts` covers ranking, Best fit per tier, one build per architecture and
 "Needs a N GB Mac"; `ollama-registry.test.ts` covers name validation, manifest URLs and size sums

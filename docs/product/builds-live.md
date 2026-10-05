@@ -10,7 +10,7 @@ final judge. Maximum concurrent workers defaults to eight; saved choices stay. [
 owns completion and recovery details.
 
 An active run opens Builds once; later tab choices are the user's, except that showing a
-build from the chat opens Live. Builds is available when a plan or run exists; a stored Builds
+build from the chat opens Live. Without a plan or run, a stored Builds
 choice falls back to Live. A file or image opened from the chat adds a tab named for it until
 closed, with Show in Finder for files in the game folder.
 
@@ -19,7 +19,7 @@ closed, with Show in Finder for files in the game folder.
 **Live** plays the browser game in a native view (WebGL and WebGPU); hidden unobserved previews
 pause. The strip holds Live/Builds/Assets, Play/Stop, Reload, the sound switch (⌥⌘M; only a shown
 Live in front is heard), Full screen (hold Esc to leave) and plugin actions such as Publish (accent
-until listed). Stop halts the game until Play or Reload. Slow loads show a halftone loader and a
+until listed). Stop halts the game until Play or Reload. Slow loads show a halftone loader and
 shimmering “Loading game”. An empty scaffold shows “Ready for your first idea” (a computer), or
 “Building your game” (a crane) with Watch progress while a run works, Play latest once a build is
 ready; the first healthy build then shows itself. Otherwise only the user changes Live (opening a
@@ -32,7 +32,7 @@ preview reaches only public library CDNs; Open Game names other hosts.
 **Builds** is a graph: You asked, a row per part, Your build, then the lead while no part
 works. Tries at one step fold into one node; what reached the build forms the line, the rest
 hangs below. An eye marks nodes the reviewers looked at. A new build is “Checking it starts…” until
-it has run. A working node shows its agent's screen and action (“Pressing Space · 3s”). A selected
+it has run. Its header shows only time worked. A working node shows its agent's screen and action (“Pressing Space · 3s”). A selected
 node opens in place as a card without zooming; an eye opens it on the reviewers' notes. **Follow up in chat** turns the next message into a note to that node's build.
 An earlier build opens from its chat card.
 

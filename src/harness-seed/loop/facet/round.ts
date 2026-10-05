@@ -13,7 +13,6 @@ import { critiqueLiveness, growDefectChecks } from "./phases/learn.ts";
 import { keepOrRollBack, measureStyle, rememberAttempt } from "./phases/keep.ts";
 import { settleMoveAndGap } from "./phases/settle.ts";
 import { decideExit, publishRound } from "./phases/publish.ts";
-import { handOver } from "./phases/handover.ts";
 import type { FacetLoop, FacetRound } from "./state.ts";
 import type { RoundFlow } from "./flow.ts";
 
@@ -45,7 +44,6 @@ const ROUND_PHASES = [
   settleMoveAndGap,
   publishRound,
   decideExit,
-  handOver,
 ];
 
 /** Play one round: its phases in order, until one of them ends it. */

@@ -61,6 +61,7 @@ const MESSAGE = {
     `Ollama is not running at ${host} (it no longer answers). Start Ollama (or let the studio start its bundled copy) and try again.`,
   ModelMissing: (model: string) =>
     `the model ${model} is not installed in Ollama — pull it from the Models tab or pick another`,
+  NotInstalled: (model: string) => `${model || "This model"} is not installed in Ollama.`,
 } as const;
 
 /** A reply may use a quarter of its context, never more than the cap. */
@@ -524,6 +525,16 @@ export class OllamaEngine implements Engine {
     const agentic = models.find((m) => m.supportsTools && !m.stale) ?? models.find((m) => m.supportsTools);
     this.#defaultModel = agentic?.id ?? models[0]?.id ?? null;
     return this.#defaultModel;
+  }
+
+  /** Delete a model Ollama lists; any other name is refused before Ollama is asked to delete. */
+  async removeModel(id: string): Promise<void> {
+    const tags = await this.client.tags();
+    if (!tags.some((tag) => tag.name === id)) throw new Error(MESSAGE.NotInstalled(id));
+    await this.client.remove(id);
+    this.#providerModels.delete(id);
+    // A default that named the deleted model is chosen again from what is still installed.
+    if (this.#defaultModel === id) this.#defaultModel = null;
   }
 
   /** Lazily build pi-ai's provider around this host. */

@@ -28,14 +28,12 @@ const AFTER_TURN_MS = 1800;
 const CLAUDE_MODEL = "claude-opus-5-5";
 const CODEX_MODEL = "gpt-6-luna";
 const BONSAI_MODEL = "bonsai-2:27b-pq2_0";
-/** Lines of disposable context the first Codex turn carries, enough to cross its compaction threshold. */
+/** Lines of disposable context the first Codex turn carries: something worth compacting. */
 const FILLER_LINES = 650;
-const CODEX_TURNS = 3;
-/**
- * The custom threshold the Codex turns compact at, in percent of the model's catalog window:
- * about 26K of a 258K window, which the filler crosses.
- */
-const CODEX_COMPACT_PERCENT = 10;
+/** Compact Now on the app server: Codex's own compaction is minutes at most. */
+const COMPACT_TIMEOUT_MS = 10 * MINUTE_MS;
+/** What the last Codex turn asks of the compacted session. */
+const CODEX_MARKER_QUESTION = "What is the acceptance marker? Reply only the marker. No tools.";
 
 type EngineEvent = { type: string; payload: unknown };
 type Turn = { result: DelegateResult; events: EngineEvent[] };
@@ -98,11 +96,11 @@ async function turn(
     model,
     effort: ReasoningEffort.Low,
     readOnly: true,
-    timeoutMs: TURN_TIMEOUT_MS,
+    timeoutMs: options.compact ? COMPACT_TIMEOUT_MS : TURN_TIMEOUT_MS,
     maxTurns: 2,
     resume: options.resume,
     prompt,
-    ...(options.compact ? { contextPolicy: { mode: "custom" as const, thresholdPercent: CODEX_COMPACT_PERCENT } } : {}),
+    ...(options.compact ? { compact: true } : {}),
     onEvent: (event) => {
       if (event.type.startsWith("context") || event.type === "system") events.push(event);
     },
@@ -129,38 +127,29 @@ async function acceptClaude(acceptance: Acceptance, core: StudioCore): Promise<v
       (e) => e.type === "context_usage" && Number((e.payload as { promptTokens?: number }).promptTokens) > 0,
     ),
   );
-  const control = await claude.contextControl?.(CLAUDE_MODEL);
-  report.claudeCustomCompaction = control ?? { supported: false, reason: "No verified native threshold control" };
 }
 
-/** Three resumed turns: a marker planted under enough filler to compact, then asked for back. */
+/**
+ * A marker planted under filler, the session compacted with Codex's own compaction (Compact Now),
+ * then the marker asked for back from the same session.
+ */
 async function acceptCodex(acceptance: Acceptance, core: StudioCore): Promise<void> {
   const { check, report } = acceptance;
   const codex = new CodexEngine({ engineHome: path.join(core.layout.engineHomes, "live-codex") });
-  report.codexControl = await codex.contextControl?.(CODEX_MODEL);
-  const turns: Turn[] = [];
-  let resume: string | undefined;
-  for (let index = 0; index < CODEX_TURNS; index++) {
-    const value = await turn(acceptance.cwd, codex, CODEX_MODEL, codexPrompt(index), { resume, compact: true });
-    turns.push(value);
-    resume = value.result.sessionId;
-    if (!value.result.ok) break;
-  }
-  report.codex = turns;
-  const last = turns.at(-1);
-  const allAnswered = turns.length === CODEX_TURNS && turns.every((t) => t.result.ok);
+  const planted = await turn(acceptance.cwd, codex, CODEX_MODEL, codexMarkerPrompt());
+  const resume = planted.result.sessionId;
+  const compacted = await turn(acceptance.cwd, codex, CODEX_MODEL, "", { resume, compact: true });
+  const asked = await turn(acceptance.cwd, codex, CODEX_MODEL, CODEX_MARKER_QUESTION, { resume });
+  report.codex = [planted, compacted, asked];
+  check("Codex compacts the session with its own compaction", compacted.result.compacted === true);
+  check("Codex compacts in place: the session keeps its id", compacted.result.sessionId === resume);
   check(
-    "Codex resumes and preserves original requirements",
-    allAnswered && Boolean(last?.result.summary.includes("PINE-4826")),
-  );
-  check(
-    "Codex performs native compaction at the configured threshold",
-    turns.some((t) => t.events.some((e) => (e.payload as { compacted?: boolean }).compacted)),
+    "Codex resumes the compacted session and preserves original requirements",
+    asked.result.ok && asked.result.summary.includes("PINE-4826"),
   );
 }
 
-function codexPrompt(index: number): string {
-  if (index > 0) return "What is the acceptance marker? Reply only the marker. No tools.";
+function codexMarkerPrompt(): string {
   const filler = Array.from(
     { length: FILLER_LINES },
     (_, n) => `Record ${n}: This is disposable test context. It does not request work or actions.`,

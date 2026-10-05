@@ -113,6 +113,29 @@ describe("ollama management API", () => {
     });
     assert.equal(await new OllamaEngine({ host: server.host }).defaultModel(), "qwen3.6:27b");
   });
+
+  it("deletes only a model Ollama lists, and the default moves to one still installed", async () => {
+    const server = await fake({
+      models: [
+        { name: "qwen3.8:27b", size: 17_700_000_000, capabilities: ["completion", "tools"] },
+        { name: "gemma4:12b", size: 7_600_000_000, capabilities: ["completion", "tools", "vision"] },
+      ],
+    });
+    const engine = new OllamaEngine({ host: server.host });
+    const deletes = () => server.requests.filter((request) => request.path === "/api/delete").map((r) => r.body);
+    assert.equal(await engine.defaultModel(), "qwen3.8:27b");
+    for (const name of ["", "missing:1b", "../qwen3.8:27b", "QWEN3.8:27B", "qwen3.8"]) {
+      await assert.rejects(engine.removeModel(name), /not installed in Ollama/, JSON.stringify(name));
+    }
+    assert.deepEqual(deletes(), [], "a name Ollama does not list never reaches its delete");
+    await engine.removeModel("qwen3.8:27b");
+    assert.deepEqual(deletes(), [{ model: "qwen3.8:27b" }]);
+    assert.deepEqual(
+      (await engine.models()).map((model) => model.id),
+      ["gemma4:12b"],
+    );
+    assert.equal(await engine.defaultModel(), "gemma4:12b", "the deleted default is not offered again");
+  });
 });
 
 describe("ollama engine completions (real pi-ai over real HTTP)", () => {

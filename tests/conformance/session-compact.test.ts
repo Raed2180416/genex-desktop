@@ -8,7 +8,7 @@ import { describe, it } from "node:test";
 import { buildContractorBrief } from "../../src/harness-seed/loop/chat-session.ts";
 import * as delegatedTurn from "../../src/harness-seed/loop/delegated-turn.ts";
 import { freshChat } from "../../src/harness-seed/loop/director/lead-session.ts";
-import { compactedSummary } from "../../src/harness-seed/loop/compaction-log.ts";
+import { compactedSummary, endedByCompaction } from "../../src/harness-seed/loop/compaction-log.ts";
 import { ctxRecorder } from "../helpers/ctx-recorder.ts";
 
 const THREAD = "thread_compact";
@@ -25,6 +25,25 @@ describe("what a session is briefed with after its chat was compacted", () => {
     assert.equal(compactedSummary([]), null);
     assert.equal(compactedSummary([compacted("0000002", "older"), compacted("0000005", HANDOVER)]), HANDOVER);
     assert.equal(compactedSummary([compacted("0000002", "   ")]), null, "an empty handover is none");
+  });
+
+  it("reads past a Codex compaction, which keeps its summary sealed in its session", () => {
+    const sealed = {
+      id: "0000007",
+      data: { type: "custom", event_type: "compacted", payload: { engine: "codex", native: true, sessionId: "s" } },
+    };
+    assert.equal(compactedSummary([compacted("0000005", HANDOVER), sealed]), HANDOVER);
+    assert.equal(compactedSummary([sealed]), null);
+  });
+
+  it("a handover ends the session it names; a provider's own compaction keeps it", () => {
+    const ended = { id: "0000003", data: { type: "custom", event_type: "compacted", payload: { sessionId: "ses-1" } } };
+    const native = {
+      id: "0000004",
+      data: { type: "custom", event_type: "compacted", payload: { sessionId: "ses-2", native: true } },
+    };
+    assert.equal(endedByCompaction([ended, native], "ses-1"), true);
+    assert.equal(endedByCompaction([ended, native], "ses-2"), false, "the provider compacted it in place");
   });
 
   it("a fresh session is given the handover beside the recent conversation; a resumed one is not", () => {

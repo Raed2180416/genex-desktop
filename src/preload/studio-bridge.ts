@@ -209,6 +209,7 @@ function studioCalls(bridge: BridgeCalls) {
     cliInstallStatus: () => invoke("studio:cli-install.status"),
     pullModel: (model) => invoke("studio:pull-model", { model }),
     lookupModel: (model) => invoke("studio:models.lookup", { model }),
+    removeModel: (model) => invoke("studio:models.remove", { model }),
     openUrl: (url) => invoke("studio:open-url", { url }),
     notify: (note) => invoke("studio:notify", note),
     setBadge: (count) => invoke("studio:badge", { count }),

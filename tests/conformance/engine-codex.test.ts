@@ -22,6 +22,7 @@ import {
   unwrapShell,
   type CodexExec,
 } from "../../src/substrate/engines/codex.ts";
+import type { CodexAppServer } from "../../src/substrate/engines/codex-app-server.ts";
 import { parseCodexAuthStatus } from "../../src/substrate/engines/codex-cli.ts";
 import {
   lockUnowned,
@@ -1405,4 +1406,139 @@ it("catalog refresh failure retains known models and throttles retries without i
     ["default", "gpt-6-sol"],
   );
   assert.equal(calls, 2);
+});
+
+/**
+ * Compact now on Codex. `codex exec` has no compaction command, so the chat's session compacts on
+ * Codex's own app server (`thread/compact/start`, CLI 0.160) and `exec resume` goes on with it
+ * under the same id. The fake below answers in the order a live app server did.
+ */
+describe("Compact now on codex", () => {
+  const THREAD = "01a10ba5-thread";
+  type Ending = { status: string; error?: string } | { resumeError: string };
+  function fakeAppServer(ending: Ending) {
+    const sent: Array<Record<string, any>> = [];
+    const launches: Array<{ argv: string[]; cwd: string; env: Record<string, string> }> = [];
+    const fn: CodexAppServer = (invocation) => {
+      launches.push({ argv: invocation.argv, cwd: invocation.cwd, env: invocation.env });
+      const queue: Array<Record<string, unknown>> = [];
+      let wake: (() => void) | null = null;
+      let closed = false;
+      const push = (...messages: Array<Record<string, unknown>>) => {
+        queue.push(...messages);
+        wake?.();
+      };
+      const turn = { threadId: THREAD, turnId: "turn-1" };
+      const compaction = { type: "contextCompaction", id: "item-1" };
+      return {
+        send(message) {
+          sent.push(message);
+          const { id, method } = message;
+          if (method === "initialize") push({ id, result: { userAgent: "codex/0.160.0" } });
+          if (method === "thread/resume" && "resumeError" in ending)
+            push({ id, error: { code: -32600, message: ending.resumeError } });
+          else if (method === "thread/resume") push({ id, result: { thread: { id: THREAD } } });
+          if (method !== "thread/compact/start" || "resumeError" in ending) return;
+          push(
+            { id, result: {} },
+            { method: "turn/started", params: { threadId: THREAD, turn: { id: "turn-1", status: "inProgress" } } },
+            { method: "item/started", params: { ...turn, item: compaction } },
+            ...(ending.status === "completed"
+              ? [{ method: "item/completed", params: { ...turn, item: compaction } }]
+              : []),
+            {
+              method: "turn/completed",
+              params: {
+                threadId: THREAD,
+                turn: { id: "turn-1", status: ending.status, error: ending.error ? { message: ending.error } : null },
+              },
+            },
+          );
+        },
+        close() {
+          closed = true;
+          wake?.();
+        },
+        messages: {
+          async *[Symbol.asyncIterator]() {
+            for (;;) {
+              const next = queue.shift();
+              if (next) {
+                yield next;
+                continue;
+              }
+              if (closed) return;
+              await new Promise<void>((resolve) => {
+                wake = resolve;
+              });
+              wake = null;
+            }
+          },
+        },
+      };
+    };
+    return { fn, sent, launches };
+  }
+  async function compactingEngine(appServerFn: CodexAppServer) {
+    const root = await tmpDir("studio-codex-compact-");
+    const home = path.join(root, "codex-home");
+    await mkdir(home, { recursive: true });
+    await writeFile(path.join(home, "auth.json"), "{}");
+    const engine = new CodexEngine({
+      resolveCli: fixtureCodingCli,
+      engineHome: home,
+      systemHome: path.join(root, "no-system-login"),
+      executable: "/fake/codex",
+      authStatusFn: async () => ({ loggedIn: true, method: "chatgpt", detail: "Logged in using ChatGPT" }),
+      execFn: fakeExec([]).fn,
+      appServerFn,
+    });
+    return { engine, home, cwd: root };
+  }
+
+  it("compacts the resumed thread on Codex's app server; the session goes on under the same id", async () => {
+    const server = fakeAppServer({ status: "completed" });
+    const { engine, home, cwd } = await compactingEngine(server.fn);
+    const result = await engine.delegate({ prompt: "", cwd, resume: THREAD, compact: true, readOnly: true });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.compacted, true);
+    assert.equal(result.sessionId, THREAD);
+    assert.equal(result.summary, "", "Codex keeps its summary sealed inside the session");
+    assert.equal(server.launches[0]?.argv[0], "app-server");
+    assert.equal(server.launches[0]?.env.CODEX_HOME, home, "the same sign-in as its exec turns");
+    assert.deepEqual(
+      server.sent.map((m) => [m.method, m.params?.threadId]),
+      [
+        ["initialize", undefined],
+        ["initialized", undefined],
+        ["thread/resume", THREAD],
+        ["thread/compact/start", THREAD],
+      ],
+    );
+  });
+
+  it("a compaction that failed is not compacted, and says why", async () => {
+    const server = fakeAppServer({ status: "failed", error: "You've hit your usage limit." });
+    const { engine, cwd } = await compactingEngine(server.fn);
+    const result = await engine.delegate({ prompt: "", cwd, resume: THREAD, compact: true });
+    assert.equal(result.ok, false);
+    assert.equal(result.compacted, undefined);
+    assert.equal(result.errorText, "You've hit your usage limit.");
+    assert.equal(result.sessionId, THREAD);
+  });
+
+  it("a thread the app server cannot open is not compacted", async () => {
+    const server = fakeAppServer({ resumeError: "no rollout found for thread id 01a10ba5-thread" });
+    const { engine, cwd } = await compactingEngine(server.fn);
+    const result = await engine.delegate({ prompt: "", cwd, resume: THREAD, compact: true });
+    assert.equal(result.ok, false);
+    assert.equal(result.compacted, undefined);
+    assert.equal(result.errorText, "no rollout found for thread id 01a10ba5-thread");
+    assert.deepEqual(
+      server.sent.map((m) => m.method),
+      ["initialize", "initialized", "thread/resume"],
+      "nothing is compacted once the thread failed to open",
+    );
+  });
 });

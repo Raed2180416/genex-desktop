@@ -303,6 +303,24 @@ test("a compaction forgets every session recorded before it, as a rewind does", 
   );
 });
 
+test("a provider's own compaction keeps the session it compacted: the next turn resumes it", () => {
+  const init = custom(19, "delegated.claude-code", { kind: "system", data: { subtype: "init", session_id: "ses-1" } });
+  const native = custom(20, "compacted", {
+    engine: "claude-code",
+    summary: "where the chat stands",
+    native: true,
+    sessionId: "ses-1",
+  });
+  const view = harnessView([...conversation(), init, native], []);
+  assert.equal(lastContractorSession(view, "claude-code")?.sessionId, "ses-1", "the compacted session goes on");
+  const earlier = custom(18, "compacted", { engine: "claude-code", summary: "older", upTo: "0000007" });
+  assert.equal(
+    lastContractorSession(harnessView([...conversation(), earlier, init, native], []), "claude-code")?.sessionId,
+    "ses-1",
+    "a handover before it still ends only the sessions before the handover",
+  );
+});
+
 test("a run's mirrored session never becomes the chat's session, rewound or not", () => {
   const directorInit = custom(20, "delegated.claude-code", {
     kind: "system",

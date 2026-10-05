@@ -169,6 +169,7 @@ const METHODS = [
   "pullModel",
   "lookupModel",
   "cancelModelDownload",
+  "removeModel",
   "revealProject",
   "readGameFile",
   "revealGameFile",

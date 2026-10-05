@@ -76,12 +76,12 @@ import {
   AUTO_UPDATE_ENABLED,
   UPDATE_REPO,
   UpdateMode,
-  askUpdater,
   autoUpdateDecision,
   createUpdateAnnouncer,
   createUpdateChecker,
   startAutoUpdate,
   updateCheckNote,
+  watchInstaller,
 } from "./auto-update.ts";
 import { RELEASE_CHECK_INTERVAL_MS, latestRelease } from "./release-check.ts";
 import { UpdateAction } from "../shared/app-update.ts";
@@ -390,12 +390,14 @@ const updateDecision = autoUpdateDecision({
   testLaunch: isSmoke || isSelfTest,
   productName: app.getName(),
 });
+/** The installer's checks, watched from launch so Check for Updates never collides with one (./auto-update.ts). */
+const installer = watchInstaller(autoUpdater);
 /** Check for Updates, from Settings and the app menu; Linux's periodic check runs it too. */
 const updateChecker = createUpdateChecker({
   decision: updateDecision,
   current: app.getVersion(),
   updates,
-  askInstaller: () => askUpdater(autoUpdater),
+  askInstaller: () => installer.ask(),
   latestRelease: () => latestRelease({ repo: UPDATE_REPO, current: app.getVersion(), fetchImpl: net.fetch }),
 });
 const uiEvents: UiEvent[] = [];

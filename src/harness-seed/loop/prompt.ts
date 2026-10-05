@@ -317,7 +317,9 @@ function noteOf(data: AnyRecord): Message | null {
 
 /**
  * The summary replaces the messages it covered (events up to `upTo`); everything after —
- * the kept tail — stays verbatim. Without `upTo`, it covers all messages so far.
+ * the kept tail — stays verbatim. Without `upTo`, it covers all messages so far. A compaction
+ * with no summary replaces nothing: Codex's own keeps its summary sealed inside its session, and a
+ * prompt built from the log still needs the messages.
  *
  * Covered is by position: through the last message whose event is not newer than `upTo`. The
  * sources are not in id order after a compaction — the earlier summary leads, newer than the
@@ -325,6 +327,7 @@ function noteOf(data: AnyRecord): Message | null {
  * compaction's cut fell inside that tail, and the prompt never shrank (P16-F2).
  */
 function replaceCompacted(messages: Message[], sources: string[], eventId: string, payload: AnyRecord): void {
+  if (!String(payload.summary ?? "").trim()) return;
   const covered = payload.upTo ? sources.findLastIndex((source) => source <= payload.upTo) + 1 : messages.length;
   messages.splice(0, covered);
   sources.splice(0, covered);

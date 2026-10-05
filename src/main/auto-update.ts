@@ -14,6 +14,11 @@
  * notification that restarts when clicked. Either way it installs at the next quit. A Linux
  * release is announced the same way, as a download. Check for Updates (Settings, the app menu)
  * asks now (`createUpdateChecker`).
+ *
+ * Squirrel.Mac runs one check at a time, its download included, and refuses another asked
+ * meanwhile; asked again after a download, it gets 304 for the same zip and Electron then
+ * forgets the update. So Check for Updates goes through `watchInstaller`, which answers from a
+ * check already running, and the periodic checks stop once a version is downloaded.
  */
 import { SECOND_MS } from "../shared/duration.ts";
 import { type ReadyUpdate, UpdateAction, type UpdateCheckResult, UpdateCheckStatus } from "../shared/app-update.ts";
@@ -37,6 +42,17 @@ const NOTIFY_PLATFORMS: ReadonlySet<NodeJS.Platform> = new Set(["linux"]);
 const INSTALL_CHECK_TIMEOUT_MS = 30 * SECOND_MS;
 /** A semantic version inside a release name: "Genex 0.2.0", "v0.2.0", "0.3.0-rc.2". */
 const RELEASE_VERSION = /\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?/;
+/** Squirrel.Mac's refusal of a check asked while one runs (ReactiveObjC's RACCommandErrorNotEnabled). */
+const SQUIRREL_BUSY = { domain: "RACCommandErrorDomain", code: 1 } as const;
+
+/** Electron autoUpdater's events, in its spelling. */
+const UpdaterEvent = {
+  CheckingForUpdate: "checking-for-update",
+  UpdateAvailable: "update-available",
+  UpdateNotAvailable: "update-not-available",
+  UpdateDownloaded: "update-downloaded",
+  Error: "error",
+} as const;
 
 /** Why a launch does not check for updates. */
 export const UpdateSkip = {
@@ -203,35 +219,84 @@ export const InstallCheck = {
 } as const;
 export type InstallCheck = (typeof InstallCheck)[keyof typeof InstallCheck];
 
+/** What Electron's autoUpdater is doing, as its events tell. */
+export const InstallerPhase = {
+  Idle: "idle",
+  /** A check runs; on macOS another one asked now is refused. */
+  Checking: "checking",
+  /** A newer version was found and downloads, still inside that check. */
+  Downloading: "downloading",
+  /** A version is downloaded and installs at the next quit. */
+  Downloaded: "downloaded",
+} as const;
+export type InstallerPhase = (typeof InstallerPhase)[keyof typeof InstallerPhase];
+
 /** The part of Electron's autoUpdater one check uses. */
 export interface CheckableUpdater {
-  once(event: string, listener: () => void): unknown;
-  removeListener(event: string, listener: () => void): unknown;
+  once(event: string, listener: (error?: unknown) => void): unknown;
+  removeListener(event: string, listener: (error?: unknown) => void): unknown;
   checkForUpdates(): void;
+}
+
+/** The part of Electron's autoUpdater `watchInstaller` uses: one check, and its events from launch. */
+export interface WatchableUpdater extends CheckableUpdater {
+  on(event: string, listener: (error?: unknown) => void): unknown;
 }
 
 /** The autoUpdater's events, and what each answers. */
 const INSTALL_ANSWERS: readonly (readonly [string, InstallCheck])[] = [
-  ["update-not-available", InstallCheck.None],
-  ["update-available", InstallCheck.Found],
-  ["update-downloaded", InstallCheck.Downloaded],
-  ["error", InstallCheck.Failed],
+  [UpdaterEvent.UpdateNotAvailable, InstallCheck.None],
+  [UpdaterEvent.UpdateAvailable, InstallCheck.Found],
+  [UpdaterEvent.UpdateDownloaded, InstallCheck.Downloaded],
+  [UpdaterEvent.Error, InstallCheck.Failed],
 ];
 
-/** Ask the autoUpdater once: its first answer, or failed on a throw or after `timeoutMs`. */
+/** The autoUpdater's events, and the phase each one starts. */
+const INSTALLER_PHASES: readonly (readonly [string, InstallerPhase])[] = [
+  [UpdaterEvent.CheckingForUpdate, InstallerPhase.Checking],
+  [UpdaterEvent.UpdateAvailable, InstallerPhase.Downloading],
+  [UpdaterEvent.UpdateDownloaded, InstallerPhase.Downloaded],
+  [UpdaterEvent.UpdateNotAvailable, InstallerPhase.Idle],
+  [UpdaterEvent.Error, InstallerPhase.Idle],
+];
+
+/** Whether an autoUpdater error only refused a second check, leaving the running one to answer. */
+function refusedAsBusy(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  if (!("domain" in error) || !("code" in error)) return false;
+  return error.domain === SQUIRREL_BUSY.domain && error.code === SQUIRREL_BUSY.code;
+}
+
+/**
+ * Ask the autoUpdater once: its first answer, or failed on a throw or after `timeoutMs`. A
+ * download already running answers found, and a downloaded version downloaded, without asking:
+ * the first asks Squirrel nothing it can take, the second would make Electron forget the update.
+ * While a check runs, or when Squirrel refuses this one as busy, the running check answers.
+ */
 export function askUpdater(
   updater: CheckableUpdater,
-  { timeoutMs = INSTALL_CHECK_TIMEOUT_MS }: { timeoutMs?: number } = {},
+  {
+    timeoutMs = INSTALL_CHECK_TIMEOUT_MS,
+    phase = () => InstallerPhase.Idle,
+  }: { timeoutMs?: number; phase?: () => InstallerPhase } = {},
 ): Promise<InstallCheck> {
+  const now = phase();
+  if (now === InstallerPhase.Downloading) return Promise.resolve(InstallCheck.Found);
+  if (now === InstallerPhase.Downloaded) return Promise.resolve(InstallCheck.Downloaded);
   return new Promise((resolve) => {
-    const listeners = INSTALL_ANSWERS.map(([event, answer]) => [event, () => finish(answer)] as const);
+    const answer = (check: InstallCheck) => (error?: unknown) => {
+      if (check === InstallCheck.Failed && refusedAsBusy(error)) return;
+      finish(check);
+    };
+    const listeners = INSTALL_ANSWERS.map(([event, check]) => [event, answer(check)] as const);
     const timer = setTimeout(() => finish(InstallCheck.Failed), timeoutMs);
-    function finish(answer: InstallCheck): void {
+    function finish(check: InstallCheck): void {
       clearTimeout(timer);
       for (const [event, listener] of listeners) updater.removeListener(event, listener);
-      resolve(answer);
+      resolve(check);
     }
     for (const [event, listener] of listeners) updater.once(event, listener);
+    if (now === InstallerPhase.Checking) return;
     try {
       updater.checkForUpdates();
     } catch {
@@ -240,13 +305,31 @@ export function askUpdater(
   });
 }
 
+/**
+ * Electron's autoUpdater, watched from launch, so Check for Updates knows the periodic check it
+ * would collide with. A refused check changes nothing, and a downloaded version stays downloaded.
+ */
+export function watchInstaller(
+  updater: WatchableUpdater,
+  options: { timeoutMs?: number } = {},
+): { ask(): Promise<InstallCheck> } {
+  let phase: InstallerPhase = InstallerPhase.Idle;
+  for (const [event, next] of INSTALLER_PHASES) {
+    updater.on(event, (error) => {
+      if (phase === InstallerPhase.Downloaded || refusedAsBusy(error)) return;
+      phase = next;
+    });
+  }
+  return { ask: () => askUpdater(updater, { ...options, phase: () => phase }) };
+}
+
 /** What Check for Updates needs: this launch's decision, the announcer, and the two ways to ask. */
 export interface UpdateCheckerDeps {
   decision: UpdateDecision;
   /** The running version (`app.getVersion()`). */
   current: string;
   updates: Pick<UpdateAnnouncer, "ready" | "available">;
-  /** macOS/Windows: ask the installer (`askUpdater(autoUpdater)`). */
+  /** macOS/Windows: ask the installer (`watchInstaller(autoUpdater).ask`). */
   askInstaller(): Promise<InstallCheck>;
   /** Linux: ask GitHub for the newest published release (`latestRelease`). */
   latestRelease(): Promise<ReleaseCheck>;
@@ -319,14 +402,54 @@ export interface AutoUpdateDeps {
   downloaded(releaseName: string): void;
 }
 
-/** Starts the periodic update checks; call only when `autoUpdateDecision` says start. */
-export async function startAutoUpdate({ log, downloaded }: AutoUpdateDeps): Promise<void> {
+/** The logger update-electron-app writes to: a word, then values (a URL, headers, an Error). */
+type UpdaterLogger = Record<"log" | "info" | "warn" | "error", (...parts: unknown[]) => void>;
+
+/** What Genex hands update-electron-app beyond the feed and the cadence. */
+export interface PeriodicUpdateOptions {
+  logger: UpdaterLogger;
+  onNotifyUser(info: { releaseName?: string }): void;
+}
+
+/** Started periodic checks, which stop on request. */
+interface PeriodicUpdates {
+  stopUpdates(): void;
+}
+
+/** One log line from the updater's arguments: words and error messages; objects (headers, release notes) stay out. */
+function updaterLogLine(parts: readonly unknown[]): string {
+  const words = parts.flatMap((part) => {
+    if (part instanceof Error) return [part.message];
+    if (typeof part === "string" || typeof part === "number" || typeof part === "boolean") return [String(part)];
+    return [];
+  });
+  return words.join(" ");
+}
+
+/** update-electron-app on update.electronjs.org: a check now, then one every `UPDATE_CHECK_INTERVAL`. */
+async function startUpdateElectronApp(options: PeriodicUpdateOptions): Promise<PeriodicUpdates> {
   const { UpdateSourceType, updateElectronApp } = await import("update-electron-app");
-  updateElectronApp({
+  return updateElectronApp({
     updateSource: { type: UpdateSourceType.ElectronPublicUpdateService, repo: UPDATE_REPO },
     updateInterval: UPDATE_CHECK_INTERVAL,
-    logger: { log, info: log, warn: log, error: log },
     notifyUser: true,
-    onNotifyUser: ({ releaseName }) => downloaded(releaseName ?? ""),
+    ...options,
+  });
+}
+
+/** Starts the periodic update checks; call only when `autoUpdateDecision` says start. */
+export async function startAutoUpdate(
+  { log, downloaded }: AutoUpdateDeps,
+  start: (options: PeriodicUpdateOptions) => Promise<PeriodicUpdates> = startUpdateElectronApp,
+): Promise<void> {
+  const write = (...parts: unknown[]) => log(updaterLogLine(parts));
+  const periodic = await start({
+    logger: { log: write, info: write, warn: write, error: write },
+    // A download finishes long after the checks start, so `periodic` is set by then.
+    onNotifyUser: ({ releaseName }) => {
+      // Asked again, Squirrel.Mac gets 304 for the same zip and Electron forgets the update.
+      periodic.stopUpdates();
+      downloaded(releaseName ?? "");
+    },
   });
 }
