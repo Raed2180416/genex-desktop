@@ -7,7 +7,7 @@ import { EngineId } from "../../shared/providers.ts";
 import type { LocalModelChoice } from "../../shared/studio-api.ts";
 import { UiEvent, type UiEventMap } from "../../shared/ui-events.ts";
 import type { EngineDescriptor } from "../types.ts";
-import { stoppedDownload, type StoppedDownload } from "../model-download.ts";
+import { needsOllama, ollamaDownloadPage, stoppedDownload, type StoppedDownload } from "../model-download.ts";
 import { Button } from "../ui/Button.tsx";
 import { Icon } from "../ui/icons.tsx";
 import type { ModelSettingsProps } from "./ModelsSection.tsx";
@@ -30,6 +30,10 @@ type Lookup = Awaited<ReturnType<typeof window.studio.lookupModel>>;
 
 /** Ollama names an untagged pull `:latest`; compare installed models the same way. */
 const canonical = (id: string): string => (id.includes(":") ? id : `${id}:latest`);
+
+/** Opens Ollama's download page for the platform main runs on; the person installs it there. */
+const openOllamaDownload = (): void =>
+  void window.studio.bootState().then(({ platform }) => window.studio.openUrl(ollamaDownloadPage(platform)));
 
 /** "uses ~22 of 23 GB" with a small meter, or the Mac it needs. */
 function Fit({
@@ -189,6 +193,39 @@ function ResumeAction({
   );
 }
 
+/** Download, with Install Ollama before it when the last try found no Ollama running. */
+function DownloadAction({
+  title,
+  best,
+  busy,
+  onDownload,
+  onInstallOllama,
+}: {
+  title: string;
+  best: boolean;
+  busy: boolean;
+  onDownload: () => void;
+  onInstallOllama: (() => void) | null;
+}): JSX.Element {
+  const download = (
+    <Button
+      variant={best ? "default" : "secondary"}
+      disabled={busy}
+      onClick={onDownload}
+      aria-label={`Download ${title}`}
+    >
+      Download
+    </Button>
+  );
+  if (!onInstallOllama) return download;
+  return (
+    <div className="flex shrink-0 items-center gap-2">
+      <Button onClick={onInstallOllama}>Install Ollama</Button>
+      {download}
+    </div>
+  );
+}
+
 /** A model row's action: its download's progress (and Cancel), Installed with Delete, Resume, or Download when it fits. */
 function ModelAction({
   pick,
@@ -202,6 +239,7 @@ function ModelAction({
   busy,
   deletion,
   onDownload,
+  onInstallOllama,
   onCancel,
 }: {
   pick: LocalModelChoice;
@@ -215,6 +253,7 @@ function ModelAction({
   busy: boolean;
   deletion: RowDeletion;
   onDownload: () => void;
+  onInstallOllama: (() => void) | null;
   onCancel: () => void;
 }): JSX.Element | null {
   if (pulling)
@@ -236,14 +275,7 @@ function ModelAction({
     return <ResumeAction title={title} percent={stopped.percent} best={best} busy={busy} onResume={onDownload} />;
   if (!pick.fits) return null;
   return (
-    <Button
-      variant={best ? "default" : "secondary"}
-      disabled={busy}
-      onClick={onDownload}
-      aria-label={`Download ${title}`}
-    >
-      Download
-    </Button>
+    <DownloadAction title={title} best={best} busy={busy} onDownload={onDownload} onInstallOllama={onInstallOllama} />
   );
 }
 
@@ -272,6 +304,8 @@ function ModelRow(props: {
   deletion: RowDeletion;
   usable: number;
   onDownload: () => void;
+  /** Opens Ollama's download page; offered when this model's download found no Ollama running. */
+  onInstallOllama: (() => void) | null;
   onCancel: () => void;
 }): JSX.Element {
   const { pick, best, pulling, stopped, usable } = props;
@@ -396,6 +430,8 @@ function useModelInstalls(onEnginesRefresh: () => void) {
       onEnginesRefresh();
     } catch (err) {
       setFailure({ model, message: errorMessage(err) });
+      // Whether Ollama runs decides what the row offers next.
+      onEnginesRefresh();
     } finally {
       setPulling(null);
     }
@@ -482,11 +518,13 @@ function FoundModel({
   installs,
   installed,
   usable,
+  onInstallOllama,
 }: {
   found: Extract<Lookup, { ok: true }>;
   installs: ReturnType<typeof useModelInstalls>;
   installed: boolean;
   usable: number;
+  onInstallOllama: (() => void) | null;
 }): JSX.Element {
   const { pulling, pull } = installs;
   const percent = Math.round(installs.progress * 100);
@@ -501,9 +539,13 @@ function FoundModel({
       );
     if (!found.fits) return null;
     return (
-      <Button disabled={pulling !== null} onClick={() => void pull(found.id)} aria-label={`Download ${found.id}`}>
-        Download
-      </Button>
+      <DownloadAction
+        title={found.id}
+        best={false}
+        busy={pulling !== null}
+        onDownload={() => void pull(found.id)}
+        onInstallOllama={onInstallOllama}
+      />
     );
   };
   return (
@@ -528,11 +570,13 @@ function AddFromOllama({
   installs,
   installed,
   usable,
+  installOllamaFor,
 }: {
   ollama: EngineDescriptor | undefined;
   installs: ReturnType<typeof useModelInstalls>;
   installed: Set<string>;
   usable: number;
+  installOllamaFor: (model: string) => (() => void) | null;
 }): JSX.Element {
   const [tag, setTag] = useState("");
   const [checking, setChecking] = useState(false);
@@ -601,7 +645,13 @@ function AddFromOllama({
         </p>
       )}
       {found && (
-        <FoundModel found={found} installs={installs} installed={installed.has(canonical(found.id))} usable={usable} />
+        <FoundModel
+          found={found}
+          installs={installs}
+          installed={installed.has(canonical(found.id))}
+          usable={usable}
+          onInstallOllama={installOllamaFor(found.id)}
+        />
       )}
     </form>
   );
@@ -687,6 +737,9 @@ export function LocalModelsSection({ engines, onEnginesRefresh }: ModelSettingsP
   };
   const [moreOpen, setMoreOpen] = useState(false);
   const ollama = engines.find((engine) => engine.id === EngineId.Ollama);
+  /** Install Ollama beside an Ollama model's Download, once its download found no Ollama running. */
+  const installOllamaFor = (model: string): (() => void) | null =>
+    failure?.model === model && needsOllama(ollama) ? openOllamaDownload : null;
   const installed = new Set(engines.flatMap((engine) => engine.models.map((model) => canonical(model.id))));
   const recommendation = hardware?.recommendation;
   const catalogIds = new Set(
@@ -715,6 +768,7 @@ export function LocalModelsSection({ engines, onEnginesRefresh }: ModelSettingsP
       busy={pulling !== null}
       deletion={deletion(pick.model)}
       onDownload={() => void installs.pull(pick.model)}
+      onInstallOllama={pick.engine === EngineId.Bonsai ? null : installOllamaFor(pick.model)}
       onCancel={() => void window.studio.cancelModelDownload()}
     />
   );
@@ -742,7 +796,15 @@ export function LocalModelsSection({ engines, onEnginesRefresh }: ModelSettingsP
         <MoreModels more={recommendation.more} open={showMore} onToggle={() => setMoreOpen(!showMore)} row={row} />
       )}
 
-      {hardware && <AddFromOllama ollama={ollama} installs={installs} installed={installed} usable={usable} />}
+      {hardware && (
+        <AddFromOllama
+          ollama={ollama}
+          installs={installs}
+          installed={installed}
+          usable={usable}
+          installOllamaFor={installOllamaFor}
+        />
+      )}
     </div>
   );
 }
