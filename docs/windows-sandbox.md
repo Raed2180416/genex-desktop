@@ -44,7 +44,9 @@ srt-win is alpha. Every srt host on the machine shares the
 `srt-sandbox` SID and so each other's grants and denies; revoking an `(RA)` grant also removes
 one another host made there (fail closed). DNS still resolves; the proxy token is on the
 runner's command line. A folder opened while the harness runs is writable only after it next
-stops. Every sandboxed process can read a run's env file until the command deletes it, and PATH
+stops. An `icacls` grant walks everything under its folder (1.6 s per 10,000 files on a hosted
+runner) and holds each folder open meanwhile: an apply with a root under `AppData` walks all of
+it. Every sandboxed process can read a run's env file until the command deletes it, and PATH
 folders under the profile whole. A broker outlives an Electron crash.
 
 ## CI and curated suite
@@ -62,5 +64,8 @@ session, env file and launch through fakes; runs everywhere) and `sandbox-window
 real srt-win's hostile-input tables; skipped unless `GENEX_WINDOWS_SANDBOX=ready`). A dispatch
 with `backlog` also runs the rest of the fast group as an informational pass that never fails;
 the job summary and `windows-tests` artifact list failing files and tests and clean files not yet
-in the suite. A dispatch with `files` runs only those files after the sandbox setup
+in the suite. Test files run side by side, so one file's ancestor grants walk the folders the
+others keep in `%TEMP%`: tests remove theirs with `removeTree` (`tests/helpers/tmp.ts`), and a
+test of session logic hands `ProcessSandbox` a `WindowsSandboxSession` over fake ancestor grants.
+A dispatch with `files` runs only those files after the sandbox setup
 (`gh workflow run windows.yml --ref <branch> -f files="tests/a.test.ts"`). `.gitattributes` keeps every checkout LF.

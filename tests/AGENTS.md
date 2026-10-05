@@ -35,7 +35,10 @@ through the JS API imports `@typescript/typescript6`.
   drives the Zustand stores through `createStudio` with it, with no DOM.
 - `fake-ollama.ts`, `scripted-claude.ts`, `scripted-codex.ts`: scripted engines, no network.
 - `snapshot-fixtures.ts`: dirty, untracked and nested user repositories.
-- `git.ts`, `tmp.ts`: temporary repositories and directories with cleanup.
+- `git.ts`, `tmp.ts`: temporary repositories and directories with cleanup. A test removes its own
+  temporary folder with `removeTree` (or leaves it to `tmpDir`), not a bare `rm`: on Windows a
+  sandboxed test file's `icacls` grants walk all of `%TEMP%` and hold each folder open while they
+  do, and a bare removal then fails with `EBUSY`. `removeTree` waits such a hold out.
 - `claude-rules.ts`: whether Claude Code would deny a path by an absolute rule, matched as CLI
   2.1.281 does (node-ignore, case-blind) for the shapes `claude-permissions.ts` writes.
 - `leftover-children.ts`: the runners' per-file check for child processes left running (above).

@@ -2,7 +2,30 @@ import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { after } from "node:test";
+import { setTimeout as sleep } from "node:timers/promises";
 import { realpathSync } from "node:fs";
+import { SECOND_MS } from "../../src/shared/duration.ts";
+
+/**
+ * The errors Node's own `rm` tries again (its `maxRetries`): on Windows, a folder another process
+ * holds open. In the Windows suite that is every few seconds: a sandboxed test file grants each
+ * folder above its roots with `icacls`, which walks everything under `%TEMP%` (1.6 s for 10,000
+ * files on a hosted runner) and holds each folder open while it walks it.
+ */
+const HELD_OPEN = new Set(["EBUSY", "EPERM", "ENOTEMPTY", "EMFILE", "ENFILE"]);
+/** The pause between two removals of a held folder. */
+const REMOVE_RETRY_MS = SECOND_MS / 2;
+/**
+ * How long a removal waits for a held folder in all: several walks of a busy `%TEMP%` in a row.
+ * A folder held longer than this is held by something the test left running.
+ */
+export const REMOVE_PATIENCE_MS = 30 * SECOND_MS;
+
+/** What {@link removeTree} removes with and waits with; its own test passes fakes. */
+export interface RemoveTreeDeps {
+  rm?: (dir: string) => Promise<void>;
+  sleep?: (ms: number) => Promise<unknown>;
+}
 
 const created: string[] = [];
 const closers: Array<() => Promise<void>> = [];
@@ -19,6 +42,28 @@ export async function tmpDir(prefix = "studio-test-"): Promise<string> {
 }
 
 /**
+ * Remove a test's folder and everything in it, waiting while another process holds part of it
+ * open (Windows refuses to remove such a folder) for up to {@link REMOVE_PATIENCE_MS}.
+ */
+export async function removeTree(dir: string, deps: RemoveTreeDeps = {}): Promise<void> {
+  const remove = deps.rm ?? ((target: string) => rm(target, { recursive: true, force: true }));
+  const wait = deps.sleep ?? sleep;
+  for (let waited = 0; ; waited += REMOVE_RETRY_MS) {
+    try {
+      return await remove(dir);
+    } catch (error) {
+      if (!heldOpen(error) || waited >= REMOVE_PATIENCE_MS) throw error;
+      await wait(REMOVE_RETRY_MS);
+    }
+  }
+}
+
+/** Is this a removal error another process holding the folder open explains? */
+function heldOpen(error: unknown): boolean {
+  return error instanceof Error && "code" in error && HELD_OPEN.has(String(error.code));
+}
+
+/**
  * Something that has to be shut down before the temp directories go — a rig whose studio is
  * still writing into one. This file's hook is registered the moment the helper is imported,
  * which is before any test file's own `after`, so a studio left to a file-level hook was being
@@ -31,6 +76,6 @@ export function closeBeforeCleanup(close: () => Promise<void>): void {
 
 after(async () => {
   for (const close of closers.splice(0)) await close().catch(() => {});
-  await Promise.all(created.map((dir) => rm(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 })));
+  await Promise.all(created.map((dir) => removeTree(dir)));
   created.length = 0;
 });
