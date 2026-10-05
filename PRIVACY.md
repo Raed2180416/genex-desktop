@@ -40,6 +40,23 @@ Connector tools contact their configured service. Each connector call asks for c
 the user saved an exact tool grant in Settings. Revocation blocks subsequent calls; it cannot
 undo a remote action or recall data already sent.
 
+| Feature | Needs |
+| --- | --- |
+| Creating, opening, previewing, checking and exporting games | Nothing beyond a model below; exports are static web bundles |
+| Local models | [Ollama](https://ollama.com) running on this Mac, or a Bonsai model downloaded in Settings (Apple Silicon) |
+| Claude models | [Claude Code](https://code.claude.com/docs/en/setup), installed separately and signed in with a Claude subscription |
+| ChatGPT/Codex models | The [Codex CLI](https://developers.openai.com/codex/cli/), installed separately; **Connect ChatGPT** signs in through your browser |
+| Blender assets | Blender on this Mac, or one click downloads a pinned release from download.blender.org |
+| Plugin catalog | Anonymous downloads from `plugins.genex.games` and GitHub |
+| Genex asset generation, credits and hosted publishing | A Genex account (paid credits); publishing also needs `git-lfs` |
+
+Studio finds Claude Code and Codex through a manual override, your login-shell `PATH`, then
+standard locations, and never installs or updates them unless you choose that in Settings.
+Subscription limits apply; there is no fallback to API-key billing, and an ambient
+`ANTHROPIC_API_KEY` is not used. Provider tokens never reach the renderer or the event log. The
+bundled Genex CLI runs with its crash reporting off unless you set `GENEX_TELEMETRY`;
+`DO_NOT_TRACK` and `GENEX_DISABLE_SENTRY` are passed on to it.
+
 Opening a folder does not authorize its Claude settings or hooks. The Open Game trust checkbox
 is an explicit choice because hooks can run commands with the user's access. Interactive
 permission modes and native plugins have broader reach than unattended sandboxed workers.
