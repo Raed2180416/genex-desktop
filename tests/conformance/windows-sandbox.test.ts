@@ -7,10 +7,11 @@
  */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
 import net from "node:net";
-import { existsSync, realpathSync } from "node:fs";
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { mkdir, readFile, readdir, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { PassThrough } from "node:stream";
 import { describe, it } from "node:test";
@@ -25,17 +26,17 @@ import {
 } from "../../src/substrate/sandbox-unavailable.ts";
 import { ProcessSandbox, type SandboxRuntime } from "../../src/substrate/spawn.ts";
 import {
+  type AncestorGrantDeps,
   type AncestorGrants,
-  type IcaclsDeps,
   WindowsSandboxSession,
   ancestorDirs,
+  ancestorGrants,
   findGitBash,
   gitRootFromExecPath,
   gitRootFromRegistry,
   grantUnion,
   grantableToolDirs,
   grantsCover,
-  icaclsAncestorGrants,
   keepWindowsDenies,
   msysPath,
   msysPathList,
@@ -46,6 +47,16 @@ import {
   windowsRunEnv,
   writeDeniesBeyondRead,
 } from "../../src/substrate/windows-sandbox.ts";
+import {
+  type FolderAceEdit,
+  type FolderAceEditor,
+  FolderAceOp,
+  folderAceCommand,
+  folderAceEditor,
+  folderAceOutcomes,
+  FOLDER_ACE_SCRIPT,
+  icaclsArgs,
+} from "../../src/substrate/windows-folder-ace.ts";
 import { tmpDir } from "../helpers/tmp.ts";
 
 /** How long a test waits for a file removed in the background: polls of POLL_MS each. */
@@ -113,44 +124,58 @@ describe("read-attributes grants above each root", () => {
   });
 
   const DEAD_PID = 3;
-  /** Ancestor grants for holder `pid` in `holders`, logging every icacls call as `[pid, ...args]`. */
-  const holder = (holders: string, pid: number, calls: string[][], options: Partial<IcaclsDeps> = {}) =>
-    icaclsAncestorGrants(holders, {
-      sid: async () => "S-1-5-21-9",
+  const SID = "S-1-5-21-9";
+  const done = (edits: readonly FolderAceEdit[]) => edits.map(() => ({ ok: true }) as const);
+  /** Ancestor grants for holder `pid` in `holders`, logging every edit as `[pid, dir, op]`. */
+  const holder = (holders: string, pid: number, calls: string[][], options: Partial<AncestorGrantDeps> = {}) =>
+    ancestorGrants(holders, {
+      sid: async () => SID,
       pid,
       alive: (other) => other !== DEAD_PID,
       retryDelayMs: 0,
       exists: () => true,
-      icacls: async (args) => void calls.push([`${pid}`, ...args]),
-      icaclsSync: (args) => void calls.push([`${pid}`, "sync", ...args]),
+      edit: async (edits) => {
+        for (const edit of edits) calls.push([`${pid}`, edit.dir, edit.op]);
+        return done(edits);
+      },
+      editSync: (edits) => {
+        for (const edit of edits) calls.push([`${pid}`, "sync", edit.dir, edit.op]);
+        return done(edits);
+      },
       ...options,
     });
-  const removals = (calls: string[][]) => calls.filter((call) => call.includes("/remove:g"));
+  const removals = (calls: string[][]) => calls.filter((call) => call.includes(FolderAceOp.Remove));
 
   it("records each folder before granting it, grants by SID, and takes back what is no longer needed", async () => {
     const holders = await tmpDir("windows-grants-");
     const record = path.join(holders, "1.json");
     const calls: string[][] = [];
     const grants = holder(holders, 1, calls, {
-      icacls: async (args) => {
+      edit: async (edits) => {
         const recorded = JSON.parse(await readFile(record, "utf8")) as { dirs: string[] };
-        if (args[1] === "/grant") assert.ok(recorded.dirs.includes(args[0] ?? ""), "recorded before granted");
-        calls.push(args);
+        for (const edit of edits) {
+          if (edit.op === FolderAceOp.Grant) assert.ok(recorded.dirs.includes(edit.dir), "recorded before granted");
+          calls.push([edit.dir, edit.op, edit.sid]);
+        }
+        return done(edits);
       },
-      icaclsSync: (args) => void calls.push(["sync", ...args]),
+      editSync: (edits) => {
+        for (const edit of edits) calls.push(["sync", edit.dir, edit.op, edit.sid]);
+        return done(edits);
+      },
     });
     await grants.sync([at("AppData"), at("AppData", "Local")]);
     await grants.sync([at("AppData")]);
     // Every sync grants every folder again: srt-win's deny stamp and its reset may have removed
     // the sandbox user's entry on a folder this holder already granted.
     assert.deepEqual(calls, [
-      [at("AppData"), "/grant", "*S-1-5-21-9:(RA)"],
-      [at("AppData", "Local"), "/grant", "*S-1-5-21-9:(RA)"],
-      [at("AppData"), "/grant", "*S-1-5-21-9:(RA)"],
-      [at("AppData", "Local"), "/remove:g", "*S-1-5-21-9"],
+      [at("AppData"), FolderAceOp.Grant, SID],
+      [at("AppData", "Local"), FolderAceOp.Grant, SID],
+      [at("AppData"), FolderAceOp.Grant, SID],
+      [at("AppData", "Local"), FolderAceOp.Remove, SID],
     ]);
     grants.revokeAllSync();
-    assert.deepEqual(calls.at(-1), ["sync", at("AppData"), "/remove:g", "*S-1-5-21-9"]);
+    assert.deepEqual(calls.at(-1), ["sync", at("AppData"), FolderAceOp.Remove, SID]);
     assert.equal(existsSync(record), false, "the record goes once everything is taken back");
   });
 
@@ -160,7 +185,7 @@ describe("read-attributes grants above each root", () => {
     const grants = holder(holders, 1, calls);
     await grants.sync([at("AppData")]);
     await grants.revokeAll();
-    assert.deepEqual(removals(calls), [["1", at("AppData"), "/remove:g", "*S-1-5-21-9"]]);
+    assert.deepEqual(removals(calls), [["1", at("AppData"), FolderAceOp.Remove]]);
     assert.equal(existsSync(path.join(holders, "1.json")), false);
     grants.revokeAllSync();
     assert.equal(removals(calls).length, 1);
@@ -174,7 +199,7 @@ describe("read-attributes grants above each root", () => {
     await app.sync([at("AppData"), at("AppData", "Local")]);
     await dev.sync([at("AppData"), at("AppData", "Roaming")]);
     await app.sync([at("AppData")]);
-    assert.deepEqual(removals(calls), [["1", at("AppData", "Local"), "/remove:g", "*S-1-5-21-9"]]);
+    assert.deepEqual(removals(calls), [["1", at("AppData", "Local"), FolderAceOp.Remove]]);
     app.revokeAllSync();
     assert.equal(removals(calls).length, 1, "the dev profile still needs AppData");
     dev.revokeAllSync();
@@ -192,25 +217,27 @@ describe("read-attributes grants above each root", () => {
     await writeFile(path.join(holders, "notes.txt"), "not a record");
     const calls: string[][] = [];
     await holder(holders, 1, calls).sync([at("AppData")]);
-    assert.deepEqual(removals(calls), [["1", at("Videos", "x"), "/remove:g", "*S-1-5-21-9"]]);
+    assert.deepEqual(removals(calls), [["1", at("Videos", "x"), FolderAceOp.Remove]]);
     assert.deepEqual((await readdir(holders)).sort(), ["1.json", "notes.txt"]);
   });
 
-  it("tries a grant again when icacls fails once (another process was changing the folder)", async () => {
+  it("tries again only the grants refused once (another process was changing the folder)", async () => {
     const holders = await tmpDir("windows-grants-");
-    const calls: string[][] = [];
-    let failures = 1;
-    const flaky = async (args: string[]) => {
-      calls.push(args);
-      if (args[1] === "/grant" && failures-- > 0)
-        throw Object.assign(new Error("Command failed: icacls"), { stdout: "Failed processing 1 files" });
+    const batches: string[][] = [];
+    let refusals = 1;
+    const flaky: FolderAceEditor = async (edits) => {
+      batches.push(edits.map((edit) => edit.dir));
+      return edits.map((edit) =>
+        edit.dir === at("AppData", "Local") && refusals-- > 0 ? { ok: false, error: "being changed" } : { ok: true },
+      );
     };
-    await holder(holders, 1, calls, { icacls: flaky }).sync([at("AppData")]);
-    assert.equal(calls.filter((call) => call[1] === "/grant").length, 2);
-    const broken = async () => {
-      throw Object.assign(new Error("Command failed: icacls"), { stdout: "Access is denied." });
-    };
-    await assert.rejects(holder(holders, 2, [], { icacls: broken }).sync([at("Music", "x")]), /Access is denied/);
+    await holder(holders, 1, [], { edit: flaky }).sync([at("AppData"), at("AppData", "Local")]);
+    assert.deepEqual(batches, [[at("AppData"), at("AppData", "Local")], [at("AppData", "Local")]]);
+    const broken: FolderAceEditor = async (edits) => edits.map(() => ({ ok: false, error: "Access is denied." }));
+    await assert.rejects(
+      holder(holders, 2, [], { edit: broken }).sync([at("Music", "x")]),
+      /could not let the sandbox user see the folder .*Music\\x: Access is denied\./,
+    );
   });
 
   it("records under %LOCALAPPDATA%, shared by every profile and apart from the Squirrel install", () => {
@@ -220,18 +247,161 @@ describe("read-attributes grants above each root", () => {
 
   it("skips a folder that is gone, rather than failing every later apply of the session", async () => {
     // A member's read root can be deleted while the process runs (a test's resources folder, an
-    // uninstalled tool): icacls then fails on the folder above it with "cannot find the file".
+    // uninstalled tool): its grant would then fail with "cannot find the file".
     const calls: string[][] = [];
     const gone = at("AppData", "Local", "Temp", "studio-res-1");
     const grants = holder(await tmpDir("windows-grants-"), 1, calls, { exists: (dir) => dir !== gone });
     await grants.sync([at("AppData"), gone]);
-    assert.deepEqual(calls, [["1", at("AppData"), "/grant", "*S-1-5-21-9:(RA)"]]);
+    assert.deepEqual(calls, [["1", at("AppData"), FolderAceOp.Grant]]);
   });
 
   it("grants nothing while the sandbox user does not exist yet", async () => {
     const calls: string[][] = [];
     await holder(await tmpDir("windows-grants-"), 1, calls, { sid: async () => null }).sync([at("AppData")]);
     assert.deepEqual(calls, []);
+  });
+});
+
+describe("an entry on one folder alone", () => {
+  const SID = "S-1-5-21-9";
+  const edits: FolderAceEdit[] = [
+    { dir: "C:\\Users\\Семён\\AppData", sid: SID, op: FolderAceOp.Grant },
+    { dir: "C:\\Users\\Семён\\it's", sid: SID, op: FolderAceOp.Remove },
+  ];
+
+  it("runs Windows PowerShell by its full path and hands it the batch out of reach of any code page", () => {
+    const command = folderAceCommand(edits, { SystemRoot: "D:\\Win" });
+    assert.equal(command.file, "D:\\Win\\System32\\WindowsPowerShell\\v1.0\\powershell.exe");
+    const script = command.args.at(-1) ?? "";
+    assert.equal(Buffer.from(script, "base64").toString("utf16le"), FOLDER_ACE_SCRIPT);
+    const payload = command.env.GENEX_FOLDER_ACES ?? "";
+    assert.match(payload, /^[A-Za-z0-9+/=]+$/, "only base64 crosses the process boundary");
+    assert.deepEqual(JSON.parse(Buffer.from(payload, "base64").toString("utf8")), edits);
+  });
+
+  it("reads one outcome per edit, and nothing else as an answer", () => {
+    const table: Array<[string, string, number, unknown]> = [
+      [
+        "one each",
+        '[{"ok":true},{"ok":false,"error":"Access is denied"}]',
+        2,
+        [{ ok: true }, { ok: false, error: "Access is denied" }],
+      ],
+      ["too few", '[{"ok":true}]', 2, null],
+      ["not JSON (PowerShell failed to start the script)", "#< CLIXML", 1, null],
+      ["empty", "", 1, null],
+      ["not a list", '{"ok":true}', 1, null],
+      ["a refusal without words", '[{"ok":false}]', 1, [{ ok: false, error: "refused" }]],
+    ];
+    for (const [label, stdout, count, expected] of table)
+      assert.deepEqual(folderAceOutcomes(stdout, count), expected, label);
+  });
+
+  it("makes the same change through icacls when PowerShell cannot run the batch", async () => {
+    const icacls: string[][] = [];
+    const editor = folderAceEditor({
+      env: { SystemRoot: "C:\\Windows" },
+      powershell: async () => {
+        throw new Error(
+          "Cannot invoke method. Method invocation is supported only on core types in this language mode.",
+        );
+      },
+      icacls: async (args) => {
+        icacls.push(args);
+        if (args[0]?.endsWith("it's"))
+          throw Object.assign(new Error("Command failed: icacls"), { stdout: "Access is denied." });
+      },
+    });
+    assert.deepEqual(await editor(edits), [
+      { ok: true },
+      { ok: false, error: "Command failed: icacls: Access is denied." },
+    ]);
+    assert.deepEqual(icacls, edits.map(icaclsArgs));
+    assert.deepEqual(icacls, [
+      ["C:\\Users\\Семён\\AppData", "/grant", `*${SID}:(RA)`],
+      ["C:\\Users\\Семён\\it's", "/remove:g", `*${SID}`],
+    ]);
+  });
+
+  it("uses PowerShell's answer when it gives one, and runs nothing for no edits", async () => {
+    let runs = 0;
+    const editor = folderAceEditor({
+      powershell: async () => {
+        runs++;
+        return '[{"ok":true},{"ok":true}]';
+      },
+      icacls: async () => assert.fail("icacls runs only when PowerShell cannot"),
+    });
+    assert.deepEqual(await editor(edits), [{ ok: true }, { ok: true }]);
+    assert.deepEqual(await editor([]), []);
+    assert.equal(runs, 1);
+  });
+});
+
+describe("an entry on one folder alone, on Windows", {
+  skip: process.platform !== "win32" && "edits real NTFS entries",
+}, () => {
+  /** A folder's own DACL as SDDL, read through icacls, which saves it without changing anything. */
+  const sddl = (dir: string, scratch: string) => {
+    const file = path.join(scratch, `acl-${randomUUID()}.txt`);
+    execFileSync("icacls", [dir, "/save", file], { stdio: "ignore" });
+    return readFileSync(file, "utf16le");
+  };
+  const GUESTS = "S-1-5-32-546";
+  const guestsRead = /\(A;;(?:0x80|LO);;;BG\)/;
+
+  it("edits each folder of a batch, any name, and says which one it could not", async () => {
+    const root = realpathSync.native(await tmpDir("folder-ace-"));
+    const named = path.join(root, "Семён ünïcødé 游戏 it's $(x) `y`");
+    await mkdir(named);
+    const editor = folderAceEditor();
+    const outcomes = await editor([
+      { dir: named, sid: GUESTS, op: FolderAceOp.Grant },
+      { dir: path.join(root, "missing"), sid: GUESTS, op: FolderAceOp.Grant },
+      { dir: named, sid: GUESTS, op: FolderAceOp.Grant },
+    ]);
+    assert.deepEqual(outcomes[0], { ok: true });
+    assert.equal(outcomes[1]?.ok, false, "a folder that is not there is refused");
+    assert.deepEqual(outcomes[2], { ok: true }, "a grant that is already there changes nothing");
+    assert.equal(sddl(named, root).match(new RegExp(guestsRead, "g"))?.length, 1, "one entry, not two");
+    assert.deepEqual(await editor([{ dir: named, sid: GUESTS, op: FolderAceOp.Remove }]), [{ ok: true }]);
+    assert.doesNotMatch(sddl(named, root), guestsRead);
+  });
+
+  it("still grants where PowerShell is locked down (Constrained Language Mode)", async () => {
+    const root = realpathSync.native(await tmpDir("folder-ace-locked-"));
+    const editor = folderAceEditor({ env: { ...process.env, __PSLockdownPolicy: "4" } });
+    assert.deepEqual(await editor([{ dir: root, sid: GUESTS, op: FolderAceOp.Grant }]), [{ ok: true }]);
+    assert.match(sddl(root, root), guestsRead);
+  });
+
+  it("grants and takes back on the folder alone, never rewriting the folders under it", async () => {
+    const USERS = "S-1-5-32-545";
+    const root = realpathSync.native(await tmpDir("folder-only-grant-"));
+    const above = path.join(root, "above");
+    const moved = path.join(above, "deep", "moved");
+    const elsewhere = path.join(root, "elsewhere");
+    await mkdir(path.dirname(moved), { recursive: true });
+    await mkdir(elsewhere);
+    // A folder moved in keeps what it inherited where it was made, until something walks the
+    // folders above it and works out again what they pass down: only a walk takes that away.
+    execFileSync("icacls", [elsewhere, "/grant", `*${GUESTS}:(OI)(CI)(RA)`], { stdio: "ignore" });
+    await mkdir(path.join(elsewhere, "moved"));
+    await rename(path.join(elsewhere, "moved"), moved);
+    const inheritedElsewhere = /\(A;[A-Z]*ID[A-Z]*;(?:0x80|LO);;;BG\)/;
+    const granted = /\(A;;(?:0x80|LO);;;BU\)/;
+    assert.match(sddl(moved, root), inheritedElsewhere, "the moved folder kept what it inherited");
+    const grants = ancestorGrants(path.join(root, "holders"), {
+      sid: async () => USERS,
+      pid: 1,
+      alive: () => false,
+    });
+    await grants.sync([above]);
+    assert.match(sddl(above, root), granted, "the folder has the grant");
+    assert.match(sddl(moved, root), inheritedElsewhere, "nothing under the folder was rewritten by the grant");
+    await grants.revokeAll();
+    assert.doesNotMatch(sddl(above, root), granted, "the grant is taken back");
+    assert.match(sddl(moved, root), inheritedElsewhere, "nothing under the folder was rewritten by the take-back");
   });
 });
 

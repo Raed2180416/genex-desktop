@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { copyFile, mkdtemp, mkdir, readdir, readFile, realpath, symlink, writeFile, rm } from "node:fs/promises";
+import { copyFile, mkdtemp, mkdir, readdir, readFile, realpath, symlink, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
 import os from "node:os";
@@ -9,6 +9,7 @@ import { pathToFileURL } from "node:url";
 import { buildPlugins } from "../../scripts/build-plugins.mjs";
 import { PluginRegistry } from "../../src/substrate/plugins/registry.ts";
 import { buildGenexPluginFor, startGenexFixtureApi } from "../helpers/genex-fixture-api.ts";
+import { removeTree } from "../helpers/tmp.ts";
 
 /**
  * A `git` in `dir` that has no git-lfs: `git --version` succeeds and `git lfs …` fails. Windows runs
@@ -37,7 +38,7 @@ test("a worktree with shared dependencies keeps the pinned CLI inside its plugin
     assert.equal(packaged, path.join(target, "node_modules/@genex-ai/cli-demo/package.json"));
     assert.equal(JSON.parse(await readFile(packaged, "utf8")).version, "1.35.0");
   } finally {
-    await rm(temp, { recursive: true, force: true });
+    await removeTree(temp);
   }
 });
 
@@ -136,7 +137,7 @@ test("extracted plugin invokes its packaged pinned CLI; lost submission survives
   } finally {
     registry?.cancel();
     await server.close();
-    await rm(temp, { recursive: true, force: true });
+    await removeTree(temp);
   }
 });
 
@@ -392,6 +393,6 @@ test("publish creates the hosted project in Studio-owned storage and makes the e
     process.env.PATH = originalPath;
     registry?.cancel();
     await server.close();
-    await rm(temp, { recursive: true, force: true });
+    await removeTree(temp);
   }
 });
