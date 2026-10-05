@@ -347,6 +347,55 @@ test("standard folders cover installers that never reach the login PATH", async 
   );
   assert.ok(dirs.indexOf("/opt/homebrew/bin") < dirs.indexOf(nvm[0]!));
 });
+test("standard folders cover the Node and package managers whose global installs need no PATH line", async () => {
+  const home = path.join(root, "managers-home");
+  const fnm = path.join(home, "Library/Application Support/fnm/node-versions");
+  for (const version of ["v20.11.0", "v24.1.0"]) await mkdir(path.join(fnm, version), { recursive: true });
+  const dirs = await standardCliDirs(home, "darwin", {}, []);
+  for (const dir of ["Library/pnpm", ".local/share/mise/shims", ".asdf/shims"])
+    assert.ok(dirs.includes(path.join(home, dir)), dir);
+  assert.deepEqual(
+    dirs.filter((dir) => dir.startsWith(fnm)),
+    ["v24.1.0", "v20.11.0"].map((version) => path.join(fnm, version, "installation/bin")),
+    "fnm's Node versions, newest first",
+  );
+});
+test("a Mac with only the Claude and ChatGPT apps uses the copies they ship; an installed CLI wins", {
+  skip: WINDOWS && "the desktop apps' copies are macOS launchers",
+}, async () => {
+  const home = path.join(root, "apps-home");
+  const applications = path.join(root, "Applications");
+  const claudeApp = (version: string, build: string) =>
+    path.join(
+      "apps-home/Library/Application Support/Claude/claude-code",
+      version,
+      build,
+      "claude.app/Contents/MacOS/claude",
+    );
+  await cli(claudeApp("2.1.9", "0a1b2c3d4e5f"));
+  const newest = await cli(claudeApp("2.1.286", "f2326db61802"));
+  const codex = await cli("Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex");
+  const standardDirs = await standardCliDirs(home, "darwin", {}, [applications]);
+  const found = async (provider: "claude-code" | "codex") =>
+    (await discoverCodingCli(provider, { ...options, home, standardDirs })).status;
+  assert.deepEqual(
+    [await found("claude-code"), await found("codex")].map(({ state, path }) => ({ state, path })),
+    [
+      { state: "ready", path: newest },
+      { state: "ready", path: codex },
+    ],
+  );
+  const installed = await cli("apps-home/.local/bin/claude");
+  assert.equal((await found("claude-code")).path, installed);
+});
+test("the ChatGPT app still under its old name, Codex, lends its copy too", {
+  skip: WINDOWS && "the desktop apps' copies are macOS launchers",
+}, async () => {
+  const codex = await cli("Old Applications/Codex.app/Contents/Resources/codex-cli/bin/codex");
+  const standardDirs = await standardCliDirs(root, "darwin", {}, [path.join(root, "Old Applications")]);
+  const found = (await discoverCodingCli("codex", { ...options, standardDirs })).status;
+  assert.deepEqual({ state: found.state, path: found.path }, { state: "ready", path: codex });
+});
 test("Windows standard folders: the native installers first, then npm's prefix and the Node managers", async () => {
   const env = { APPDATA: "C:\\Users\\Ada\\AppData\\Roaming", LOCALAPPDATA: "C:\\Users\\Ada\\AppData\\Local" };
   assert.deepEqual(await standardCliDirs("C:\\Users\\Ada", "win32", env), [

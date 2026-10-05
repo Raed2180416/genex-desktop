@@ -32,8 +32,8 @@ type Words = Record<"connect" | "install" | "installing" | "update" | "updating"
 const WORDS: Record<Subscription, Words> = {
   [EngineId.ClaudeCode]: {
     connect: "Connect Claude Code",
-    install: "Install Claude Code",
-    installing: "Installing Claude Code…",
+    install: "Set up Claude Code",
+    installing: "Setting up Claude Code…",
     update: "Update Claude Code",
     updating: "Updating Claude Code…",
     recheck: "Check Claude Code again",
@@ -41,8 +41,8 @@ const WORDS: Record<Subscription, Words> = {
   },
   [EngineId.Codex]: {
     connect: "Connect ChatGPT",
-    install: "Install Codex",
-    installing: "Installing Codex…",
+    install: "Set up Codex",
+    installing: "Setting up Codex…",
     update: "Update Codex",
     updating: "Updating Codex…",
     recheck: "Check Codex again",

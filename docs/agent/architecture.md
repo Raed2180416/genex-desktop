@@ -390,8 +390,9 @@ chat labels name a contractor by the table's `label`.
 
 **Coding CLIs.** Installations are external.
 [`src/substrate/engines/external-cli.ts`](../../src/substrate/engines/external-cli.ts) discovers
-them in order: persisted override, login-shell PATH, standard install directories (Homebrew,
-`~/.local/bin`, `~/.claude/local`, npm-global, Volta, Bun, nvm newest first). On Windows there is
+them in order: persisted override, login-shell PATH, standard folders (Homebrew,
+`~/.local/bin`, `~/.claude/local`, npm-global, Volta, Bun, pnpm, mise, asdf, nvm, fnm, the
+Claude and ChatGPT apps). On Windows there is
 no login shell: the process PATH and the standard folders are searched under PATHEXT names. An
 npm `.cmd` shim starts as the `node <script>` it runs, so `cmd.exe` never parses its arguments;
 any other `.cmd` goes through `cmd.exe`, plain words bare, others escaped for `%*`'s reparse
