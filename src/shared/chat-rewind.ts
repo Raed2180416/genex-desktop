@@ -102,21 +102,28 @@ export function withoutRewound<T extends EventEnvelope>(events: readonly T[], re
 /**
  * The log as the harness reads it. A resumed provider session keeps its id and still holds the
  * rewound turns, so every session recorded before a rewind is forgotten there: the next turn
- * starts a fresh one from the conversation that remains. A compaction is a new start the same
- * way: the next turn opens a fresh session briefed with its summary instead of resuming the whole
- * history. The sessions a run mirrors into the chat are never the chat's to resume, rewound or not.
+ * starts a fresh one from the conversation that remains. A handover or a log summary is a new
+ * start the same way: the next turn opens a fresh session briefed with it instead of resuming the
+ * whole history. The provider's own compaction is not (`endsChatSessions`). The sessions a run
+ * mirrors into the chat are never the chat's to resume, rewound or not.
  */
 export function harnessView<T extends EventEnvelope>(events: readonly T[], rewinds: readonly ChatRewind[]): T[] {
   const kept = withoutRewound(events, rewinds);
   const rewound = rewinds.reduce((latest, rewind) => (rewind.through > latest ? rewind.through : latest), "");
-  const compacted = kept.findLast(isCompaction)?.id ?? "";
+  const compacted = kept.findLast((event) => endsChatSessions(event.data))?.id ?? "";
   const boundary = compacted > rewound ? compacted : rewound;
   return kept.map((event) => withoutSession(event, event.id <= boundary));
 }
 
-/** A compaction of the chat: the sessions before it are forgotten. */
-function isCompaction(event: EventEnvelope): boolean {
-  return customRecord(event.data)?.event_type === CustomEvent.Compacted;
+/**
+ * Does this record end the chat's provider sessions? A compaction the harness wrote (a session's
+ * handover, a log summary) does: the next turn starts fresh, briefed with it. The provider's own
+ * compaction (`native`) does not: it compacted the session in place, and the next turn resumes
+ * it. The seed's copy is loop/compaction-log.ts `endsSessions`.
+ */
+export function endsChatSessions(data: EventEnvelope["data"]): boolean {
+  const custom = customRecord(data);
+  return custom?.event_type === CustomEvent.Compacted && custom.payload.native !== true;
 }
 
 /** The chat's own sessions: a rewind forgets the ones recorded before it. */

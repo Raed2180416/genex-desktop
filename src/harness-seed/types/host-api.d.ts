@@ -349,6 +349,8 @@ export interface HarnessDelegateParams {
   maxTurns?: number;
   timeoutMs?: number;
   resume?: string;
+  /** Compact the `resume` session with its provider's own compaction instead of a turn (`EngineDescriptor.compactsNatively`). */
+  compact?: boolean;
   extraReads?: string[];
   class?: HarnessWorkClass;
   /** A Loop chat's launch tool and `ask_user`, bridged to the contractor (MCP for Claude, the bridge for Codex). */
@@ -771,6 +773,8 @@ export interface EngineDescriptor {
   label: string;
   kind: EngineKind;
   supportsSessions?: boolean;
+  /** Compacts a session in place with the provider's own compaction (Claude Code, Codex). */
+  compactsNatively?: boolean;
   status: EngineStatus;
   usage?: ProviderUsage | null;
   catalog?: ModelCatalogStatus;
@@ -916,6 +920,8 @@ export interface DelegateResult {
    * turn starts from. Absent when the provider reported none, or compacted after its last request.
    */
   contextTokens?: number;
+  /** A `compact` delegation compacted the session, which goes on under the same id. */
+  compacted?: boolean;
 }
 // ↑ src/shared/engine-requests.ts
 
@@ -1793,11 +1799,6 @@ export interface RunSpec {
     /** v2 loop knobs: the pre-evidence code review (default on) and its model half (default on for delegated engines). */
     review?: boolean;
     modelReview?: boolean;
-    /**
-     * A facet worker past its context limit hands over to a fresh session at the end of a round
-     * (harness-seed/loop/facet/phases/handover.ts). Absent: `WORKER_HANDOVER_ENV` decides.
-     */
-    workerHandover?: boolean;
   };
   engine?: string;
   /** The builders' model. Arrives as the composer's pick; the harness resolves it at launch. */

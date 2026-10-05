@@ -48,6 +48,8 @@ export interface EngineDescriptor {
   label: string;
   kind: EngineKind;
   supportsSessions?: boolean;
+  /** Compacts a session in place with the provider's own compaction (Claude Code, Codex). */
+  compactsNatively?: boolean;
   status: EngineStatus;
   usage?: ProviderUsage | null;
   catalog?: ModelCatalogStatus;

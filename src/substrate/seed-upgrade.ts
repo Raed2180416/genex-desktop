@@ -334,7 +334,9 @@ async function deletedBeforeMigration(
  * every install that ever booted the older build keeps its copy for ever, in the prompt index,
  * in the skill list, in the architect's file menu. These four skills were read by no run code
  * (only `director.md` and `facet-decomposition.md` are) and said things about a loop that no
- * longer exists.
+ * longer exists. The workers' handover modules went when Claude Code and Codex workers were left
+ * to their own compaction (2026-10-05): nothing imports them, and a copy left behind would fail
+ * the self-edit gate's type check over `loop/` (it reads facet state that no longer exists).
  *
  * The rule is the ownership rule, backwards: a workspace copy whose bytes still equal what the
  * manifest last applied was written by the app and may go; anything else is the agent's and is
@@ -355,6 +357,8 @@ export const RETIRED_SEED_PATHS: readonly string[] = [
   "skills/self-improvement.md",
   "skills/threejs-craft.md",
   "skills/unattended-runs.md",
+  "loop/facet/handover-prompts.ts",
+  "loop/facet/phases/handover.ts",
 ];
 
 export interface ApplySeedOptions {

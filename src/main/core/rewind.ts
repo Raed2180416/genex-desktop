@@ -13,6 +13,7 @@ import path from "node:path";
 import { rm } from "node:fs/promises";
 import { setTimeout as sleep } from "node:timers/promises";
 import {
+  endsChatSessions,
   FilesStay,
   harnessView,
   type ChatRewind,
@@ -277,13 +278,14 @@ export class ChatRewindService {
   }
 
   /**
-   * A compaction ends the chat's provider session as a rewind does: the next turn starts a fresh
-   * one briefed with the summary (`harnessView`), so the session the host would resume goes too.
-   * The compaction is already in the log, and names the session it ended, so a failed write only
-   * leaves the session saved, never resumed.
+   * A handover or a log summary ends the chat's provider session as a rewind does: the next turn
+   * starts a fresh one briefed with it (`harnessView`), so the session the host would resume goes
+   * too. The provider's own compaction keeps it (`endsChatSessions`). The compaction is already in
+   * the log, and names the session it ended, so a failed write only leaves the session saved,
+   * never resumed.
    */
   async forgetCompactedSession(threadId: string, batch: readonly EventData[]): Promise<void> {
-    if (!batch.some((data) => customRecord(data)?.event_type === CustomEvent.Compacted)) return;
+    if (!batch.some(endsChatSessions)) return;
     await this.#core.store.updateThread(threadId, { metadata: { contractor: null } }).catch(() => {});
   }
 

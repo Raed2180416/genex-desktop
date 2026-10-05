@@ -86,7 +86,6 @@ export const CustomEvent = {
   FacetFix: "facet_fix",
   FacetFlag: "facet_flag",
   FacetFollowup: "facet_followup",
-  FacetHandover: "facet_handover",
   FacetIteration: "facet_iteration",
   FacetLessons: "facet_lessons",
   FacetLiveness: "facet_liveness",
@@ -502,8 +501,12 @@ export interface CustomEventMap {
     stats?: { polygons?: number; triangles?: number } | null;
   };
   build_observation: BuildObservationPayload;
-  /** `summary`: what the harness wrote in place of the messages it replaced (loop/compact.ts, session-compact.ts). */
-  compacted: Partial<ContextMeasurement> & { messages?: number; trigger?: string; summary?: string };
+  /**
+   * `summary`: what the harness wrote in place of the messages it replaced (loop/compact.ts,
+   * session-compact.ts). `native`: the provider compacted `sessionId` in place, which goes on
+   * (shared/chat-rewind.ts `endsChatSessions`); its summary, when it reports one, is the provider's own.
+   */
+  compacted: Partial<ContextMeasurement> & { messages?: number; trigger?: string; summary?: string; native?: boolean };
   completion_call: CompletionCallPayload;
   connector_tool: RunScope & { connectorId?: string; tool?: string; ok?: boolean; error?: string | null };
   context_usage: ContextMeasurement;

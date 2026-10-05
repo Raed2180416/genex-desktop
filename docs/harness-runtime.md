@@ -297,25 +297,13 @@ applies them (see Architecture, learned changes). Anything that learns asks `lea
 with the user's Self-improvement switch off it records what happened and changes nothing. The idle code architect remains a separate
 opt-in and preserves fork validation, snapshots and rollback.
 
-### Worker handover
+### Worker sessions
 
-A facet worker keeps one provider session from round to round, and a session re-sends its whole
-history with every request, so a long-lived worker's context grows until the provider compacts it
-(about 967K on a 1M Claude model). The handover (`loop/facet/phases/handover.ts`, the last of
-`ROUND_PHASES`) caps it at our own boundary. It runs only when it is on: the run's
-`budgets.workerHandover`, else `STUDIO_WORKER_HANDOVER=1` in the studio's environment, which the
-host hands the harness by name (`shared/protocol.ts` `harnessRunEnv`). Off by default while it is
-measured on real builds. When the builder's last turn reported at least `WORKER_HANDOVER_TOKENS`
-(500,000) of context (`DelegateResult.contextTokens`: Claude Code's last main-loop request,
-cache included; Codex's `last_token_usage`), on a round that ended without stopping the facet, with
-another round due and time for it, the same session is asked once
-(`facet/handover-prompts.ts`) to write a `## Handover` section into `docs/notes/NOTES.<facet>.md`.
-In worktree mode the worktree is then put back to the accepted build with only that file written
-over it, committed on top as the new accepted build, so a later reset (an outage's retry, a lost
-build's rollback) keeps it. Written or not, the session is dropped and `facet_handover` records the
-reading; the next round opens a fresh session on the full prompt, which points at the handover
-only when the notes now hold that section.
-A refused resume (`facet_session_reset`) and a context overflow still start fresh as before.
+A facet worker keeps one provider session from round to round, however large its context grows:
+Claude Code and Codex compact it themselves at their own point (about 967K on a 1M Claude model,
+about 90% of the window on Codex), and Studio sends neither a threshold nor a handover of its own.
+A refused resume (`facet_session_reset`) and a context overflow start a fresh session on the full
+prompt.
 
 ## Acceptance evidence
 

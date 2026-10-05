@@ -95,10 +95,7 @@ function turnFields(loop: FacetLoop, text: string): AnyRecord {
   };
 }
 
-/**
- * One delegated turn in the builder's session (or a fresh one), never past the facet's clock.
- * Whatever the turn was, its context reading is the session's latest (the handover reads it).
- */
+/** One delegated turn in the builder's session (or a fresh one), never past the facet's clock. */
 async function delegateTurn(
   loop: FacetLoop,
   round: FacetRound,
@@ -110,7 +107,7 @@ async function delegateTurn(
   }: { text: string; resume: string | null | undefined; timeoutMs: number; images: AnyRecord[] | null },
 ) {
   const { ctx, deadline, worktree } = loop;
-  const turn = await buildTurn(ctx, {
+  return buildTurn(ctx, {
     ...round.turnOf(text),
     delegated: true,
     cwd: worktree,
@@ -123,8 +120,6 @@ async function delegateTurn(
       ...(images?.length ? { images } : {}),
     },
   });
-  loop.lastContextTokens = typeof turn?.contextTokens === "number" ? turn.contextTokens : null;
-  return turn;
 }
 
 /** What the builder's own capture tool photographs: this worktree, in the facet's setup. */

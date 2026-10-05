@@ -223,6 +223,11 @@ export interface DelegateRequest {
   timeoutMs?: number;
   /** Continue a previous contractor session (its id from a prior result) instead of starting fresh. */
   resume?: string;
+  /**
+   * Compact Now: the `resume` session compacts itself with its provider's own compaction and no
+   * turn runs; `prompt` is not sent. Only an engine that `compactsNatively` takes it.
+   */
+  compact?: boolean;
   /** Stills folders the user named outside this workspace — readable, not writable. */
   extraReads?: string[];
   /** Sibling folders the contractor must not Read — other games, not stills. */
@@ -466,13 +471,14 @@ export interface Engine {
   readonly steersMidTurn?: boolean;
   /** Its delegated sessions honour `DelegateRequest.permissions` and ask mid-turn. */
   readonly permissionPrompts?: boolean;
+  /** Compacts a session in place with the provider's own compaction (`DelegateRequest.compact`). */
+  readonly compactsNatively?: boolean;
   dispose?(): Promise<void>;
   /** Cheap liveness/auth probe used by the UI and by engine fallback. */
   status(): Promise<EngineStatus>;
   models(): Promise<EngineModel[]>;
   catalogSnapshot?(): ModelCatalogStatus;
   refreshModels?(force?: boolean): Promise<void>;
-  contextControl?(model: string): Promise<{ supported: boolean; reason?: string }>;
   /** One-shot completion. Direct engines use this for the whole tool loop; Claude Code uses it only as the isolated critic (no tools, no game folder). */
   complete?(request: CompleteRequest): Promise<CompleteResponse>;
   /** Build a game. Delegated engines (Claude Code) take a brief and work in a workspace. */

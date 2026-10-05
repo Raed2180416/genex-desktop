@@ -335,13 +335,12 @@ describe("per-game threads", () => {
     assert.ok(briefs[0]!.cwd.endsWith("halted"));
   });
 
-  it("Keep going preserves a recorded session model, effort and its chat compaction policy", async () => {
+  it("Keep going preserves a recorded session model and effort; a provider's CLI keeps its own compaction", async () => {
     const rig = await startRig({ replies: [] });
     rigs.push(rig);
     const requests: import("../../src/substrate/engines/types.ts").DelegateRequest[] = [];
     rig.core.engines.register({
       ...vendorEngine([]),
-      contextControl: async () => ({ supported: true }),
       delegate: async (request) => {
         requests.push(request);
         return {
@@ -369,7 +368,10 @@ describe("per-game threads", () => {
         },
       },
     });
-    await rig.core.contextPreferences.set("vendor", "chosen", { mode: "custom", thresholdPercent: 35 }, thread);
+    await assert.rejects(
+      rig.core.contextPreferences.set("vendor", "chosen", { mode: "custom", thresholdPercent: 35 }, thread),
+      /applies only to local models/,
+    );
     await rig.core.sendUserMessage("Keep going from where we left off.", {
       engine: "vendor",
       resume: "saved-session",
@@ -380,7 +382,7 @@ describe("per-game threads", () => {
     assert.equal(requests[0]!.resume, "saved-session");
     assert.equal(requests[0]!.model, "chosen");
     assert.equal(requests[0]!.effort, "low");
-    assert.equal(requests[0]!.contextPolicy?.thresholdPercent, 35);
+    assert.equal(requests[0]!.contextPolicy?.mode, "default", "it compacts at its own point");
     await rig.core.sendUserMessage("Use the explicitly selected default.", {
       engine: "vendor",
       model: "",
@@ -572,6 +574,23 @@ describe("context management", () => {
     assert.match(messages[0]!.content, /compacted[\s\S]*old thing/i, "the summary leads");
     assert.match(messages[1]!.content, /recent ask/, "messages after upTo survive verbatim");
     assert.match(messages[2]!.content, /recent reply/);
+  });
+
+  it("a provider's own compaction that left no summary in the log replaces nothing there", () => {
+    const events = [
+      { id: "01a", data: { type: "messages", messages: [{ role: "user", content: "old ask" }] } },
+      { id: "01b", data: { type: "messages", messages: [{ role: "assistant", content: "old reply" }] } },
+      {
+        id: "01c",
+        data: { type: "custom", event_type: "compacted", payload: { native: true, engine: "codex", messages: 2 } },
+      },
+      { id: "01d", data: { type: "messages", messages: [{ role: "user", content: "new ask" }] } },
+    ];
+    assert.deepEqual(
+      eventsToMessages(events as never).map((m) => m.content),
+      ["old ask", "old reply", "new ask"],
+      "Codex keeps its summary sealed inside its session; a prompt built from the log still has the messages",
+    );
   });
 
   it("a second and a third compaction replace what they summarised, even a tail older than the last summary (P16-F2)", () => {
@@ -846,6 +865,31 @@ describe("Compact now on a session chat", () => {
       },
     } satisfies Engine;
   }
+  const NATIVE_SUMMARY = "The provider's own summary: the fountain glows at night.";
+  /**
+   * A session engine with a compaction of its own (Claude Code's `/compact`, Codex's app server):
+   * a `compact` delegation compacts the session in place, or reports that it did not.
+   */
+  function nativeEngine(requests: DelegateRequest[], { compacts }: { compacts: boolean }) {
+    const engine = sessionEngine(requests);
+    return {
+      ...engine,
+      compactsNatively: true,
+      delegate: async (request: DelegateRequest) => {
+        if (!request.compact) return engine.delegate(request);
+        requests.push(request);
+        return {
+          ok: compacts,
+          engine: "vendor",
+          summary: compacts ? NATIVE_SUMMARY : "",
+          turns: 0,
+          usage: {},
+          sessionId: request.resume,
+          ...(compacts ? { compacted: true } : { errorText: "Not enough messages to compact." }),
+        };
+      },
+    } satisfies Engine;
+  }
   const turnsEnded = (count: number) => (events: Array<{ data: { type: string } }>) =>
     events.filter((e) => e.data.type === "turn_ended").length >= count;
   /** How long a message sent during the handover is watched for being taken: the queue takes one at once. */
@@ -855,8 +899,9 @@ describe("Compact now on a session chat", () => {
     rig: Rig,
     requests: DelegateRequest[],
     options: Parameters<typeof sessionEngine>[1] = {},
+    engine: Engine = sessionEngine(requests, options),
   ) {
-    rig.core.engines.register(sessionEngine(requests, options));
+    rig.core.engines.register(engine);
     const game = `plaza-${rigs.length}`;
     await rig.core.games.scaffold(game, { title: "Plaza chat" });
     const thread = await rig.core.threadForGame(game);
@@ -902,6 +947,55 @@ describe("Compact now on a session chat", () => {
       /Original request/,
       "the handover says what was asked; a kept message is not the original",
     );
+  });
+
+  it("an engine with its own compaction compacts the session in place, and the next turn resumes it", async () => {
+    const rig = await startRig({ replies: [] });
+    rigs.push(rig);
+    const requests: DelegateRequest[] = [];
+    const thread = await chatAfterOneTurn(rig, requests, {}, nativeEngine(requests, { compacts: true }));
+
+    await rig.core.compactThread(thread, { engine: "vendor" });
+    const compaction = requests.at(-1);
+    assert.equal(compaction?.compact, true, "the provider's own compaction");
+    assert.equal(compaction?.resume, "ses_1", "of the chat's session");
+    assert.equal(requests.filter((r) => r.resume && !r.compact).length, 0, "no handover turn");
+    const compacted = customEvents(await rig.core.store.listEvents(thread), "compacted");
+    assert.deepEqual(
+      compacted.map((p) => [p.summary, p.engine, p.native, p.sessionId]),
+      [[NATIVE_SUMMARY, "vendor", true, "ses_1"]],
+    );
+
+    await rig.core.sendUserMessage("Now add the market stalls.", { engine: "vendor", thread });
+    await waitForLog(rig.core, turnsEnded(2), 30000, "turn after compaction");
+    const next = requests.at(-1);
+    assert.equal(next?.resume, "ses_1", "the compacted session goes on");
+    assert.doesNotMatch(String(next?.prompt), /fountain glows/, "it holds its own summary; none is pasted in");
+  });
+
+  it("when the engine's own compaction does not run, the session writes the handover instead", async () => {
+    const rig = await startRig({ replies: [] });
+    rigs.push(rig);
+    const requests: DelegateRequest[] = [];
+    const thread = await chatAfterOneTurn(rig, requests, {}, nativeEngine(requests, { compacts: false }));
+
+    await rig.core.compactThread(thread, { engine: "vendor" });
+    assert.deepEqual(
+      requests.slice(-2).map((r) => [r.compact === true, r.readOnly === true, r.resume]),
+      [
+        [true, true, "ses_1"],
+        [false, true, "ses_1"],
+      ],
+      "its own compaction first, then the handover turn",
+    );
+    const compacted = customEvents(await rig.core.store.listEvents(thread), "compacted");
+    assert.deepEqual(
+      compacted.map((p) => [p.summary, p.native]),
+      [[HANDOVER, undefined]],
+    );
+    await rig.core.sendUserMessage("Now add the market stalls.", { engine: "vendor", thread });
+    await waitForLog(rig.core, turnsEnded(2), 30000, "turn after compaction");
+    assert.equal(requests.at(-1)?.resume, undefined, "a fresh session briefed with the handover");
   });
 
   it("a message sent while the session writes its handover waits in the queue, then starts the fresh session", async () => {
@@ -975,5 +1069,132 @@ describe("Compact now on a session chat", () => {
     await rig.core.sendUserMessage("Now add the market stalls.", { engine: "vendor", thread });
     await waitForLog(rig.core, turnsEnded(2), 30000, "turn after the failed compaction");
     assert.equal(requests.at(-1)?.resume, "ses_1", "nothing was summarised, so nothing was forgotten");
+  });
+});
+
+/**
+ * The person may switch the chat's model at any message (owner, 2026-10-05), and the chat must
+ * stay one conversation. A session goes on only while it is the chat's latest: one that missed
+ * another model's turns is not resumed. A fresh session whose brief cannot carry the conversation
+ * is briefed with a written summary, which a Codex compaction cannot give (it keeps its own sealed).
+ */
+describe("switching the chat's model", () => {
+  type DelegateRequest = import("../../src/substrate/engines/types.ts").DelegateRequest;
+  type Asked = DelegateRequest & { engine: string };
+  const WRITTEN_SUMMARY = "Where the chat stands: a plaza with a glowing fountain and market stalls.";
+  /** A session engine that compacts natively and keeps its summary sealed, as Codex does. */
+  function chatEngine(id: string, asked: Asked[], summaries: string[] = []): Engine {
+    let sessions = 0;
+    return {
+      id,
+      label: id,
+      kind: "delegated",
+      compactsNatively: true,
+      status: async () => ({ code: "ready", detail: "signed in" }),
+      models: async () => [],
+      delegate: async (request) => {
+        asked.push({ ...request, engine: id });
+        const sessionId = request.resume ?? `${id}_${++sessions}`;
+        if (request.compact)
+          return { ok: true, engine: id, summary: "", turns: 0, usage: {}, sessionId, compacted: true };
+        return { ok: true, engine: id, summary: `done by ${id}`, turns: 1, usage: {}, sessionId };
+      },
+      complete: async () => {
+        summaries.push(id);
+        return {
+          engine: id,
+          model: `${id}-1`,
+          stopReason: "stop",
+          usage: {},
+          message: { role: "assistant", content: WRITTEN_SUMMARY },
+        };
+      },
+    };
+  }
+  const turnsEnded = (count: number) => (events: Array<{ data: { type: string } }>) =>
+    events.filter((e) => e.data.type === "turn_ended").length >= count;
+  /** Each ask in turn on its engine, waiting for every turn to end. */
+  async function say(rig: Rig, thread: string, asks: Array<[engine: string, text: string]>, before = 0) {
+    for (const [index, [engine, text]] of asks.entries()) {
+      await rig.core.sendUserMessage(text, { engine, thread });
+      await waitForLog(rig.core, turnsEnded(before + index + 1), 30000, `turn ${before + index + 1}`);
+    }
+  }
+
+  it("a model switched back to starts fresh, briefed with what the other model did", async () => {
+    const rig = await startRig({ replies: [] });
+    rigs.push(rig);
+    const asked: Asked[] = [];
+    rig.core.engines.register(chatEngine("claudish", asked));
+    rig.core.engines.register(chatEngine("codexish", asked));
+    await rig.core.games.scaffold("switch-back", { title: "Switch back" });
+    const thread = await rig.core.threadForGame("switch-back");
+    await say(rig, thread, [
+      ["claudish", "Build a plaza."],
+      ["codexish", "Add a fountain."],
+      ["codexish", "Make the water glow."],
+    ]);
+    assert.equal(asked.at(-1)?.resume, "codexish_1", "a model goes on in its own session while it answers");
+    await rig.core.compactThread(thread, { engine: "codexish" });
+    await say(rig, thread, [["claudish", "Now add lanterns."]], 3);
+    const next = asked.at(-1);
+    assert.equal(next?.engine, "claudish");
+    assert.equal(next?.resume, undefined, "its old session missed the other model's turns");
+    assert.match(
+      String(next?.prompt),
+      /Recent conversation[\s\S]*user: Add a fountain\.[\s\S]*user: Make the water glow\./,
+    );
+  });
+
+  it("a chat its brief cannot carry is summarised before the switched-to model starts", async () => {
+    const rig = await startRig({ replies: [] });
+    rigs.push(rig);
+    const asked: Asked[] = [];
+    const summaries: string[] = [];
+    rig.core.engines.register(chatEngine("claudish", asked, summaries));
+    rig.core.engines.register(chatEngine("codexish", asked, summaries));
+    await rig.core.games.scaffold("switch-long", { title: "Switch long" });
+    const thread = await rig.core.threadForGame("switch-long");
+    const asks = Array.from(
+      { length: 12 },
+      (_, n) => ["codexish", `Step ${n + 1}: add part ${n + 1}.`] as [string, string],
+    );
+    await say(rig, thread, asks);
+    // Codex's own compaction: its summary stays sealed in Codex's session.
+    await rig.core.compactThread(thread, { engine: "codexish" });
+    assert.deepEqual(summaries, [], "Codex compacts natively; nothing of ours is written");
+
+    await say(rig, thread, [["claudish", "Now add lanterns."]], asks.length);
+    assert.deepEqual(summaries, ["claudish"], "one summary, written on the model the chat switched to");
+    const next = asked.at(-1);
+    assert.equal(next?.engine, "claudish");
+    assert.equal(next?.resume, undefined);
+    assert.ok(String(next?.prompt).includes(WRITTEN_SUMMARY), "the fresh session is briefed with it");
+    const compacted = customEvents(await rig.core.store.listEvents(thread), "compacted");
+    assert.deepEqual(
+      compacted.map((p) => [p.engine, p.native === true, Boolean(p.summary)]),
+      [
+        ["codexish", true, false],
+        ["claudish", false, true],
+      ],
+    );
+  });
+
+  it("a short chat fits the brief whole: switching writes no summary", async () => {
+    const rig = await startRig({ replies: [] });
+    rigs.push(rig);
+    const asked: Asked[] = [];
+    const summaries: string[] = [];
+    rig.core.engines.register(chatEngine("claudish", asked, summaries));
+    rig.core.engines.register(chatEngine("codexish", asked, summaries));
+    await rig.core.games.scaffold("switch-short", { title: "Switch short" });
+    const thread = await rig.core.threadForGame("switch-short");
+    await say(rig, thread, [
+      ["codexish", "Build a plaza."],
+      ["claudish", "Add a fountain."],
+    ]);
+    assert.deepEqual(summaries, []);
+    assert.equal(asked.at(-1)?.resume, undefined);
+    assert.match(String(asked.at(-1)?.prompt), /user: Build a plaza\./);
   });
 });

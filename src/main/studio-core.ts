@@ -415,10 +415,7 @@ export class StudioCore {
 
   constructor(options: StudioCoreOptions) {
     this.options = options;
-    this.contextPreferences = new ContextPreferences(
-      path.join(options.paths.userData, "context-settings.json"),
-      async (engine, model) => this.engines.get(engine).contextControl?.(model) ?? { supported: false },
-    );
+    this.contextPreferences = new ContextPreferences(path.join(options.paths.userData, "context-settings.json"));
     this.#consent = new PluginConsent({ timeoutMs: options.consentTimeoutMs ?? CONSENT_TIMEOUT_MS });
     this.layout = layoutFor(options.paths.userData);
     if (options.gamesRoot) this.layout.gamesRoot = options.gamesRoot;
