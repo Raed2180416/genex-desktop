@@ -117,6 +117,24 @@ export const projectOf = (state: ThreadsState): string | null => {
 export const studioThreadOf = (state: ThreadsState): ConversationRecord | null =>
   state.records.find((thread) => !isGameThread(thread)) ?? null;
 
+/**
+ * The sidebar's games: pinned first, then the most recently worked on (its newest chat, else when it
+ * was made), then by title. Opening a game is not work: a row never moves because it was selected.
+ */
+export function sidebarGames(games: readonly GameProject[], records: readonly ConversationRecord[]): GameProject[] {
+  const recent = (game: GameProject) =>
+    Math.max(
+      Date.parse(game.createdAt) || 0,
+      ...records
+        .filter((thread) => threadMeta(thread).project === game.name)
+        .map((thread) => Date.parse(thread.updated_at) || 0),
+    );
+  return [...games].sort((a, b) => {
+    if (Boolean(a.pinned) !== Boolean(b.pinned)) return a.pinned ? -1 : 1;
+    return recent(b) - recent(a) || a.title.localeCompare(b.title);
+  });
+}
+
 /** The rail's order for Alt-↑/↓: Studio, then each game's primary (else freshest) chat. */
 export function railThreadIds(records: readonly ConversationRecord[], games: readonly GameProject[]): string[] {
   const ids: string[] = [];

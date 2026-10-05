@@ -4191,8 +4191,9 @@ a:focus-visible {
     opacity: 0;
   }
 }
-/* The quiet pill: the prompt bar's model pill fill, worn by every action that is there but not due —
-   the chat's result buttons and the stage strip's plugin buttons. Due ones take the accent. */
+/* The quiet pill: the canvas chip fill (the prompt bar's chips may wear their own, `--prompt-chip-fill`),
+   worn by every action that is there but not due — the chat's result buttons and the stage strip's
+   plugin buttons, such as Publish. Due ones take the accent. */
 .pill-quiet {
   background: var(--control-fill, var(--hover));
   color: var(--control-text, var(--ink-2));
@@ -4652,7 +4653,7 @@ a:focus-visible {
 }
 /* Add is filled so both ends of the bar read as controls; + turns into × while its panel is open. */
 .composer-icon.composer-add {
-  background: var(--control-fill, var(--hover));
+  background: var(--prompt-chip-fill, var(--control-fill, var(--hover)));
   color: var(--control-text, var(--ink-2));
 }
 .composer-icon.composer-add:is(:enabled:hover, [aria-expanded="true"], :focus-visible) {
@@ -4756,7 +4757,7 @@ a:focus-visible {
   height: 30px;
   margin-inline-start: 4px;
   border-radius: 999px;
-  background: var(--control-fill, var(--hover));
+  background: var(--prompt-chip-fill, var(--control-fill, var(--hover)));
   color: var(--ink-3);
   transition:
     background-color 220ms var(--ease-smooth-out),
@@ -4937,7 +4938,7 @@ a:focus-visible {
   height: 26px;
   padding-inline: 10px 6px;
   border-radius: var(--radius-chip);
-  background: var(--control-fill, var(--hover));
+  background: var(--prompt-chip-fill, var(--control-fill, var(--hover)));
   color: var(--control-text, var(--ink-2));
   font-family: var(--font-family-content);
   font-size: 13px;
@@ -5165,7 +5166,7 @@ a:focus-visible {
    13px from each end of the track. */
 .composer-text-button:is(.composer-mode, .composer-permission, .composer-model, .composer-effort) {
   padding-inline: 8px;
-  background: var(--control-fill, var(--hover));
+  background: var(--prompt-chip-fill, var(--control-fill, var(--hover)));
   color: var(--control-text, var(--ink-2));
 }
 .composer-text-button:is(.composer-mode, .composer-permission, .composer-model, .composer-effort):is(
