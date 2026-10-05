@@ -1,8 +1,9 @@
+/** Engines and local models: what is available, re-checking sign-ins, and downloading or deleting a model. */
 import { modelProgress } from "../model-progress.ts";
-/** Engines and local models: what is available, re-checking sign-ins, and downloading a model. */
 import { SUBSCRIPTION_ENGINES, type StudioCore } from "../studio-core.ts";
 import { type ModelPullProgress, UiEvent } from "../../shared/ui-events.ts";
 import type { ProviderUsageReport } from "../../shared/provider-usage.ts";
+import { isBonsaiModelId } from "../../substrate/bonsai/manifest.ts";
 import { BonsaiEngine } from "../../substrate/engines/bonsai.ts";
 import { detectHardware, fitFor } from "../../substrate/hardware.ts";
 import { lookupOllamaModel } from "../../substrate/ollama-registry.ts";
@@ -16,6 +17,8 @@ import { EngineStatusCode } from "../../shared/engine-descriptor.ts";
 /** Why a local model request from the renderer is refused. */
 const MESSAGE = {
   bonsaiUnavailable: "Bonsai runtime is unavailable",
+  noModel: "Name the model to delete",
+  cannotRemove: "This model cannot be deleted here",
 } as const;
 
 export interface ModelsIpcDeps {
@@ -68,11 +71,22 @@ export function registerModelsIpc(handle: IpcHandle, { core, subscription, pushU
     const found = await lookupOllamaModel(String(payload?.model ?? ""));
     return found.ok ? { ...found, ...fitFor(found.sizeGb, await detectHardware()) } : found;
   });
+  // Delete: Bonsai ids go to the managed runtime, every other name to Ollama, which lists what it has.
+  handle("studio:models.remove", async (payload) => {
+    const model = payload?.model;
+    if (typeof model !== "string" || !model) throw new Error(MESSAGE.noModel);
+    const id = isBonsaiModelId(model) ? EngineId.Bonsai : EngineId.Ollama;
+    const engine = core.engines.has(id) ? core.engines.get(id) : null;
+    if (!engine?.removeModel) throw new Error(MESSAGE.cannotRemove);
+    await engine.removeModel(model);
+    pushUiEvent({ type: UiEvent.EnginesChanged, payload: { engine: id } });
+    return true;
+  });
   handle("studio:pull-model", async (payload) => {
     const progressUpdates = modelProgress((progress) =>
       pushUiEvent({ type: UiEvent.ModelPull, payload: { model: payload.model, progress } }),
     );
-    if (payload.model.startsWith("bonsai-2:")) {
+    if (isBonsaiModelId(payload.model)) {
       const engine = core.engines.get(EngineId.Bonsai);
       if (!(engine instanceof BonsaiEngine)) throw new Error(MESSAGE.bonsaiUnavailable);
       const unsubscribe = engine.runtime.onInstall((job) => pushUiEvent({ type: UiEvent.ModelInstall, payload: job }));

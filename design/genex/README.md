@@ -488,7 +488,9 @@ while it first loads or after a refresh failed (Showing saved models… with Try
 in progress reads Updating…. A signed-out row's one action is Sign in. No filesystem path or
 executable picker is shown; a missing or outdated CLI offers Install (or Update) and Check again, shows Installing… while the vendor's
 installer runs, and adds the vendor's Install guide after a failure. Local Models ranks models that fit with a
-Best fit tag, a memory meter and "Needs a N GB Mac" for the rest, plus Add from Ollama. Closing or switching sections preserves host installation
+Best fit tag, a memory meter and "Needs a N GB Mac" for the rest, plus Add from Ollama. An installed
+row keeps the quiet Installed badge beside a ghost trash button; it asks on the row ("Delete it from
+this Mac?") with Cancel, which takes focus, and a destructive Delete. Closing or switching sections preserves host installation
 jobs. Harness holds **Maximum concurrent workers** (a ceiling the lead chooses under, default 8, maximum 12)
 and **Apply suggestions automatically** with how suggestions are tested. The game model list's
 Add more models opens Model Providers. First-launch and Studio setup links open the corresponding

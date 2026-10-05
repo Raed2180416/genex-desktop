@@ -19,7 +19,7 @@ Each chat keeps its model, effort and Loop; fresh games inherit the last picks. 
 serves every role: the slider offers the main agent's levels and others use their closest level.
 Workers and Reviewers run only in Loop. A new main-agent model keeps worker/reviewer picks.
 
-Settings keeps coding providers apart from Local Models (Bonsai/Ollama).
+Local Models (Bonsai/Ollama), separate from coding providers, downloads and deletes.
 
 ## What the model knows
 

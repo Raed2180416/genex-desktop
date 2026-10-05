@@ -39,6 +39,8 @@ const NATIVE_CHANNELS = [
   "studio:games-root.choose",
   "studio:pull-model",
   "studio:models.lookup",
+  // Delete removes model files from this Mac, or asks the person's own Ollama to delete one.
+  "studio:models.remove",
   // Install fetches the vendor's installer and runs it as the person: a download and a real install.
   "studio:cli-install.start",
   "studio:models.refresh",

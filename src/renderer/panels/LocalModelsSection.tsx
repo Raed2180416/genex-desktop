@@ -1,6 +1,6 @@
 /** Settings → Local Models: hardware-aware downloads and their durable installation status. */
 import type { FormEvent, JSX } from "react";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { EngineStatusCode } from "../../shared/engine-descriptor.ts";
 import { errorMessage } from "../../shared/errors.ts";
 import { EngineId } from "../../shared/providers.ts";
@@ -15,6 +15,15 @@ import { Pending } from "../ui/Pending.tsx";
 
 /** Where the Add from Ollama hint sends the user to find a model's name. */
 const OLLAMA_LIBRARY_URL = "https://ollama.com/search";
+
+/** What deleting an installed model says. */
+const WORDS = {
+  delete: "Delete",
+  deleteModel: (title: string) => `Delete ${title}`,
+  deleteAsk: "Delete it from this Mac? You can download it again.",
+  deleteCancel: "Cancel",
+  deleting: "Deleting…",
+} as const;
 
 type Hardware = Awaited<ReturnType<typeof window.studio.hardware>>;
 type Lookup = Awaited<ReturnType<typeof window.studio.lookupModel>>;
@@ -87,6 +96,70 @@ function InstalledBadge(): JSX.Element {
   );
 }
 
+/** One installed row's Delete: whether it asks or deletes now, and its steps. */
+interface RowDeletion {
+  asking: boolean;
+  removing: boolean;
+  /** Another download or deletion is running. */
+  disabled: boolean;
+  ask: () => void;
+  keep: () => void;
+  confirm: () => void;
+}
+
+/**
+ * Installed, with Delete behind a second step. Asking moves focus to Cancel, the safe choice;
+ * Cancel, or a refusal, hands it back to the trash button.
+ */
+function InstalledAction({ title, deletion }: { title: string; deletion: RowDeletion }): JSX.Element {
+  const trash = useRef<HTMLButtonElement>(null);
+  const cancel = useRef<HTMLButtonElement>(null);
+  const asked = useRef(deletion.asking);
+  useEffect(() => {
+    if (deletion.asking) cancel.current?.focus();
+    else if (asked.current) trash.current?.focus();
+    asked.current = deletion.asking;
+  }, [deletion.asking]);
+  if (deletion.asking)
+    return (
+      <div className="flex shrink-0 gap-2">
+        <Button ref={cancel} data-model-delete="cancel" disabled={deletion.removing} onClick={deletion.keep}>
+          {WORDS.deleteCancel}
+        </Button>
+        <Button
+          data-model-delete="confirm"
+          variant="destructive"
+          disabled={deletion.removing}
+          onClick={deletion.confirm}
+        >
+          {deletion.removing ? WORDS.deleting : WORDS.delete}
+        </Button>
+      </div>
+    );
+  return (
+    <div className="flex shrink-0 items-center gap-1">
+      <InstalledBadge />
+      <Button
+        ref={trash}
+        data-model-delete="ask"
+        variant="ghost"
+        size="icon-sm"
+        aria-label={WORDS.deleteModel(title)}
+        title={WORDS.delete}
+        disabled={deletion.disabled}
+        onClick={deletion.ask}
+      >
+        <Icon name="trash" />
+      </Button>
+    </div>
+  );
+}
+
+/** The question an installed row asks before Delete. */
+function DeleteQuestion(): JSX.Element {
+  return <p className="text-body-sm text-ink">{WORDS.deleteAsk}</p>;
+}
+
 /** A stopped download's saved share beside Resume, which continues from the saved bytes. */
 function ResumeAction({
   title,
@@ -116,7 +189,7 @@ function ResumeAction({
   );
 }
 
-/** A model row's action: its download's progress (and Cancel), Installed, Resume, or Download when it fits. */
+/** A model row's action: its download's progress (and Cancel), Installed with Delete, Resume, or Download when it fits. */
 function ModelAction({
   pick,
   title,
@@ -127,6 +200,7 @@ function ModelAction({
   stopped,
   cancellable,
   busy,
+  deletion,
   onDownload,
   onCancel,
 }: {
@@ -139,6 +213,7 @@ function ModelAction({
   stopped: StoppedDownload | null;
   cancellable: boolean;
   busy: boolean;
+  deletion: RowDeletion;
   onDownload: () => void;
   onCancel: () => void;
 }): JSX.Element | null {
@@ -156,7 +231,7 @@ function ModelAction({
         )}
       </div>
     );
-  if (installed) return <InstalledBadge />;
+  if (installed) return <InstalledAction title={title} deletion={deletion} />;
   if (stopped?.resumable)
     return <ResumeAction title={title} percent={stopped.percent} best={best} busy={busy} onResume={onDownload} />;
   if (!pick.fits) return null;
@@ -190,10 +265,11 @@ function ModelRow(props: {
   progress: number;
   /** This model's last download, when it stopped short. */
   stopped: StoppedDownload | null;
-  /** This model's last download or lookup failure in this session. */
+  /** This model's last download, lookup or delete failure in this session. */
   failure: string | null;
   cancellable: boolean;
   busy: boolean;
+  deletion: RowDeletion;
   usable: number;
   onDownload: () => void;
   onCancel: () => void;
@@ -202,6 +278,8 @@ function ModelRow(props: {
   const percent = Math.round(props.progress * 100);
   const title = pick.variant ? `${pick.name} ${pick.variant}` : pick.name;
   const reason = pulling ? null : (stopped?.reason ?? props.failure);
+  // A model already on this Mac shows no share saved by an earlier stopped download.
+  const saved = pulling || props.installed ? null : stopped;
   return (
     <div className="flex items-center gap-4 border-b border-border py-3.5">
       <div className="flex min-w-0 flex-1 flex-col gap-1">
@@ -223,9 +301,10 @@ function ModelRow(props: {
           <Fit fits={pick.fits} needGb={pick.needGb} needsRamGb={pick.needsRamGb} usable={usable} />
         </div>
         {pulling && <ProgressBar label={`Downloading ${title}`} percent={percent} animated />}
-        {!pulling && stopped?.resumable && (
-          <ProgressBar label={`Downloaded part of ${title}`} percent={stopped.percent} animated={false} />
+        {saved?.resumable && (
+          <ProgressBar label={`Downloaded part of ${title}`} percent={saved.percent} animated={false} />
         )}
+        {props.installed && props.deletion.asking && <DeleteQuestion />}
         {reason && <StopReason reason={reason} cancelled={Boolean(stopped?.cancelled)} />}
       </div>
       <ModelAction {...props} title={title} percent={percent} />
@@ -321,7 +400,46 @@ function useModelInstalls(onEnginesRefresh: () => void) {
       setPulling(null);
     }
   };
-  return { hardware, hardwareError, pulling, progress, job, failure, pull };
+  /** A deleted model's last download, finished or stopped, no longer describes its row. */
+  const forget = (model: string): void => {
+    setJob((current) => (current?.model === model ? null : current));
+    setFailure((current) => (current?.model === model ? null : current));
+  };
+  return { hardware, hardwareError, pulling, progress, job, failure, pull, forget };
+}
+
+/** Deleting installed models: the row asking to confirm, the one being deleted, and what went wrong. */
+function useModelRemoval(onRemoved: (model: string) => Promise<void> | void) {
+  const [asking, setAsking] = useState<string | null>(null);
+  const [removing, setRemoving] = useState<string | null>(null);
+  const [failure, setFailure] = useState<DownloadFailure | null>(null);
+  const remove = async (model: string): Promise<void> => {
+    setRemoving(model);
+    setFailure(null);
+    try {
+      await window.studio.removeModel(model);
+      // The row keeps saying Deleting… until the refreshed list no longer has the model.
+      await onRemoved(model);
+    } catch (err) {
+      setFailure({ model, message: errorMessage(err) });
+    } finally {
+      setRemoving(null);
+      setAsking(null);
+    }
+  };
+  /** `model`'s row; `busy` while a download runs. */
+  const forRow = (model: string, busy: boolean): RowDeletion => ({
+    asking: asking === model,
+    removing: removing === model,
+    disabled: busy || removing !== null,
+    ask: () => {
+      setAsking(model);
+      setFailure(null);
+    },
+    keep: () => setAsking(null),
+    confirm: () => void remove(model),
+  });
+  return { failure, forRow };
 }
 
 /** What checking a tag found wrong: the lookup's own error, a missing or malformed tag, or an unreachable library. */
@@ -490,18 +608,32 @@ function AddFromOllama({
 }
 
 /** Models Ollama has that the catalog does not list: already installed, added by hand. */
-function ExtraModels({ models }: { models: EngineDescriptor["models"] }): JSX.Element {
+function ExtraModels({
+  models,
+  deletion,
+  failure,
+}: {
+  models: EngineDescriptor["models"];
+  deletion: (model: string) => RowDeletion;
+  failure: (model: string) => string | null;
+}): JSX.Element {
   return (
     <>
-      {models.map((model) => (
-        <div key={model.id} className="flex items-center gap-4 border-b border-border py-3.5">
-          <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <span className="break-all font-mono text-sm text-ink">{model.id}</span>
-            <span className="text-body-sm text-muted-foreground">Added from Ollama</span>
+      {models.map((model) => {
+        const rowDeletion = deletion(model.id);
+        const reason = failure(model.id);
+        return (
+          <div key={model.id} className="flex items-center gap-4 border-b border-border py-3.5">
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <span className="break-all font-mono text-sm text-ink">{model.id}</span>
+              <span className="text-body-sm text-muted-foreground">Added from Ollama</span>
+              {rowDeletion.asking && <DeleteQuestion />}
+              {reason && <StopReason reason={reason} cancelled={false} />}
+            </div>
+            <InstalledAction title={model.id} deletion={rowDeletion} />
           </div>
-          <InstalledBadge />
-        </div>
-      ))}
+        );
+      })}
     </>
   );
 }
@@ -543,6 +675,16 @@ function MoreModels({
 export function LocalModelsSection({ engines, onEnginesRefresh }: ModelSettingsProps): JSX.Element {
   const installs = useModelInstalls(onEnginesRefresh);
   const { hardware, pulling, progress, failure } = installs;
+  const removal = useModelRemoval((model) => {
+    installs.forget(model);
+    return onEnginesRefresh();
+  });
+  const deletion = (model: string): RowDeletion => removal.forRow(model, pulling !== null);
+  /** What last went wrong on `model`'s row: its download, or its deletion. */
+  const failureFor = (model: string): string | null => {
+    if (failure?.model === model) return failure.message;
+    return removal.failure?.model === model ? removal.failure.message : null;
+  };
   const [moreOpen, setMoreOpen] = useState(false);
   const ollama = engines.find((engine) => engine.id === EngineId.Ollama);
   const installed = new Set(engines.flatMap((engine) => engine.models.map((model) => canonical(model.id))));
@@ -568,9 +710,10 @@ export function LocalModelsSection({ engines, onEnginesRefresh }: ModelSettingsP
       pulling={pulling === pick.model}
       progress={progress}
       stopped={stoppedDownload(installs.job, pick.model)}
-      failure={failure?.model === pick.model ? failure.message : null}
+      failure={failureFor(pick.model)}
       cancellable={pick.engine === EngineId.Bonsai}
       busy={pulling !== null}
+      deletion={deletion(pick.model)}
       onDownload={() => void installs.pull(pick.model)}
       onCancel={() => void window.studio.cancelModelDownload()}
     />
@@ -587,7 +730,7 @@ export function LocalModelsSection({ engines, onEnginesRefresh }: ModelSettingsP
       )}
       {recommendation?.picks.map((pick) => row(pick, pick.model === recommendation.defaultModel))}
 
-      {extra.length > 0 && <ExtraModels models={extra} />}
+      {extra.length > 0 && <ExtraModels models={extra} deletion={deletion} failure={failureFor} />}
 
       {failure && !failureOnRow && (
         <p role="alert" className="py-2 text-body-sm text-red">

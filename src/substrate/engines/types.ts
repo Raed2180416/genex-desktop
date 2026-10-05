@@ -479,6 +479,8 @@ export interface Engine {
   models(): Promise<EngineModel[]>;
   catalogSnapshot?(): ModelCatalogStatus;
   refreshModels?(force?: boolean): Promise<void>;
+  /** Local engines: delete an installed model from this Mac. */
+  removeModel?(id: string): Promise<void>;
   /** One-shot completion. Direct engines use this for the whole tool loop; Claude Code uses it only as the isolated critic (no tools, no game folder). */
   complete?(request: CompleteRequest): Promise<CompleteResponse>;
   /** Build a game. Delegated engines (Claude Code) take a brief and work in a workspace. */

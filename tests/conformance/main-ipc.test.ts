@@ -530,6 +530,37 @@ it("model refresh validates provider identities before invoking discovery", asyn
   assert.equal(calls, 1);
 });
 
+it("deleting a model asks the local engine that owns it and announces the change", async () => {
+  const removed: string[] = [];
+  const events: UiEvent[] = [];
+  const engines: Record<string, { removeModel?(id: string): Promise<void> }> = {
+    bonsai: { removeModel: async (id) => void removed.push(`bonsai ${id}`) },
+    ollama: { removeModel: async (id) => void removed.push(`ollama ${id}`) },
+  };
+  const core = {
+    engines: { has: (id: string) => id in engines, get: (id: string) => engines[id] },
+  } as unknown as ModelsIpcDeps["core"];
+  const { handle, invoke } = registrar();
+  registerModelsIpc(handle, { core, subscription: () => null, pushUiEvent: (event) => events.push(event) });
+  assert.deepEqual(await invoke("studio:models.remove", { model: "bonsai-2:27b-ptq1_0" }), { ok: true, value: true });
+  assert.deepEqual(await invoke("studio:models.remove", { model: "gemma4:12b" }), { ok: true, value: true });
+  assert.deepEqual(removed, ["bonsai bonsai-2:27b-ptq1_0", "ollama gemma4:12b"]);
+  assert.deepEqual(events, [
+    { type: "engines.changed", payload: { engine: "bonsai" } },
+    { type: "engines.changed", payload: { engine: "ollama" } },
+  ]);
+  for (const payload of [undefined, null, {}, { model: 7 }, { model: "" }, { model: ["gemma4:12b"] }]) {
+    assert.equal((await invoke("studio:models.remove", payload)).ok, false, JSON.stringify(payload));
+  }
+  delete engines.ollama;
+  engines.bonsai = {};
+  for (const model of ["gemma4:12b", "bonsai-2:27b-ptq1_0"]) {
+    assert.equal((await invoke("studio:models.remove", { model })).ok, false, `${model} has no engine to delete it`);
+  }
+  assert.equal(removed.length, 2, "a refused delete asks no engine");
+  assert.equal(events.length, 2, "and announces nothing");
+});
+
 describe("the in-window update prompt", () => {
   /** The update channels over a recorded announcer, in a live or a fixture profile. */
   function updateRig(fixture: boolean) {
