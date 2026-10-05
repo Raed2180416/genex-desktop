@@ -133,7 +133,9 @@ Genex Connect advances one account flow without an extra Studio confirmation: ex
 when required, and host-owned completion polling. Closing its panel does not discard the flow.
 An already unlocked account is leased in memory to Genex's backend and declared MCP transports;
 restarting a child does not independently reread Keychain. A successful connection/unlock records host-owned remember intent. On app restart, enabled installed plugins with that intent restore the saved encrypted credential once. Explicit re-enable or reinstall also restores that saved authorization once, without browser sign-in. A refused OS unlock remains failed until another explicit action; duplicate enable requests and status polling never retry. Explicit disconnect clears remember intent before credential deletion. Older installations establish intent on their next successful Connect/Unlock.
-Studio never resets Keychain. Legitimate OS consent remains possible.
+Studio never resets Keychain. Legitimate OS consent remains possible. On Linux, non-KDE sessions
+use the Secret Service backend and KDE/Plasma keeps KWallet; without OS-backed encryption the
+connection remains locked and credentials are never stored through Electron's `basic_text` fallback.
 
 Coding uses the selected subscription/local provider. Signing in enables Genex asset generation,
 charged to the connected Genex account; there is no separate Studio spending setup.

@@ -1060,15 +1060,13 @@ with a managed local runtime; core has no special Blender tool.
   `changeRoot` accepts only a folder whose such subfolders the index already knows (library or
   removed games). It turns old-root games into aliases so names and threads hold; the sandbox gains
   write access to the new root.
-- **Secrets.** `SecretStore` ([`src/substrate/secrets.ts`](../../src/substrate/secrets.ts)) is
-  Keychain-backed through safeStorage and fails closed without OS encryption, raising
-  `SecretStorageUnavailableError` with a `SecretStorageIssue` code. On Linux, safeStorage's
-  `basic_text` backend (no keyring or wallet) counts as locked: its key is public. A value the
-  current key cannot decrypt (the app's safeStorage key is named after the app, so values saved
-  as "AI Game Studio" are unreadable as Genex) reads as missing, so the Genex account and MCP
-  connectors ask to be connected again; a store locked right now still throws. Plaintext
-  backends exist only for tests. Settings writes, the coding-CLI override and connector files use atomic
-  writes ([`src/substrate/fsx.ts`](../../src/substrate/fsx.ts)).
+- **Secrets.** `SecretStore` ([`src/substrate/secrets.ts`](../../src/substrate/secrets.ts)) uses
+  OS-backed `safeStorage`, failing closed with `SecretStorageUnavailableError` and a
+  `SecretStorageIssue` code. Linux `basic_text` uses a public key and stays locked. Startup selects
+  `gnome-libsecret` outside KDE/Plasma, preserves KWallet and explicit `--password-store` choices;
+  without encryption, credentials stay locked. After the app rename, old-key values read as missing,
+  so Genex/MCP users reconnect. Plaintext backends are tests only. Settings, coding-CLI overrides
+  and connector files use atomic writes ([`src/substrate/fsx.ts`](../../src/substrate/fsx.ts)).
 - **Skill inventory.** `studio:skills.list` resolves the host's harness workspace, returns bounded
   active skill text, excludes symlinks and `.best.md` archives and never takes a root from the
   renderer.

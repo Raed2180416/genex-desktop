@@ -111,6 +111,7 @@ import { registerTerminalIpc } from "./ipc/terminal.ts";
 import { registerThreadsIpc } from "./ipc/threads.ts";
 import { KeepAwake } from "./keep-awake.ts";
 import { routeStudioLink } from "./link-policy.ts";
+import { linuxSecretStorageSwitches } from "./linux-secret-storage-launch.ts";
 import { createLoginControllers, type SubscriptionEngine } from "./login-controllers.ts";
 import { openStudioLog } from "./logs.ts";
 import { migrateLegacyUserData, userDataMigrationLine } from "./user-data-migration.ts";
@@ -267,6 +268,20 @@ const isSmoke = hasFlag(StudioFlag.Smoke);
 for (const [name, value] of testLaunchChromiumSwitches({
   platform: process.platform,
   testLaunch: isSmoke || isSelfTest,
+}))
+  app.commandLine.appendSwitch(name, value);
+for (const [name, value] of linuxSecretStorageSwitches({
+  platform: process.platform,
+  desktop: [
+    process.env.XDG_CURRENT_DESKTOP,
+    process.env.XDG_SESSION_DESKTOP,
+    process.env.DESKTOP_SESSION,
+    process.env.KDE_SESSION_VERSION ? `kde${process.env.KDE_SESSION_VERSION}` : undefined,
+    process.env.KDE_FULL_SESSION === "true" ? "kde" : undefined,
+  ]
+    .filter((desktop): desktop is string => Boolean(desktop))
+    .join(":"),
+  argv: process.argv,
 }))
   app.commandLine.appendSwitch(name, value);
 // Controlled read gates for the isolated UI acceptance only; never populated in normal use.
