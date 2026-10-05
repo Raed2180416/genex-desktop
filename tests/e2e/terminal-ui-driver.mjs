@@ -13,6 +13,8 @@ const checks = [],
   errors = [],
   timings = {};
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+/** How many times the resize check asks the PTY its size before it calls the resize lost. */
+const RESIZE_ASKS = 20;
 const check = (name, ok, detail) => {
   checks.push({ name, ok: Boolean(ok), ...(detail === undefined ? {} : { detail }) });
   if (!ok) console.error(name, detail ?? "");
@@ -39,10 +41,23 @@ const key = async (key, modifiers = 0, code = key) => {
   });
   await wc.debugger.sendCommand("Input.dispatchKeyEvent", { ...params, type: "keyUp" });
 };
+/**
+ * The centre of `selector` once a click there reaches it. Its box can be laid out before the page
+ * hit-tests it there (just after start-up, or as a reply arrives): a click at that moment lands on
+ * the page behind it, as the prompt's did, and focuses nothing.
+ */
+const clickPoint = async (selector) => {
+  const probe = `(() => { const e=document.querySelector(${JSON.stringify(selector)}); if(!e) return null; const r=e.getBoundingClientRect(); const x=Math.round(r.x+r.width/2), y=Math.round(r.y+r.height/2); return e.contains(document.elementFromPoint(x,y)) ? {x,y} : null; })()`;
+  let point = null;
+  await until(async () => {
+    point = await js(probe);
+    return point;
+  });
+  if (!point) throw new Error(`Nothing at ${selector} takes a click`);
+  return point;
+};
 const click = async (selector) => {
-  const point = await js(
-    `(() => { const e=document.querySelector(${JSON.stringify(selector)}); if(!e)throw Error('Missing '+${JSON.stringify(selector)}); const r=e.getBoundingClientRect(); return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}; })()`,
-  );
+  const point = await clickPoint(selector);
   await wc.debugger.sendCommand("Input.dispatchMouseEvent", {
     type: "mousePressed",
     ...point,
@@ -66,6 +81,23 @@ const command = async (value) => {
   await wc.debugger.sendCommand("Input.insertText", { text: value });
   await key("Enter");
 };
+/**
+ * Ask the PTY its rows until it reports more than `rows`. It hears of a resize only once the dock
+ * has grown and the view refitted, which a slow runner does after any fixed wait would end. Each
+ * ask is numbered so its answer is found even after earlier ones scrolled out of view.
+ */
+const rowsAbove = async (rows) => {
+  const asked = [];
+  for (let n = 1; n <= RESIZE_ASKS; n++) {
+    await command(`size-${n}`);
+    const answer = `size-${n}:`;
+    if (!(await until(async () => (await text()).includes(answer)))) break;
+    const reported = Number((await text()).split(answer)[1].match(/^\s*(\d+)/)?.[1]);
+    asked.push(reported);
+    if (reported > rows) return { grew: true, asked };
+  }
+  return { grew: false, asked };
+};
 const capture = async (name) => {
   await wait(200);
   fs.writeFileSync(path.join(out, `${name}.png`), (await wc.capturePage()).toPNG());
@@ -87,6 +119,7 @@ while IFS= read -r line; do
   case "$line" in
     ping) printf 'PONG\n';;
     size) printf 'SIZE:'; stty size;;
+    size-*) printf '%s:' "$line"; stty size;;
     burst) awk 'BEGIN {for(i=0;i<12000;i++) print "load-test-abcdefghijklmnopqrstuvwxyz-0123456789-abcdefghijklmnopqrstuvwxyz-0123456789"; print "BURST_DONE"}';;
     tree) /bin/sh -c 'trap "" TERM HUP; while :; do sleep 1; done' & printf 'CHILD:%s\n' "$!";;
     exit) exit 0;;
@@ -205,20 +238,12 @@ async function acceptance() {
       "terminal reports its fitted dimensions",
       await until(`document.querySelector('[data-terminal-dock]')?.textContent.includes('SIZE:')`),
     );
-    const sizeBefore = (await text()).match(/SIZE:\s*(\d+)\s+(\d+)/)?.[1];
+    const sizeBefore = Number((await text()).match(/SIZE:\s*(\d+)\s+(\d+)/)?.[1]);
     await js(`document.querySelector('[aria-label="Terminal height"]').focus()`);
     await key("ArrowUp");
-    await wait(80);
     await key("ArrowUp");
-    await wait(250);
-    await command("size");
-    await wait(150);
-    const sizes = [...(await text()).matchAll(/SIZE:\s*(\d+)\s+(\d+)/g)];
-    check(
-      "keyboard resize reaches the PTY",
-      Number(sizes.at(-1)?.[1]) > Number(sizeBefore),
-      sizes.map((m) => m[0]),
-    );
+    const resized = await rowsAbove(sizeBefore);
+    check("keyboard resize reaches the PTY", resized.grew, resized.asked);
     await capture("terminal");
     const id = terminals.list()[0].id;
     await click('[aria-label="Hide terminal"]');

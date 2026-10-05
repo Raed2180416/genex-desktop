@@ -125,7 +125,10 @@ differs from an owned development build:
   Node inspector; use diagnostics and Chromium traces.
 - **First launch:** Gatekeeper verifies the signed bundle once, which lengthens the first start.
   A copy started from the mounted DMG or from Downloads runs from a read-only or translocated
-  path instead of `/Applications`.
+  path instead of `/Applications`. Before the window opens, a new profile copies each bundled
+  plugin into its plugin store (`core:plugins`); the Genex payload leaves out type declarations
+  and source maps, two thirds of its files, which more than halves that copy
+  (`plugin-payload-paths.test.ts`).
 - **Data:** a packaged app opens the person's real profile, whose histories are larger than any
   fixture's; scale-dependent journeys (open a chat, send, run graph) are measured there too.
 
