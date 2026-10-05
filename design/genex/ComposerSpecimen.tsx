@@ -2,7 +2,6 @@
 import { useEffect, useState } from 'react';
 import { OPEN_SETTINGS_EVENT, type SettingsRequest } from '../../src/renderer/settings-navigation.ts';
 import { PromptBar, type ModelChoice, type RoleRecord } from '../../src/renderer/ui/PromptBar.tsx';
-import type { ModelPreferences } from '../../src/shared/model-preferences.ts';
 import {toChoices, withRoleEfforts, effortScale, unifiedEffort} from '../../src/renderer/model-choices.ts';
 import type { EngineDescriptor } from '../../src/renderer/types.ts';
 import type { StudioApi } from '../../src/shared/studio-api.ts';
@@ -12,14 +11,14 @@ import { RunState } from '../../src/shared/run-state.ts';
 import type { ComposerBuild } from '../../src/renderer/loop-setting.ts';
 const galleryModels:ModelChoice[]=[
  {key:'codex::fixture-astra',name:'Astra fixture',group:'OpenAI fixtures',contextWindow:258400,supportsFast:true,supportsSessions:true,efforts:['low','medium','high','xhigh','max','ultra'],defaultEffort:'medium'},
- {key:'claude-code::fixture-opus',name:'Opus fixture',group:'Claude fixtures',contextWindow:1000000,contextChoices:[200000,1000000],supportsSessions:true,efforts:['low','medium','high','max'],defaultEffort:'high'},
+ {key:'claude-code::fixture-opus',name:'Opus fixture',group:'Claude fixtures',contextWindow:1000000,supportsSessions:true,efforts:['low','medium','high','max'],defaultEffort:'high'},
  {key:'ollama::fixture-local',name:'A deliberately long local model name for truncation',group:'Local fixtures',contextWindow:32000,efforts:[],supportsSessions:true},
 ];
 const galleryEngines: EngineDescriptor[] = galleryModels.map(choice=>({
  id:choice.key.split('::')[0]!, label:choice.group!, kind:choice.key.startsWith('ollama')?'direct':'delegated',
  status:{code:'ready',detail:'Fixture ready'},defaultModel:null,supportsSessions:true,
  models:[{id:'default',label:'Provider default',contextWindow:0,supportsTools:true,supportsVision:true},
- {id:choice.key.split('::')[1]!,label:choice.name,contextWindow:choice.contextWindow??0,supportsTools:true,supportsVision:true,efforts:choice.efforts,defaultEffort:choice.defaultEffort,contextChoices:choice.contextChoices,supportsFast:choice.supportsFast}].filter(m=>!choice.key.startsWith('ollama')||m.id!=='default'),
+ {id:choice.key.split('::')[1]!,label:choice.name,contextWindow:choice.contextWindow??0,supportsTools:true,supportsVision:true,efforts:choice.efforts,defaultEffort:choice.defaultEffort,supportsFast:choice.supportsFast}].filter(m=>!choice.key.startsWith('ollama')||m.id!=='default'),
 }));
 const choices=toChoices([...galleryEngines,{id:'empty-local',label:'Local model (Ollama)',kind:'direct',status:{code:'not_running',detail:'Fixture unavailable'},defaultModel:null,models:[]}]);
 const plugins:PluginInfo[]=['Genex fixture','Local Blender'].map((name,index)=>({
@@ -67,8 +66,8 @@ function SpecimenSwitches({chat,onChat,build,onBuild}:{chat:string;onChat:(key:s
 export function ComposerSpecimen(){
  const [conversationKey,setConversationKey]=useState('gallery-a'),[buildId,setBuildId]=useState('none');
  const build=SPECIMEN_BUILDS[buildId]??null;
- const [running,setRunning]=useState(false),[stops,setStops]=useState(0);
- const [model,setModel]=useState(choices[0]!.key),[effort,setEffort]=useState<string|null>(null),[roles,setRoles]=useState<RoleRecord>({planner:'fixture-astra',builder:'fixture-opus',judge:'fixture-astra',engines:{builder:'claude-code'}}),[preferences,setPreferences]=useState<ModelPreferences>({}),[sent,setSent]=useState('');
+ const [running,setRunning]=useState(false),[stops,setStops]=useState(0),[compacts,setCompacts]=useState(0);
+ const [model,setModel]=useState(choices[0]!.key),[effort,setEffort]=useState<string|null>(null),[roles,setRoles]=useState<RoleRecord>({planner:'fixture-astra',builder:'fixture-opus',judge:'fixture-astra',engines:{builder:'claude-code'}}),[sent,setSent]=useState('');
  const orchestrator=choices.find(c=>c.key===model);
  const picked=withRoleEfforts(roles,choices,model.split('::')[0]!,null);
  const roleModel=(role:'builder'|'judge')=>choices.find(c=>c.key===`${picked.engines?.[role]??model.split('::')[0]}::${picked[role]??''}`);
@@ -77,8 +76,8 @@ export function ComposerSpecimen(){
  const appliedRoles=withRoleEfforts(roles,choices,model.split('::')[0]!,appliedEffort);
  return <section data-composer-specimen className="space-y-3"><h2 className="text-name">Prompt composer</h2>
   <SpecimenSwitches chat={conversationKey} onChat={setConversationKey} build={buildId} onBuild={setBuildId} />
-  <div className="w-full max-w-[388px]"><PromptBar placeholder="Create a game" conversationKey={conversationKey} build={build} coordinating={build?.state===RunState.Running} model={{choices,selected:model,onPick:setModel,effort:appliedEffort,efforts,onEffort:setEffort,roles:appliedRoles,onRoles:setRoles,preferences,onPreferences:setPreferences}} stoppable={running} onStop={()=>{setRunning(false);setStops(n=>n+1);}} onSend={(text,extras)=>{setSent(JSON.stringify({text,extras,roles:appliedRoles,effort:appliedEffort,preferences}));setRunning(true);}} /></div>
-  <output id="composer-settings" data-running={running} data-stops={stops} data-effort={appliedEffort} data-roles={JSON.stringify(appliedRoles)} data-preferences={JSON.stringify(preferences)} className="text-xs text-ink-3">{sent}</output>
+  <div className="w-full max-w-[388px]"><PromptBar placeholder="Create a game" conversationKey={conversationKey} build={build} coordinating={build?.state===RunState.Running} model={{choices,selected:model,onPick:setModel,effort:appliedEffort,efforts,onEffort:setEffort,roles:appliedRoles,onRoles:setRoles}} stoppable={running} onStop={()=>{setRunning(false);setStops(n=>n+1);}} onCompact={()=>setCompacts(n=>n+1)} onSend={(text,extras)=>{setSent(JSON.stringify({text,extras,roles:appliedRoles,effort:appliedEffort}));setRunning(true);}} /></div>
+  <output id="composer-settings" data-running={running} data-stops={stops} data-compacts={compacts} data-effort={appliedEffort} data-roles={JSON.stringify(appliedRoles)} className="text-xs text-ink-3">{sent}</output>
  </section>;
 }
 /** The composer before any AI model is connected: Enter and Send point at Connect AI model, which opens Model Providers. */

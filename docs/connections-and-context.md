@@ -186,7 +186,7 @@ The session checkpoint controls below describe game conversations and delegated 
 
 Auto-compaction policy is host-owned, by model or by chat-and-model; the composer states only that
 context compacts automatically and no longer edits the threshold. Saved policies still apply, and
-local Ollama chats keep a Summarize now action. A chat can inherit its model policy again. Agents cannot change these controls. Unsupported native controls are disabled with
+Compact now works for every engine ([below](#compact-now)). A chat can inherit its model policy again. Agents cannot change these controls. Unsupported native controls are disabled with
 their reason; installing a newer external CLI does not imply universal SDK compatibility.
 The last checkpoint/native-compaction timestamp survives later usage events from the same
 provider, model, role and session. A different or unidentified session cannot borrow that time.
@@ -205,6 +205,27 @@ Resetting policy also refreshes the displayed threshold to its effective inherit
   are not replayed to recover from overflow. An irreducible task that cannot fit fails honestly.
 - **Completion-only Ollama:** the local harness performs its own context checkpoint. Explicit
   policy does not run alongside a second silent history-window truncation.
+
+### Compact now
+
+Compact now is the context panel's button, or `/compact` typed as the whole message: "/" opens the
+composer's command list (`ui/ComposerCommandMenu.tsx`), which runs it instead of sending the text,
+and lists it as waiting while a turn or a build runs. It is model-agnostic; no provider's own
+compaction is asked for. On an engine with a
+session (Claude Code, Codex, Bonsai) the chat's latest session, resumed read-only for one short
+turn (`loop/session-compact.ts`), writes a handover that becomes the chat's `compacted` event; it covers the first exchange and all
+but the last four asks, which stay verbatim. Ollama,
+a chat with no session, or a session that wrote none falls back to the log summary
+(`loop/compact.ts`); a chat too short for that keeps its session. A `compacted` event ends the
+chat's sessions as a rewind does: the host forgets every session recorded before it in what the
+harness reads (`shared/chat-rewind.ts` `harnessView`) and clears the thread's `contractor`, so the
+next turn opens a fresh session briefed with the handover and the recent conversation. The event
+names the session it ended, which a turn never resumes (`loop/compaction-log.ts`). A message sent
+while Compact now runs waits in the chat's queue until it is over, then starts that fresh session. After a
+paused build the run's controls are granted per turn and keep working, and a Resume seats a fresh
+lead told the handover before the chat's latest messages (`freshChat`). While it runs the live
+status reads **Compacting the conversation**; afterwards the chat keeps its own row,
+**Compacted N messages**, in the work rows' type, which opens to the handover in one framed box.
 
 A Bonsai response stopped by its output limit cannot dispatch partial tool arguments. The session
 retains usage and existing work, asks for a smaller edit at most twice, then reports a recoverable
@@ -232,8 +253,10 @@ and leaves the rest absent, never 0: `output_tokens` includes reasoning (`reason
 thinking share), `cache_write_tokens`, Claude's per-model `by_model`, `duration_api_ms`, `ttft_ms`
 and `compactions` ([evals](evals.md#what-the-app-records-for-evals)).
 Claude’s custom percentage threshold is still unavailable: a measured context window does not
-prove threshold enforcement. The composer's Auto-compact point is Claude Code's own
-`autoCompactWindow` setting instead, which the CLI enforces and reports back as the measured window. Codex validates the configuration field before offering
+prove threshold enforcement. Every provider compacts automatically at its own point (Auto); the
+composer offers no compaction point and sends none (no `autoCompactWindow`, even from a preference
+an earlier build saved), and Compact now is the manual control on every engine
+([above](#compact-now)). Codex validates the configuration field before offering
 its native threshold; compaction boundaries and later token counts are retained separately.
 See `claude-telemetry.test.ts` and `context-policy.test.ts` for the regression boundaries.
 

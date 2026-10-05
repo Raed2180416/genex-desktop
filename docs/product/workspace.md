@@ -9,7 +9,7 @@ selected, one composer over an optional dithered picture. A game opens its conve
 the stage (Live, Builds once planned, Assets); Harness opens its conversation and Activity;
 Plugins fills the workspace.
 
-Settings is a modal: Games, Appearance, Model Providers, Local Models, Harness, Permissions,
+Settings is a modal: Model Providers, Local Models, Appearance, Games, Harness, Permissions,
 Privacy and About. Narrow windows use a drawer; wide ones remember the sidebar.
 
 The bell keeps questions, plans and permission requests until answered, then build endings and
@@ -30,7 +30,7 @@ is missing, commands to copy, Retry.
 ## Main actions
 
 - **Home's first message** starts a game the model names, where the chip says; duplicates
-  never overwrite games. **New game**, the Games **+** and Command-N open home.
+  never overwrite games. A greeting stays **Untitled game** until an idea. **New game**, the Games **+** and Command-N open home.
 - **Settings → Games** moves new games to another empty folder (default `~/AI Games`).
 - **Settings → Privacy**: Share build metrics (off by default), See what would be sent and
   Delete what I shared ([PRIVACY](../../PRIVACY.md)).

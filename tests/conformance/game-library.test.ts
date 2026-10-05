@@ -5,6 +5,8 @@ import os from "node:os";
 import path from "node:path";
 import { makeResources, startRig, type Rig } from "../helpers/studio-rig.ts";
 import { StudioCore } from "../../src/main/studio-core.ts";
+import { nameFromIdea } from "../../src/main/core/game-naming.ts";
+import type { GameName, GameNameRequest } from "../../src/shared/game-project.ts";
 import { GameWorkspaces } from "../../src/substrate/game-workspace.ts";
 import { coverFromBrief, validateGameCover } from "../../src/shared/game-library.ts";
 import { gameCoverSvg } from "../../src/shared/game-cover.ts";
@@ -54,6 +56,41 @@ describe("game-first library", () => {
     assert.deepEqual(restored.cover, cover);
     assert.equal((await rig.core.games.presentation(game.name)).primaryThreadId, thread);
     assert.ok((await rig.core.store.listEvents(thread)).some((e) => e.data.type === "messages"));
+  });
+  it("a game made Untitled by a greeting takes its first idea's name in place, never over the person's own", async () => {
+    const replies: Record<string, GameName> = {
+      "Hi there": { title: "Untitled game", provisional: true },
+      "A cozy island fishing game": { title: "Island Angler" },
+    };
+    const asked: string[] = [];
+    const changed: string[] = [];
+    const namer = {
+      games: rig.core.games,
+      name: async (request: GameNameRequest) => {
+        asked.push(request.prompt);
+        return replies[request.prompt] ?? { title: "Wrong", provisional: true };
+      },
+      changed: (project: string) => void changed.push(project),
+    };
+    const game = await rig.core.createGame("Untitled game", { provisional: true });
+    assert.equal(game.provisional, true);
+    assert.equal(await nameFromIdea(namer, game.name, { prompt: "Hi there" }), false, "small talk keeps waiting");
+    assert.equal(await nameFromIdea(namer, game.name, { prompt: "A cozy island fishing game" }), true);
+    const named = (await rig.core.games.list()).find((g) => g.name === game.name);
+    assert.deepEqual(
+      { title: named?.title, provisional: named?.provisional, dir: named?.dir },
+      { title: "Island Angler", provisional: undefined, dir: game.dir },
+      "renamed in place: the folder stays",
+    );
+    assert.deepEqual(changed, [game.name]);
+    assert.equal(await nameFromIdea(namer, game.name, { prompt: "Add a lantern" }), false, "named once");
+
+    const own = await rig.core.createGame("Untitled game", { provisional: true });
+    await rig.core.updateGame(own.name, { title: "My Island" });
+    asked.length = 0;
+    assert.equal(await nameFromIdea(namer, own.name, { prompt: "A cozy island fishing game" }), false);
+    assert.deepEqual(asked, [], "a name the person gave is theirs");
+    assert.equal((await rig.core.games.list()).find((g) => g.name === own.name)?.title, "My Island");
   });
   it("chooses a canonical legacy conversation without deleting the others", async () => {
     const game = await rig.core.createGame("Archive planet");

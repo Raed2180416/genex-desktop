@@ -23,11 +23,10 @@ Settings keeps coding providers apart from Local Models (Bonsai/Ollama).
 
 ## What the model knows
 
-Conversation history and provider checkpoints preserve continuation through compaction. The
-context ring shows reported orchestrator usage and capacity; unknown stays unknown. Its panel
-offers Claude Code's auto-compact point (Auto/200K/1M), then each signed-in subscription's plan
-limits, read without starting a turn ([details](../connections-and-context.md#plan-limits)). Local
-models have none.
+The context ring shows reported orchestrator usage and capacity; unknown stays unknown. Its panel
+offers Compact now, also typed as `/compact` (the next turn starts
+[fresh from a handover](../connections-and-context.md#compact-now)); every provider also compacts
+automatically at its own point. Then plan limits ([details](../connections-and-context.md#plan-limits)).
 
 Ollama uses a loaded model's reported runtime context, not its theoretical maximum. An unloaded
 model's planning budget is an estimate marked unknown. Tools and images require reported

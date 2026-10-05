@@ -19,9 +19,14 @@ export interface PreviewIpcDeps {
   /** The window's live preview; replaced when the window is. */
   preview(): GamePreview | null;
   previewBoundsSeen: PreviewBoundsRecord;
+  /** The game's full screen (`game-full-screen.ts`); absent where there is no window to fill. */
+  fullScreen?: { enter(): void; active(): boolean };
 }
 
-export function registerPreviewIpc(handle: IpcHandle, { core, preview, previewBoundsSeen }: PreviewIpcDeps): void {
+export function registerPreviewIpc(
+  handle: IpcHandle,
+  { core, preview, previewBoundsSeen, fullScreen }: PreviewIpcDeps,
+): void {
   const livePreview = (): GamePreview => {
     const view = preview();
     if (!view) throw new Error(MESSAGE.noGameView);
@@ -40,9 +45,12 @@ export function registerPreviewIpc(handle: IpcHandle, { core, preview, previewBo
   handle("studio:build.show", async (payload) => core.showBuild(payload.project, payload.commit));
   handle("studio:build.land", async (payload) => core.landBuild(payload.project, payload.commit));
   handle("studio:preview.bounds", async (payload) => {
+    previewBoundsSeen.last = { x: payload.x, y: payload.y, width: payload.width, height: payload.height };
+    // In full screen the game covers the window whatever the page under it measures; the slot is
+    // placed again when full screen ends.
+    if (fullScreen?.active()) return true;
     // Anything but a plain `false` counts as watching: Live then only offers a chat's show.
     await core.previewStageVisible(payload.width > 0 && payload.height > 0, payload.watching !== false);
-    previewBoundsSeen.last = { x: payload.x, y: payload.y, width: payload.width, height: payload.height };
     preview()?.setBounds(
       {
         x: Math.round(payload.x),
@@ -52,6 +60,18 @@ export function registerPreviewIpc(handle: IpcHandle, { core, preview, previewBo
       },
       measuredViewport(payload.viewport),
     );
+    return true;
+  });
+  handle("studio:preview.stop", async () => {
+    await core.stopLive();
+    return true;
+  });
+  handle("studio:preview.play", async () => {
+    await core.playLive();
+    return true;
+  });
+  handle("studio:preview.fullscreen", async () => {
+    fullScreen?.enter();
     return true;
   });
   // Anything but a plain `false` leaves the sound on.

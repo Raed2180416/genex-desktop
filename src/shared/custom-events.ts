@@ -86,6 +86,7 @@ export const CustomEvent = {
   FacetFix: "facet_fix",
   FacetFlag: "facet_flag",
   FacetFollowup: "facet_followup",
+  FacetHandover: "facet_handover",
   FacetIteration: "facet_iteration",
   FacetLessons: "facet_lessons",
   FacetLiveness: "facet_liveness",
@@ -474,6 +475,9 @@ export interface SelfChangePayload {
   snapshot_id: string;
   post_snapshot_id: string;
   bytes: number;
+  /** What the agent will do differently, in plain words for the person; absent on older records. */
+  title?: string;
+  summary?: string[];
 }
 
 export interface CustomEventMap {
@@ -498,7 +502,8 @@ export interface CustomEventMap {
     stats?: { polygons?: number; triangles?: number } | null;
   };
   build_observation: BuildObservationPayload;
-  compacted: Partial<ContextMeasurement> & { messages?: number; trigger?: string };
+  /** `summary`: what the harness wrote in place of the messages it replaced (loop/compact.ts, session-compact.ts). */
+  compacted: Partial<ContextMeasurement> & { messages?: number; trigger?: string; summary?: string };
   completion_call: CompletionCallPayload;
   connector_tool: RunScope & { connectorId?: string; tool?: string; ok?: boolean; error?: string | null };
   context_usage: ContextMeasurement;

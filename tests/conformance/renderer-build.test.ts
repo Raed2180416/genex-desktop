@@ -52,3 +52,47 @@ test("the bundle report refuses development React outside a development build", 
   assert.equal(rendererBundleReport(metafile, { development: true }).react, "development");
   assert.equal(rendererBundleReport(await bundleReactDom({}), {}).react, "production");
 });
+
+/** The app's `PerformanceBoundary` as one renderer build compiles it, and React's `Profiler` beside it. */
+async function performanceBoundary(mode: Parameters<typeof rendererBuildOptions>[0]) {
+  const result = await build({
+    stdin: {
+      contents:
+        'export { PerformanceBoundary } from "./src/renderer/performance.tsx"; export { Profiler } from "react";',
+      resolveDir: process.cwd(),
+      loader: "tsx",
+    },
+    bundle: true,
+    write: false,
+    format: "esm",
+    jsx: "automatic",
+    logLevel: "silent",
+    platform: "browser",
+    ...rendererBuildOptions(mode),
+  });
+  const code = result.outputFiles[0]?.text ?? "";
+  Object.assign(globalThis, { window: globalThis });
+  return import(`data:text/javascript;base64,${Buffer.from(code).toString("base64")}`);
+}
+
+// Development React logs every render inside a Profiler to the performance timeline with a diff of
+// its props: around the whole app, that was 70% of a live session's main thread while a run
+// streamed, and fast scrolling outran it. Only the fixture builds whose checks read commit counts
+// profile renders.
+for (const { name, mode, profiled } of [
+  { name: "a fixture's owned build", mode: { development: true, commitCounts: true }, profiled: true },
+  { name: "a live owned build", mode: { development: true }, profiled: false },
+  { name: "a plain build", mode: {}, profiled: false },
+  { name: "a packaged build", mode: { release: true }, profiled: false },
+]) {
+  test(`${name} ${profiled ? "profiles" : "does not profile"} renders`, async () => {
+    const { PerformanceBoundary, Profiler } = await performanceBoundary(mode);
+    const shown = PerformanceBoundary({ id: "App", children: "app" });
+    assert.equal(shown?.type === Profiler, profiled);
+    if (!profiled) assert.ok(shown === "app" || shown.props.children === "app", "no Profiler wraps the app");
+  });
+}
+
+test("only development React can count commits", () => {
+  assert.throws(() => rendererBuildOptions({ commitCounts: true }), /development/);
+});

@@ -121,6 +121,22 @@ async function acceptance() {
     );
     await capture("studio-overview");
 
+    await click("[data-harness-guide-open]");
+    check(
+      "How it works beside the Harness title opens the guide to the loop",
+      await until(
+        `(() => {const d=document.querySelector('[data-testid="harness-guide"]');return !!d && d.textContent.includes('How Harness works') && d.querySelectorAll('[data-harness-steps] li').length===4 && !d.textContent.includes('On this page');})()`,
+      ),
+    );
+    await capture("harness-guide");
+    await key("Escape");
+    check(
+      "the guide closes back to its button",
+      await until(
+        `!document.querySelector('[data-testid="harness-guide"]') && document.activeElement?.hasAttribute('data-harness-guide-open')`,
+      ),
+    );
+
     const suggestion = "[data-suggestion] button[aria-expanded]";
     await click(suggestion);
     check(
@@ -129,6 +145,15 @@ async function acceptance() {
         `document.querySelector(${JSON.stringify(suggestion)}).getAttribute('aria-expanded')==='true' && document.querySelector('[data-suggestion] .disclosure-body[data-open="true"]').textContent.includes('What changes')`,
       ),
     );
+    await click("[data-suggestion] [data-exact-edit] > button");
+    check(
+      "the exact edit wraps long lines and scrolls only down, with the line it follows",
+      await until(
+        `(() => {const edit=document.querySelector('[data-suggestion] [data-exact-edit]'),box=edit?.querySelector('.diff-lines')?.parentElement,added=edit?.querySelector('.diff-line[data-tone="add"]');if(!box||!added)return false;return box.scrollWidth<=box.clientWidth+1 && added.getBoundingClientRect().height>40 && !!edit.querySelector('.diff-line[data-tone="ctx"]');})()`,
+      ),
+    );
+    await capture("studio-exact-edit");
+    await click("[data-suggestion] [data-exact-edit] > button");
     check(
       "suggestion rows and their icons use pointer",
       await js(

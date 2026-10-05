@@ -33,3 +33,17 @@ test("every Genex plugin payload file fits MAX_PATH in a Squirrel install under 
     .filter((installed) => installed.length >= MAX_PATH);
   assert.deepEqual(tooLong, []);
 });
+
+/** Files no runtime loads: TypeScript declarations and source maps. */
+const NEVER_LOADED = /\.(d\.[cm]?ts|map)$/;
+
+test("the Genex plugin payload ships no declarations or source maps, which a first launch would copy", async () => {
+  const resources = path.join(await tmpDir("studio-payload-"), "resources");
+  await buildPlugins(process.cwd(), resources);
+  const files = await relativeFiles(path.join(resources, "plugins/genex"));
+  assert.ok(files.some((file) => file.endsWith(path.join("@genex-ai", "cli-demo", "dist", "index.js"))));
+  assert.deepEqual(
+    files.filter((file) => NEVER_LOADED.test(file)),
+    [],
+  );
+});

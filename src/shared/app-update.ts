@@ -14,6 +14,13 @@ export const UpdateAction = {
 } as const;
 export type UpdateAction = (typeof UpdateAction)[keyof typeof UpdateAction];
 
+/** What is running, for Settings → About: the version (null in an unpackaged build), platform and architecture. */
+export interface AppAbout {
+  version: string | null;
+  platform: string;
+  arch: string;
+}
+
 /** A new version waiting for the person: downloaded for a restart, or published for a download. */
 export interface ReadyUpdate {
   /** The release's version ("0.2.0"), or null when the release named none. */

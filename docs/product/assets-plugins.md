@@ -3,15 +3,15 @@
 ## Assets in a game
 
 Assets groups `assets/` and `public/assets/` files by source and generation, even before a
-build exists; deliveries and external changes refresh it. The preview grid hides repeated
-metadata; filenames stay labels and tooltips. Hover or focus reveals preview actions.
+build exists; deliveries and external changes refresh it. Cards hide metadata; animation-only GLBs fold
+into their model.
 
-Opening a file previews images, audio/video, supported 3D models, textures or bounded text.
-Models have orbit and animation controls, without a metadata header. Unsupported formats and
-decoder failures explain themselves and offer Reveal in Finder. Media reads are bounded; offscreen previews load lazily.
+Opening a file shows it with only Reveal in Finder and Close: images (click: full
+size), audio/video, 3D models playing their clips, textures or bounded text. Unsupported
+formats and decoder failures explain themselves. Media reads are bounded; offscreen previews load lazily.
 
 Chat shows game-folder files. Builds shows Loop workspace assets as thumbnails with their
-location until landing; checks and Blender passes on an asset are notes. Visual results use lazy two-column previews; sounds play in compact strips.
+location until landing; checks and Blender passes on an asset are notes. Visual results use lazy two-column previews; sounds play in compact rows.
 Chat offers Open in Assets and bounded batches. Job completion or “seen in game” observations
 do not prove correct integration or passing checks.
 
@@ -22,11 +22,11 @@ Manage. Enabled, connected, signed in and permitted are different states.
 
 Plugins opens a workspace page with Plugins/Skills, search, rows and details. Plugins and MCP
 servers show their own pictures (manifest `icon`, MCP `serverInfo.icons`) or an initial. The
-list shows installed plugins, servers you added, More plugins when the catalog has something
-new, and the plugin guide. Install from GitHub takes a pasted link and pins its latest release
+list shows installed plugins (Genex as the game dev tools router), servers you added, the
+Marketplace (Coming soon until the catalog has something new) and the plugin guide. Install from GitHub takes a pasted link and pins its latest release
 (else the default branch's newest commit). Games build, preview and export without plugins.
-The host draws Genex's app-wide page (shared balance, what it makes, its servers as
-Connections) and Local Blender's runtime card. Connect, unapproved, reuses a saved account or
+The host draws Genex's app-wide page (shared balance, the tools it routes) and Local Blender's
+runtime card. Connect, unapproved, reuses a saved account or
 opens browser sign-in; setup survives restart and reinstall. Game spend is in the usage panel.
 Enabled Genex suggests assets in planning; workers use it once the account is ready. User
 preferences win; failures and fallbacks are disclosed.

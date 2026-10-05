@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { parseStudioDevArgs, parseOperation } from "../../scripts/studio-dev/args.ts";
 import { FIXTURE_NAMES } from "../../src/main/dev/fixtures.ts";
-import { main } from "../../scripts/studio-dev.ts";
+import { devBuildArgs, main } from "../../scripts/studio-dev.ts";
 
 test("fixtures lists the one exported fixture list without a profile or app", async () => {
   assert.equal(FIXTURE_NAMES.length, 16);
@@ -92,4 +92,9 @@ test("the CLI prints the fixture list as JSON and reports errors as JSON with ex
   const bad = run("ui", "--profile", "p");
   assert.equal(bad.status, 1);
   assert.match(JSON.parse(bad.stderr).error, /--json is required/);
+});
+
+test("a fixture profile's build counts React commits for its checks; a live profile's does not", () => {
+  assert.deepEqual(devBuildArgs("b-1", "fixture"), ["scripts/build.mjs", "--dev-build=b-1", "--commit-counts"]);
+  assert.deepEqual(devBuildArgs("b-2", "live"), ["scripts/build.mjs", "--dev-build=b-2"]);
 });

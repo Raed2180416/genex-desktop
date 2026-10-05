@@ -7,7 +7,8 @@
  * finished build with Loop on, a reopen (reopen-run.ts) — is handed back for the chat to do once the
  * reply ends.
  */
-import { MIN_DELEGATE_TIMEOUT_MS } from "./config.ts";
+import { GIT_TIMEOUT_MS, MIN_DELEGATE_TIMEOUT_MS } from "./config.ts";
+import { GIT, gitAt } from "./git.ts";
 import {
   buildContractorBrief,
   isContinueAsk,
@@ -33,6 +34,7 @@ import { clip, CLIP_BRIEF, CLIP_GAME_TITLE } from "./text.ts";
 import { SECOND_MS, sleep } from "./time.ts";
 import { recordFirstPreview } from "./first-preview.ts";
 import { canFallBack, runToolLoop } from "./tool-loop.ts";
+import { compactedSummary, endedByCompaction } from "./compaction-log.ts";
 import { TurnStop, sayInTurn } from "./turn-record.ts";
 import type { TurnOptions, TurnOutcome } from "./turn-loop.ts";
 import type { AnyRecord, CallResult, HarnessCtx, HarnessTool, ToolCtx, ToolOutcome } from "../types/harness.d.ts";
@@ -87,8 +89,7 @@ function outageWords(engine: string, kind: string, detail: string | undefined): 
 
 /** What the chat is told. */
 const MESSAGE = {
-  bareAsk: (engineLabel: string) =>
-    `${engineLabel} is the contractor here — it builds games from a brief and cannot ask questions back. Tell me what to build or change (a sentence is enough), or add a local model under Review → Models for quick back-and-forth.`,
+  bareAsk: "Hi! What should we make? Tell me about the game you have in mind — a sentence is enough to start.",
   delegationFailed: "delegation failed",
   alreadyBuilding: (detail: string) =>
     `${detail}. Your message was not sent to it — send it again once the current build finishes.`,
@@ -103,6 +104,8 @@ const MESSAGE = {
   notSwitched: (engine: string, kind: string, detail: string | undefined) =>
     `${engine} is ${kind === EngineFailure.RateLimit ? "throttled right now" : "unreachable"} (${detail ?? kind}). I didn't switch to another model — wait a bit and resend, or pick a different engine.`,
   stopped: "Stopped. Finished edits are preserved; send a message to continue.",
+  /** Loop allowed the finished build to go on, and the session made the change itself. */
+  madeDirectly: "Small change — made directly, no build.",
   stoppedBeforeWork: "stopped before it started",
   launchedAnyway: (ending: string) =>
     `The session ended early (${ending}) after recording the launch — starting the build anyway.`,
@@ -132,11 +135,15 @@ interface Handoff {
   reopening: boolean;
   /** The contractor session this chat resumes, if any. */
   resume: string | null;
+  /** The handover the chat's last compaction wrote, for a fresh session's brief; null when none. */
+  compacted: string | null;
   hasPriorAsk: boolean;
   project: string;
   descriptor: GameProject | null;
   projectDir: string | null;
   scaffolded: boolean;
+  /** Nothing has been made in this game yet: a first message there is a blank page, not code to inspect. */
+  fresh: boolean;
   /** "folder AI Games/rift", never an absolute path — the last two segments say it all. */
   folderLabel: string;
   extraReads: string[];
@@ -165,7 +172,7 @@ export async function runDelegatedTurn(ctx: HarnessCtx, options: DelegatedOption
   const { turnId, engine } = options;
   const chat = await readChat(ctx, options);
   if (isBareAskInFreshChat(chat)) {
-    await sayInTurn(ctx, turnId, MESSAGE.bareAsk(options.engineLabel));
+    await sayInTurn(ctx, turnId, MESSAGE.bareAsk);
     return { stopped: TurnStop.Done, round: 0, engine };
   }
   const handoff = await placeHandoff(ctx, options, chat);
@@ -264,7 +271,7 @@ async function folderChange(ctx: HarnessCtx, project: string, before: ContentSta
 /** The chat as the turn finds it, before any folder is chosen or made. */
 type ChatReading = Omit<
   Handoff,
-  "project" | "descriptor" | "projectDir" | "scaffolded" | "folderLabel" | "extraReads" | "startedAt"
+  "project" | "descriptor" | "projectDir" | "scaffolded" | "fresh" | "folderLabel" | "extraReads" | "startedAt"
 > & {
   project: string | null;
   games: GameProject[];
@@ -291,14 +298,17 @@ async function readChat(ctx: HarnessCtx, options: DelegatedOptions): Promise<Cha
   // mind that only sees the last line ("keep going" with no idea what the game is).
   const events = await ctx.call(HostMethod.EventsList, { threadId });
   const prior = lastContractorSession(events, engine);
-  const resume = options.resume || prior?.sessionId || null;
+  // A message sent while the chat was compacted carries the session the compaction ended.
+  const asked = endedByCompaction(events, options.resume) ? null : options.resume;
+  const resume = asked || prior?.sessionId || null;
+  const compacted = compactedSummary(events);
   // Which workspace gets the brief: THIS chat's folder, never the preview and never "the
   // newest game". Those two fallbacks were how a follow-up quietly wandered into a sibling.
   const games = await ctx.call(HostMethod.GameList);
   const project = resolveChatProject(options, games) ?? priorProject(prior, games);
   // A prior real ask means this chat is mid-conversation, whatever happened to its session.
   const hasPriorAsk = messages.some((m) => m.role === "user" && m.content?.trim() && m.content.trim() !== ask);
-  return { ask, messages, commission, launchTool, reopening, resume, hasPriorAsk, project, games };
+  return { ask, messages, commission, launchTool, reopening, resume, compacted, hasPriorAsk, project, games };
 }
 
 /**
@@ -354,6 +364,7 @@ async function placeHandoff(ctx: HarnessCtx, options: DelegatedOptions, chat: Ch
       descriptor,
       projectDir,
       scaffolded: false,
+      fresh: await isFreshGame(ctx, chat, descriptor),
       folderLabel: folderLabel(projectDir, chat.project),
       extraReads,
       startedAt: Date.now(),
@@ -375,10 +386,30 @@ async function placeHandoff(ctx: HarnessCtx, options: DelegatedOptions, chat: Ch
     descriptor: created,
     projectDir: created.dir,
     scaffolded: true,
+    fresh: true,
     folderLabel: folderLabel(created.dir, project),
     extraReads,
     startedAt: Date.now(),
   };
+}
+
+/**
+ * Has nothing been made in this game yet? Asked only of a chat's first message, and only of the
+ * studio's own template: a game the studio just made is its one commit with nothing changed since.
+ * A look that fails says no, and the brief continues from the code as it always did.
+ */
+async function isFreshGame(ctx: HarnessCtx, chat: ChatReading, descriptor: GameProject | null): Promise<boolean> {
+  const firstMessage = !chat.hasPriorAsk && !chat.resume && !chat.compacted;
+  if (!firstMessage || !descriptor || descriptor.shape?.own) return false;
+  const where = { project: descriptor.name };
+  const options = { timeoutMs: GIT_TIMEOUT_MS.quick };
+  try {
+    const commits = await gitAt(ctx, where, GIT.commitCount, options);
+    const changes = await gitAt(ctx, where, GIT.status, options);
+    return commits.trim() === "1" && changes.trim() === "";
+  } catch {
+    return false;
+  }
 }
 
 /** "folder AI Games/rift", never an absolute path — the last two segments say it all. */
@@ -407,6 +438,7 @@ async function briefWriter(
       extraReads: handoff.extraReads,
       folderLabel,
       scaffolded: handoff.scaffolded,
+      fresh: handoff.fresh,
       shape: descriptor?.shape ?? null,
       ownShape: descriptor?.built === true,
       contractMissing: missing,
@@ -415,6 +447,7 @@ async function briefWriter(
       engine: options.engine,
       launch,
       afterNight: options.afterNight ? afterNightNote(options.afterNight, options.engine, reopenGrant(handoff)) : null,
+      compacted: handoff.compacted,
     });
 }
 
@@ -1005,9 +1038,12 @@ async function reportBuild(
 ): Promise<TurnOutcome> {
   const { turnId, engine } = options;
   const check = change.source ? await lookAtBuild(ctx, options, handoff, result) : NOTHING_SEEN;
+  // A finished build Loop could have reopened, changed by the session's own hands: say so, since
+  // the person picked a Loop and no build started (golden-boot-glory).
+  const direct = handoff.reopening && change.source && result.ok ? MESSAGE.madeDirectly : null;
   // Model, turns, time and cost stay in the recorded report above; chat replies carry no
   // per-message model labels, and there is no Continue button: a message continues the work.
-  const content = `${buildSummary(result)}${check.health ? `\n\n${check.health}` : ""}`;
+  const content = [buildSummary(result), check.health, direct].filter(Boolean).join("\n\n");
   await ctx.call(HostMethod.TurnAppend, {
     turnId,
     batch: [

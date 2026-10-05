@@ -46,6 +46,7 @@ const MESSAGE = {
   tooManyResources: "This model has too many external resources for an in-app preview.",
   oneMaterialLibrary: "Preview supports one material library per OBJ. Export GLB to preserve this model’s materials.",
   timedOut: "Preview decoding timed out. Try an optimized GLB or a standard image export.",
+  motionsTooLarge: "Animation files exceed the preview memory limit.",
 };
 
 const fileName = (url) => url.split("/").pop();
@@ -59,9 +60,13 @@ function gltfDocument(bytes, ext) {
   return JSON.parse(new TextDecoder().decode(bytes.subarray(20, 20 + length)).replace(/\0+$/, ""));
 }
 
-/** The canvas: sRGB output, filmic tone mapping, focusable and labelled for the preview's controls. */
+/**
+ * The canvas: sRGB output, filmic tone mapping, focusable and labelled for the preview's controls.
+ * It is clear where nothing is drawn, so the model sits on the page's own colour in either theme.
+ */
 function createRenderer(host) {
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setClearColor(0x000000, 0);
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -75,7 +80,6 @@ function createRenderer(host) {
 /** The scene the asset sits in: a room environment, two lights, and an orbiting camera. */
 function createStage(renderer) {
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color("#202329");
   const camera = new THREE.PerspectiveCamera(40, 1, 0.01, 1000);
   camera.position.set(3, 2, 4);
   const controls = new OrbitControls(camera, renderer.domElement);
@@ -345,6 +349,30 @@ function loadObject(v, bytes, ext, mimeType) {
   return loadTexture(v, bytes, ext, mimeType);
 }
 
+/**
+ * The clips of one animation-only file (a rig and its clips, nothing to draw), named for the viewer.
+ * They move the model by its bones' names; a file that cannot be read adds none.
+ */
+async function motionClips(v, motion) {
+  try {
+    const result = await v.read(motion.file);
+    if (v.disposed) return [];
+    const bytes = previewBytes(result.data);
+    v.resourceBytes += bytes.length;
+    if (v.resourceBytes > RESOURCE_LIMIT_BYTES) throw new Error(MESSAGE.motionsTooLarge);
+    const ext = assetExtension(motion.file);
+    const gltf = await new GLTFLoader(v.manager)
+      .setMeshoptDecoder(MeshoptDecoder)
+      .parseAsync(ext === "gltf" ? new TextDecoder().decode(bytes) : bytes.buffer, "");
+    return gltf.animations.map((clip, index, all) => {
+      clip.name = all.length > 1 ? `${motion.name} ${index + 1}` : motion.name;
+      return clip;
+    });
+  } catch {
+    return [];
+  }
+}
+
 /** Put the loaded object on stage, frame it, and report its animations and triangle count. */
 function show(v, loaded) {
   const { camera, controls } = v;
@@ -376,6 +404,7 @@ async function load(v) {
   const loaded = await loadObject(v, bytes, ext, result.mimeType);
   // A glTF whose resources were still arriving when the preview closed has nothing to show.
   if (loaded === undefined && v.disposed) return;
+  for (const motion of v.motions) v.clips = [...v.clips, ...(await motionClips(v, motion))];
   if (v.disposed) {
     disposeObject(v, loaded);
     for (const texture of v.textures) texture.dispose();
@@ -444,13 +473,29 @@ function viewerControls(v, resize) {
   };
 }
 
-export function createAssetViewer(host, { file, read, companions, onReady, onError, onTime }) {
+/**
+ * A viewer for `file` in `host`. `motions` are animation-only files of the same rig, each `{file,
+ * name}`: their clips play on the model after its own.
+ */
+export function createAssetViewer(
+  host,
+  {
+    file,
+    read,
+    companions,
+    motions = /** @type {Array<{ file: string, name: string }>} */ ([]),
+    onReady,
+    onError,
+    onTime,
+  },
+) {
   const renderer = createRenderer(host);
   const v = {
     host,
     file,
     read,
     companions,
+    motions,
     onReady,
     onError,
     onTime,

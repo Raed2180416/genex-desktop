@@ -1,7 +1,7 @@
 /**
  * The Plugins tab: what is installed (on or off), the MCP servers you added, what was removed or
- * waits to be allowed, More plugins when the catalog has something you don't have, and a way to
- * make your own.
+ * waits to be allowed, More plugins when the catalog has something you don't have (else the
+ * Marketplace, coming soon), and a way to make your own.
  */
 import type { JSX, RefObject } from "react";
 import { GENEX_PLUGIN_ID } from "../../../shared/genex.ts";
@@ -12,9 +12,9 @@ import { IconButton } from "../../ui/kit.tsx";
 import { PLUGINS_WORDS } from "../../words.ts";
 import { type ConnectorActions, ConnectorsCard } from "../ConnectorsCard.tsx";
 import { useGenexCredits } from "./genex/use-genex-credits.ts";
-import { meetsMinimumVersion, PLUGIN_GUIDE_URL, pluginAccount } from "./labels.ts";
+import { MoreView, meetsMinimumVersion, moreView, PLUGIN_GUIDE_URL, pluginAccount, shownName } from "./labels.ts";
+import { MarketplaceSoon } from "./MarketplaceSoon.tsx";
 import type { CatalogRow, PluginsPage } from "./page.ts";
-import { Pending } from "../../ui/Pending.tsx";
 import { PluginIcon } from "../../ui/PluginIcon.tsx";
 import { PluginRows, pluginMatches, Section } from "./rows.tsx";
 
@@ -90,8 +90,8 @@ function CatalogEntry({ name, description, children }: { name: string; descripti
 }
 
 /**
- * More plugins: only what the catalog has that you don't. Nothing to offer, no section; a catalog
- * that can't be read says so in one line with Try again.
+ * More plugins: only what the catalog has that you don't. Until it has something (or while it
+ * loads or can't be read) the Marketplace is only Coming soon, hidden while searching.
  */
 function MorePlugins({
   index,
@@ -99,42 +99,30 @@ function MorePlugins({
   page,
   installed,
   removed,
-  onRetry,
+  searching,
 }: {
   index: PluginIndexView | null;
   catalog: CatalogRow[];
   page: PluginsPage;
   installed: Set<string>;
   removed: Set<string>;
-  onRetry: () => void;
+  searching: boolean;
 }): JSX.Element | null {
   const entries = (index?.entries ?? []).filter(
     (e) => !installed.has(e.id) && page.matches(e.name, e.description, e.category),
   );
   const releases = catalog.filter((c) => !installed.has(c.id) && page.matches(c.name));
-  const failed = Boolean(index?.error) && entries.length === 0;
-  const nothing = entries.length === 0 && releases.length === 0;
-  if (index && nothing && !failed) return null;
+  const view = moreView({ index, entries: entries.length, releases: releases.length });
+  if (view === MoreView.Soon || !index) return searching ? null : <MarketplaceSoon />;
   return (
     <Section title={WORDS.more.title} hooks={{ "data-more-plugins": "" }}>
-      {!index && <Pending label={WORDS.more.loading} className="extensions-empty" />}
-      {failed && (
-        <div className="extension-row">
-          <p className="extensions-empty flex-1">{WORDS.more.failed}</p>
-          <Button variant="ghost" disabled={page.busy} onClick={onRetry}>
-            <Icon name="reload" size={14} />
-            {WORDS.more.tryAgain}
-          </Button>
-        </div>
-      )}
-      {index &&
-        entries.map((e) => (
-          <article key={e.id} data-plugin-tier={e.tier} data-plugin-category={e.category}>
-            <CatalogEntry name={e.name} description={e.description}>
-              <EntryAction entry={e} index={index} page={page} removed={removed} />
-            </CatalogEntry>
-          </article>
-        ))}
+      {entries.map((e) => (
+        <article key={e.id} data-plugin-tier={e.tier} data-plugin-category={e.category}>
+          <CatalogEntry name={e.name} description={e.description}>
+            <EntryAction entry={e} index={index} page={page} removed={removed} />
+          </CatalogEntry>
+        </article>
+      ))}
       {releases.map((p) => (
         <CatalogEntry key={p.id} name={p.name} description={p.version}>
           <IconButton
@@ -176,7 +164,6 @@ export function PluginsBrowse({
   catalog,
   index,
   connectorActions,
-  onRetryIndex,
 }: {
   plugins: PluginInfo[];
   page: PluginsPage;
@@ -184,7 +171,6 @@ export function PluginsBrowse({
   catalog: CatalogRow[];
   index: PluginIndexView | null;
   connectorActions: RefObject<ConnectorActions | null>;
-  onRetryIndex: () => void;
 }): JSX.Element {
   const installed = plugins.filter((p) => !p.removed && !p.unlisted);
   const removed = plugins.filter((p) => p.removed);
@@ -197,7 +183,10 @@ export function PluginsBrowse({
         project={page.project}
         query={query}
         onOpenPlugin={page.openPlugin}
-        pluginName={(id) => plugins.find((p) => p.manifest.id === id)?.manifest.name ?? id}
+        pluginName={(id) => {
+          const owner = plugins.find((p) => p.manifest.id === id);
+          return owner ? shownName(owner) : id;
+        }}
       />
       {removed.length > 0 && (
         <Section title="Removed" count={removed.length}>
@@ -216,7 +205,7 @@ export function PluginsBrowse({
         page={page}
         installed={new Set(installed.map((p) => p.manifest.id))}
         removed={new Set(removed.map((p) => p.manifest.id))}
-        onRetry={onRetryIndex}
+        searching={Boolean(query)}
       />
       {!query && <MakeYourOwn />}
     </>

@@ -20,6 +20,7 @@ import {
 } from "../ui/dropdown-menu.tsx";
 import { NotificationsMenu } from "./NotificationsMenu.tsx";
 import type { Notice } from "../notifications.ts";
+import type { LaunchInSidebar } from "../state/launch.ts";
 
 interface Props {
   threads: ConversationRecord[];
@@ -29,8 +30,8 @@ interface Props {
   /** Home is open: nothing is selected, and the wordmark is where it is. */
   atHome: boolean;
   onHome: () => void;
-  /** A game home is starting has no row of its own until it is made: its name, once it has one. */
-  launching: { title: string | null } | null;
+  /** A game home is starting: a placeholder row until it is made, then its own row, selected and working. */
+  launching: LaunchInSidebar;
   building: ReadonlySet<string>;
   busyThreads: ReadonlySet<string>;
   threadStatus: Record<string, { status: string; since: number }>;
@@ -146,11 +147,15 @@ export function Sidebar(props: Props): JSX.Element {
           <div className="sidebar-games">
             {sorted.map((game, index) => (
               <Fragment key={game.name}>
-                {props.launching && index === firstUnpinned(sorted) ? <LaunchRow {...props.launching} /> : null}
+                {props.launching.placeholder && index === firstUnpinned(sorted) ? (
+                  <LaunchRow title={props.launching.title} />
+                ) : null}
                 <SidebarGame {...props} game={game} harnessOpen={harnessOpen} />
               </Fragment>
             ))}
-            {props.launching && firstUnpinned(sorted) === sorted.length ? <LaunchRow {...props.launching} /> : null}
+            {props.launching.placeholder && firstUnpinned(sorted) === sorted.length ? (
+              <LaunchRow title={props.launching.title} />
+            ) : null}
           </div>
         </div>
         <span className="sidebar-fade" aria-hidden="true" />
@@ -235,6 +240,7 @@ function SidebarGame({
   building,
   busyThreads,
   activeProject,
+  launching,
   harnessOpen,
   onSelectGame,
   onRenameGame,
@@ -244,12 +250,15 @@ function SidebarGame({
 }: Props & { game: GameProject; harnessOpen: boolean }): JSX.Element {
   const chats = threads.filter((thread) => meta(thread).project === game.name && !meta(thread).archived);
   const thread = chats.find((chat) => chat.id === game.primaryThreadId) ?? chats[0];
-  const busy = building.has(game.name) || chats.some((chat) => busyThreads.has(chat.id));
+  // The game home is launching keeps its placeholder's look: selected and working.
+  const launched = launching.project === game.name;
+  const busy = launched || building.has(game.name) || chats.some((chat) => busyThreads.has(chat.id));
+  const active = launched || activeProject === game.name;
   return (
     <GameRow
       game={game}
       threadId={thread?.id}
-      active={activeProject === game.name && !harnessOpen}
+      active={active && !harnessOpen}
       busy={busy}
       onSelect={() => onSelectGame(game.name)}
       onRename={() => onRenameGame(game)}

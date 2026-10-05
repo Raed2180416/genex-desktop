@@ -67,21 +67,3 @@ export function LicensesDialog({ onDismiss }: { onDismiss: () => void }): JSX.El
     </DialogSurface>
   );
 }
-
-/** The quiet link at the foot of the Settings sections that opens the licenses over Settings. */
-export function LicensesLink(): JSX.Element {
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <button
-        type="button"
-        data-settings-licenses
-        onClick={() => setOpen(true)}
-        className="cursor-pointer rounded-control px-3 py-1.5 text-left font-mono text-micro whitespace-nowrap text-muted-foreground transition-colors duration-(--duration-quick) hover:text-control-text-hover motion-reduce:transition-none sm:mt-auto"
-      >
-        {LICENSE_WORDS.link}
-      </button>
-      {open && <LicensesDialog onDismiss={() => setOpen(false)} />}
-    </>
-  );
-}

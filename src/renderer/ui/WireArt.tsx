@@ -10,7 +10,6 @@ import {
   drawWire,
   HANDOFF,
   HEIGHT,
-  ideaLift,
   ideaSpin,
   STILL,
   WIDTH,
@@ -39,6 +38,7 @@ function readColors(canvas: HTMLCanvasElement): WireColors {
     ink: toRgb(style.borderLeftColor),
     muted: toRgb(style.borderRightColor),
     fill: toRgb(style.outlineColor),
+    page: toRgb(style.borderTopColor),
   };
 }
 
@@ -51,7 +51,7 @@ const MAX_PIXEL_RATIO = 3;
 type WireInput = { kind: WireKind; handoffAt: number | null };
 
 /**
- * The frame to draw now: a still under Reduce Motion, the cube → crane hand-off while it runs,
+ * The frame to draw now: a still under Reduce Motion, the computer → crane hand-off while it runs,
  * else the kind's own loop since the art was born (or since the hand-off ended).
  */
 function wireFrame({ kind, handoffAt }: WireInput, born: number, reduced: boolean, now: number): WireFrame {
@@ -60,7 +60,7 @@ function wireFrame({ kind, handoffAt }: WireInput, born: number, reduced: boolea
   const s = (now - handoffAt) / SECOND_MS;
   if (s >= HANDOFF) return { kind, t: s - HANDOFF };
   const before = Math.max(0, (handoffAt - born) / SECOND_MS);
-  return { kind: "handoff", s: Math.max(0, s), spin: ideaSpin(before), lift: ideaLift(before) };
+  return { kind: "handoff", s: Math.max(0, s), spin: ideaSpin(before) };
 }
 
 /**

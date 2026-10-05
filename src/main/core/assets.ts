@@ -5,6 +5,8 @@
  */
 import { assetWorkspaces } from "../asset-workspaces.ts";
 import { readAssetPreview } from "../asset-preview.ts";
+import { readModelRig } from "../model-rigs.ts";
+import type { ModelRig } from "../../shared/model-rig.ts";
 import { assertRelativePath, isBelow } from "../../substrate/paths.ts";
 import {
   genexJobDir,
@@ -311,5 +313,20 @@ export class AssetService {
       if ((await lstat(target).catch(() => null))?.isFile()) present.push(file);
     }
     return present;
+  }
+
+  /** The rigs of these GLB and glTF files in the game folder, read from their headers; other files are skipped. */
+  async projectModelRigs(p: { project: string; files: string[] }): Promise<ModelRig[]> {
+    const malformed = !p || typeof p.project !== "string" || !Array.isArray(p.files);
+    if (malformed) throw new Error(MESSAGE.filesRequired);
+    const dir = this.#core.games.dirFor(p.project);
+    await this.#core.assertProjectAllowed(dir);
+    const root = await realpath(dir);
+    const rigs: ModelRig[] = [];
+    for (const file of p.files.slice(0, MAX_PRESENCE_FILES)) {
+      const rig = await readModelRig(root, file);
+      if (rig) rigs.push(rig);
+    }
+    return rigs;
   }
 }

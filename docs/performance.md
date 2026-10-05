@@ -21,6 +21,7 @@ headline metric; everything else about it is a diagnostic.
 | Live reload | Reload | first game frame | ms | not yet |
 | Live resize | window or chat-handle drag | game view matches its slot | px behind per frame | dev control `window.resize` |
 | Build turn | turn starts | turn's result recorded | ms outside model time | director `hostTimings` spans, `build_observation` (not yet aggregated) |
+| Scroll | a fling in a long chat | rows drawn where it lands | frames painted with a blank block, beside a GPU-heavy game | `npm run test:ui -- chat-scroll-ui` (screencast frames, CPU profile, trace) |
 | Run graph | run event | graph committed | ms; commits per event | `graph-commit`, Profiler counts (`event-batch` is never emitted) |
 | Idle | nothing happening | — | CPU %, rAF/s, memory after an hour of Autopilot | trace and heap on demand |
 
@@ -40,8 +41,10 @@ A journey that is "not yet" instrumented gets its marks before anyone optimizes 
 - **Field time** stays on the person's Mac: Studio sends no analytics ([privacy](../PRIVACY.md)).
   A launch with `--studio-diagnostics` turns the main-process recorder (marks, IPC histograms,
   event-loop delay) on in any build, including a packaged one; Settings → Copy diagnostics
-  carries its snapshot. Renderer marks and Profiler counts exist only in owned builds. The owner's own long sessions are the
-  field sample.
+  carries its snapshot. Renderer marks exist only in owned builds, and Profiler counts only in
+  owned fixture builds (`--commit-counts`): development React logs every render inside a Profiler
+  with a diff of its props, which took most of a live session's main thread. The owner's own long
+  sessions are the field sample.
 
 ## How a performance change is made
 
@@ -69,6 +72,9 @@ counters carry the regression gates.
   `main.cpu.start`/`main.cpu.stop` (the main process), `heap`, `trace.start`/`trace.stop`
   ([field guide](STUDIO-DEVELOPER-FIELD-GUIDE.md#owned-development-sessions)). Each operation checks
   the build is current from cached file fingerprints, so it does not stall the main process it measures.
+- `npm run test:ui -- chat-scroll-ui [--build owned]`: flings a long chat with real input, alone
+  and beside a stand-in game that keeps the GPU busy, and counts painted frames with a blank
+  block; it also keeps a CPU profile and a trace of one fling.
 - Fixture messages for journeys: `fixture:stream` (a short streamed reply) and `fixture:stream-long`
   (about ten thousand characters of Markdown and code, streamed at a fast model's pace, in a game chat).
 - `dist/renderer/bundle-report.json`: eager renderer bytes against the budget in
@@ -90,6 +96,9 @@ counters carry the regression gates.
 
 ## Rules that keep work off the critical path
 
+- The chat transcript mounts rows three screens ahead both ways and keeps them four screens
+  back (`chat/transcript-window.ts`): a GPU busy with Live's game draws newly mounted rows late,
+  so rows mounted just in time showed as a blank block under a fast fling.
 - Endless "working" animations (status shimmer, busy dots and spinners, the working node's pulse)
   run only while the window is in front and was touched in the last two minutes
   (`renderer/motion-rest.ts`); while one runs, Chromium draws every frame.
@@ -116,7 +125,10 @@ differs from an owned development build:
   Node inspector; use diagnostics and Chromium traces.
 - **First launch:** Gatekeeper verifies the signed bundle once, which lengthens the first start.
   A copy started from the mounted DMG or from Downloads runs from a read-only or translocated
-  path instead of `/Applications`.
+  path instead of `/Applications`. Before the window opens, a new profile copies each bundled
+  plugin into its plugin store (`core:plugins`); the Genex payload leaves out type declarations
+  and source maps, two thirds of its files, which more than halves that copy
+  (`plugin-payload-paths.test.ts`).
 - **Data:** a packaged app opens the person's real profile, whose histories are larger than any
   fixture's; scale-dependent journeys (open a chat, send, run graph) are measured there too.
 

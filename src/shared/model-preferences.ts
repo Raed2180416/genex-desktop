@@ -16,25 +16,18 @@ export type ReasoningEffort = (typeof ReasoningEffort)[keyof typeof ReasoningEff
 
 /** Request settings whose capabilities are advertised by the selected provider/model. */
 export interface ModelPreferences {
-  contextWindow?: number;
   fast?: boolean;
 }
 
+/** What a model offers: its context window, and whether it has a Fast mode. */
 export interface ModelCapabilities {
   contextWindow?: number;
-  /**
-   * Where the provider will auto-compact on request (Claude Code), offered beside its own Auto. A
-   * provider lists only points it honors; none means it compacts on its own.
-   */
-  contextChoices?: number[];
   supportsFast?: boolean;
 }
 
+/** The preferences this model honors. Every provider compacts on its own, so none sets a window. */
 export function supportedPreferences(value: ModelPreferences, model: ModelCapabilities): ModelPreferences {
   return {
-    ...(value.contextWindow && model.contextChoices?.includes(value.contextWindow)
-      ? { contextWindow: value.contextWindow }
-      : {}),
     ...(model.supportsFast && typeof value.fast === "boolean" ? { fast: value.fast } : {}),
   };
 }

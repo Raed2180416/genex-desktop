@@ -103,6 +103,8 @@ const FIXTURE_SAFE = [
   "studio:update",
   // A studio:dev launch never checks (`autoUpdateDecision`): it answers off, or the update-ready stand-in.
   "studio:update.check",
+  // Names the running version, platform and architecture; reads nothing else.
+  "studio:update.about",
   "studio:bootstrap",
   "studio:performance.mark",
   "studio:send",
@@ -140,6 +142,7 @@ const FIXTURE_SAFE = [
   "studio:game.references",
   "studio:game.asset.preview",
   "studio:game.asset.present",
+  "studio:game.asset.rigs",
   "studio:game.assets",
   "studio:game.asset.still",
   "studio:engines",
@@ -156,6 +159,10 @@ const FIXTURE_SAFE = [
   "studio:preview.bounds",
   "studio:preview.sound",
   "studio:preview.reload",
+  "studio:preview.stop",
+  "studio:preview.play",
+  // The app's own window over its own game view: no account, dialog or other app is reached.
+  "studio:preview.fullscreen",
   "studio:live.behind",
   "studio:preview.state",
   "studio:preview.live",

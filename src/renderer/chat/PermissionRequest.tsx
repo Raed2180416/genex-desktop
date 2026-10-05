@@ -1,7 +1,7 @@
 /**
  * Claude asking before it acts, answered in the chat instead of a terminal: the waiting card
- * (`PermissionRequest`, docked above the composer) and the settled row in the conversation
- * (`PermissionOutcome`). Only the host settles a request; the caller keys a card by request id.
+ * (`PermissionRequest`, docked above the composer) and the settled one-line row in the
+ * conversation (`PermissionOutcome`). Only the host settles a request; the caller keys a card by request id.
  */
 import type { JSX } from "react";
 import {
@@ -11,13 +11,15 @@ import {
   type SteadyPermissionMode,
   type ToolPermissionAnswer,
   type ToolPermissionEvent,
+  ToolPermissionState,
 } from "../../shared/permissions.ts";
 import { FileText } from "../ui/FileText.tsx";
 import { Icon } from "../ui/icons.tsx";
 import { Markdown } from "../ui/Markdown.tsx";
 import { useMoreBelow } from "../ui/scroll-fade.ts";
 import { SyntaxCode } from "../ui/SyntaxCode.tsx";
-import { alwaysWords, permissionPath, permissionTitleWords } from "../words.ts";
+import { alwaysWords, permissionLineWords, permissionPath, permissionTitleWords } from "../words.ts";
+import { ChatDisclosure } from "./ChatDisclosure.tsx";
 import { type ChatChoice, ChatQuestion } from "./ChatQuestion.tsx";
 
 /** The card's own words. */
@@ -71,25 +73,16 @@ function RequestSubject({ event }: { event: ToolPermissionEvent }): JSX.Element 
 }
 
 /** Everything else Claude Code sent: why it asks (when not already said) and the tool's input. */
-function RequestDetails({
-  event,
-  reason,
-  subject = false,
-}: {
-  event: ToolPermissionEvent;
-  reason?: string;
-  subject?: boolean;
-}): JSX.Element | null {
+function RequestDetails({ event, reason }: { event: ToolPermissionEvent; reason?: string }): JSX.Element | null {
   const input = Object.keys(event.input ?? {}).length ? JSON.stringify(event.input, null, 2) : "";
   const plan = isPlanRequest(event) ? event.plan : undefined;
-  if (!input && !reason && !plan && !subject) return null;
+  if (!input && !reason && !plan) return null;
   return (
     <details className="group/request mt-1">
       <summary className="chat-disclosure">
         {WORDS.details}
         <Icon name="chevron-right" size={14} className="chat-chevron group-open/request:rotate-90" />
       </summary>
-      {subject && <RequestSubject event={event} />}
       {reason && (
         <p className="mt-1 text-chat-sub text-ink-3 [overflow-wrap:anywhere]">
           <FileText text={reason} />
@@ -204,13 +197,47 @@ export function PermissionRequest({
   );
 }
 
-/** A settled request in the conversation: what was asked, how it ended, and the request itself. */
-export function PermissionOutcome({ event, outcome }: { event: ToolPermissionEvent; outcome?: string }): JSX.Element {
+/** What an answered request opens to: the question as asked, its subject, the answer's words, why it was asked. */
+function SettledRequest({ event }: { event: ToolPermissionEvent }): JSX.Element {
+  const command = commandOf(event);
+  const path = FILE_TOOLS.has(event.tool) ? permissionPath(event) : undefined;
+  const plan = isPlanRequest(event) ? event.plan : undefined;
+  const input = Object.keys(event.input ?? {}).length ? JSON.stringify(event.input, null, 2) : "";
+  const message = event.state === ToolPermissionState.Allowed ? "" : (event.message?.trim() ?? "");
   return (
-    <div data-permission-outcome className="text-chat text-ink-2">
-      <p>{permissionTitleWords(event)}</p>
-      {outcome && <p className="mt-1 text-chat-sub text-ink-3">{outcome}</p>}
-      <RequestDetails event={event} reason={event.reason} subject />
+    <div className="chat-tool-detail flex flex-col gap-2 text-ink-2">
+      <p className="m-0">{permissionTitleWords(event)}</p>
+      {command && (
+        <pre data-permission-command className="chat-tool-code">
+          <SyntaxCode text={command} language="bash" />
+        </pre>
+      )}
+      {path && (
+        <p className="m-0 [overflow-wrap:anywhere]">
+          <FileText text={path} />
+        </p>
+      )}
+      {message && <p className="m-0 text-ink-3 [overflow-wrap:anywhere]">{message}</p>}
+      {event.reason && (
+        <p className="m-0 text-ink-3 [overflow-wrap:anywhere]">
+          <FileText text={event.reason} />
+        </p>
+      )}
+      {plan && <Markdown text={plan} />}
+      {!plan && !command && !path && input && (
+        <pre className="chat-tool-code">
+          <SyntaxCode text={input} language="json" />
+        </pre>
+      )}
     </div>
+  );
+}
+
+/** A settled request in the conversation, one line ("Allowed · npm install three") that opens to the request. */
+export function PermissionOutcome({ event }: { event: ToolPermissionEvent }): JSX.Element {
+  return (
+    <ChatDisclosure data-permission-outcome label={permissionLineWords(event)}>
+      <SettledRequest event={event} />
+    </ChatDisclosure>
   );
 }

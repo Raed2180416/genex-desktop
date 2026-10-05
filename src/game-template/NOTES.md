@@ -13,4 +13,4 @@ game, so decisions written here survive any chat window._
 
 ## Current state
 
-Empty project. Rendering and inspection are wired; no game content or mechanics exist yet.
+Nothing built yet.

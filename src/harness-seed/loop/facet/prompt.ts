@@ -5,6 +5,7 @@ import { roleEngine, RoleKey, toolCall } from "../model-roles.ts";
 import { facetNotes } from "../repo.ts";
 import { CLIP_QUOTE } from "../text.ts";
 import { DEFAULT_CAMERA } from "../cameras.ts";
+import { handoverPointer } from "./handover-prompts.ts";
 import type { AnyRecord } from "../../types/harness.d.ts";
 
 /** Reference stills into the first brief, and pair images later, at most. */
@@ -251,6 +252,7 @@ function promptInput({
   shape = null,
   ownShape = false,
   game = null,
+  handover = null,
   ...rest
 }: AnyRecord): PromptInput {
   const { briefFile } = rest;
@@ -275,6 +277,7 @@ function promptInput({
     shape,
     ownShape,
     game,
+    handover,
     entryMain: shape?.main ?? "src/main.js",
     // Every section below that .studio/BRIEF.md already carries is rendered ONCE (M4.8b). A
     // delegated engine reads the file — the loop wrote it into the worktree and the prompt's
@@ -461,6 +464,8 @@ function openingHead(p: PromptInput): string[] {
       : "",
     ``,
     p.briefPointer,
+    // A session that starts after a handover reads what the one before it knew (phases/handover.ts).
+    p.handover ? handoverPointer(p.handover) : "",
     p.legacy || pointsAtBrief
       ? ``
       : `THE CONTRACT — these checks are verified mechanically after every build; a build is accepted only when it flips at least one to pass and regresses none:\n${renderChecks(p.spec.checks)}`,
@@ -533,7 +538,7 @@ function oneScreenLine({ spec: facet }: PromptInput): string {
   const enforced = harnessOnBoard.length
     ? ` The harness-owned check${one ? "" : "s"} ${harnessOnBoard.join(", ")} enforce${one ? "s" : ""} this.`
     : "";
-  return `- ONE SCREEN, ONE INPUT PATH: all UI through __studio.hud (drawn into the canvas; no DOM, no second HUD); all input from ctx.keys / ctx.look / ctx.wheel (studio.js owns pointer lock and the mouse).${enforced}`;
+  return `- ONE SCREEN, ONE INPUT PATH: all UI through __studio.hud (drawn into the canvas; no DOM, no second HUD); all input from ctx.keys / ctx.look / ctx.wheel (studio.js owns pointer lock and the mouse).${enforced} A label that belongs to something in the world — a player's name, a marker over a target — is a sprite or mesh in the scene, attached to that object and tagged with it (never hud), so it moves and hides with it; __studio.hud holds only what stays on the screen.`;
 }
 
 /** The last build's news: its failure, the legacy gap, or the board. */

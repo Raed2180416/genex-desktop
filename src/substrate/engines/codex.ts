@@ -983,6 +983,8 @@ export class CodexEngine implements Engine {
     const metadata = await codexSessionMetadata(home, read.sessionId, read.startedAt);
     run.modelUsed ??= metadata.model;
     run.cliVersion = metadata.cliVersion ?? run.cliVersion;
+    // A compaction's reading names no prompt size: the context it measured is gone.
+    if (metadata.context) run.contextTokens = metadata.context.promptTokens;
     const reading = {
       engine: this.id,
       sessionId: read.sessionId,
@@ -1143,6 +1145,8 @@ interface CodexRun {
   stderrTail: string;
   /** Set by the deadline timer: the abort that follows is the time budget's, not the user's. */
   deadlineHit: boolean;
+  /** The last request's prompt size the session file reported (`DelegateResult.contextTokens`). */
+  contextTokens: number | undefined;
 }
 
 /**
@@ -1162,6 +1166,7 @@ function newCodexRun(engine: string, resume: string | undefined): CodexRun {
     failure: null,
     stderrTail: "",
     deadlineHit: false,
+    contextTokens: undefined,
   };
 }
 
@@ -1177,6 +1182,7 @@ function runPartialState(run: CodexRun, startedAt: number, model: string | undef
     requestedModel: model,
     cliVersion: run.cliVersion,
     cliPath: run.cliPath,
+    contextTokens: run.contextTokens,
   };
 }
 
@@ -1202,6 +1208,7 @@ function completedResult(
     ...(asked.model ? { requestedModel: asked.model } : {}),
     ...(run.sessionId ? { sessionId: run.sessionId } : {}),
     ...(studioToolCalls.length ? { studioToolCalls } : {}),
+    ...(run.contextTokens ? { contextTokens: run.contextTokens } : {}),
   };
 }
 

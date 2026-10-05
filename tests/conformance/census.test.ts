@@ -26,6 +26,7 @@ import {
   tally,
   type Homes,
 } from "../../scripts/transcript-census.ts";
+import { PRICE_TABLE_SCHEMA, PRICE_UNIT, validatePriceTable } from "../../scripts/evals/prices.ts";
 import { CodexEngine, type CodexExec } from "../../src/substrate/engines/codex.ts";
 import { replanCheck } from "../../src/harness-seed/loop/replan.ts";
 import { fixtureCodingCli } from "../helpers/external-cli.ts";
@@ -33,6 +34,17 @@ import { tmpDir } from "../helpers/tmp.ts";
 
 const FIXTURES = path.resolve("tests/fixtures/transcripts");
 const CLAUDE = path.join(FIXTURES, "claude-worker-facet.jsonl");
+/** Three requests on two models, one 5-minute cache write among the 1-hour ones, and a failed Bash call. */
+const CLAUDE_PRICED = path.join(FIXTURES, "claude-worker-priced.jsonl");
+/** One priced model; the fixture's other model has no row, so its turn is counted, never guessed. */
+const PRICES = validatePriceTable({
+  schema: PRICE_TABLE_SCHEMA,
+  asOf: "2026-10-03",
+  unit: PRICE_UNIT,
+  models: { "claude-opus-5-5": { input: 4, cacheWrite: 8, cacheRead: 0.2, output: 20 } },
+});
+/** Dollars to the micro-dollar, so float sums compare. */
+const usd = (value: number) => Math.round(value * 1_000_000) / 1_000_000;
 const CODEX = path.join(FIXTURES, "codex-director-rollout.jsonl");
 /** A rollout with three tool calls, an answer, one more call and a last answer: five responses. */
 const CODEX_TOOLS = path.join(FIXTURES, "codex-worker-facet.jsonl");
@@ -81,6 +93,39 @@ describe("the transcript census", () => {
     assert.deepEqual(session.input, { fresh: 20, cacheCreate: 1500, cacheRead: 41000, total: 42520 });
     assert.equal(session.output, 420);
     assert.equal(session.firstAt, "2026-09-08T01:00:00.000Z");
+  });
+
+  it("prices each request at its own model, counts 1-hour cache writes, the peak context and failed calls", async () => {
+    const session = (await readClaudeSession(CLAUDE_PRICED, PRICES))!;
+    assert.equal(session.turns, 3);
+    assert.equal(session.cacheWrite1h, 11_500, "the one 5-minute write is not a 1-hour one");
+    assert.equal(session.peakInput, 12_003, "the largest context one request carried");
+    assert.deepEqual(Object.fromEntries(Object.entries(session.cost).map(([kind, value]) => [kind, usd(value)])), {
+      fresh: 0.00002,
+      cacheWrite: 0.096,
+      cacheRead: 0.002,
+      output: 0.03,
+      total: 0.12802,
+    });
+    assert.equal(session.unpricedTurns, 1, "a model the table has no price for is counted, not guessed");
+    assert.deepEqual(session.toolErrors, { Bash: 1 });
+    const unpriced = (await readClaudeSession(CLAUDE))!;
+    assert.equal(unpriced.unpricedTurns, 2, "without a table nothing is priced");
+    assert.equal(unpriced.cost.total, 0);
+  });
+
+  it("renders cost by billing type, the 1-hour share and each tool's failures", async () => {
+    const markdown = renderMarkdown(tally([(await readClaudeSession(CLAUDE_PRICED, PRICES))!]));
+    assert.ok(markdown.includes("- cache writes at a 1-hour TTL: 11,500 of 12,000 (95.8%)"), markdown);
+    assert.ok(
+      markdown.includes(
+        "- API-equivalent cost: $0.13 (fresh $0.00, cache write $0.10, cache read $0.00, output $0.03); 1 turn on a model with no price",
+      ),
+      markdown,
+    );
+    assert.ok(markdown.includes("| Bash | 1 | 1 | 1 |"), markdown);
+    assert.ok(markdown.includes("| worker:facet | 1 | 1 / 0 |"));
+    assert.ok(markdown.includes("| 12,003 | $0.13 |"), "the role row carries its peak context and its cost");
   });
 
   it("reads a Codex rollout: the brief is the first user message that is not an envelope", async () => {
@@ -292,6 +337,40 @@ describe("the transcript census", () => {
     });
     assert.equal(elsewhere.sessions, 1, "a Codex session that did not run in a game folder is not the studio's");
     assert.equal(elsewhere.looks[1]!.dropped, 2);
+  });
+
+  it("reads the system Claude home only when asked, and only the studio's own sessions", async (t) => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), "census-"));
+    t.after(() => fs.rmSync(home, { recursive: true, force: true }));
+    const homes: Homes = {
+      appDir: path.join(home, "app"),
+      claudeIsolated: path.join(home, "app", "engine-homes", "claude-code"),
+      claudeSystem: path.join(home, ".claude"),
+      codexIsolated: path.join(home, "app", "engine-homes", "codex"),
+      codexSystem: path.join(home, ".codex"),
+      gameRoots: ["/Users/studio/AI Games"],
+      tmpDir: SCRATCH_TMP,
+    };
+    // A sign-in on this Mac puts the studio's sessions beside the owner's own, in ~/.claude.
+    const game = path.join(homes.claudeSystem, "projects", "-Users-studio-AI-Games-two-rooms");
+    const own = path.join(homes.claudeSystem, "projects", "-Users-studio-code-private");
+    fs.mkdirSync(game, { recursive: true });
+    fs.mkdirSync(own, { recursive: true });
+    fs.copyFileSync(CLAUDE_PRICED, path.join(game, "session.jsonl"));
+    const elsewhere = fs
+      .readFileSync(CLAUDE_PRICED, "utf8")
+      .replaceAll("/Users/studio/AI Games/two-rooms", "/Users/studio/code/private");
+    fs.writeFileSync(path.join(own, "session.jsonl"), elsewhere);
+
+    const quiet = await runCensus({ homes });
+    assert.equal(quiet.sessions, 0, "the owner's own Claude home is not read unless it is asked for");
+    assert.ok(lookLine(quiet.looks[0]!).includes("rerun with --system-claude"), lookLine(quiet.looks[0]!));
+    assert.equal(quiet.looks[0]!.files, 2, "but the run still says what is there");
+
+    const full = await runCensus({ homes, systemClaude: true });
+    assert.equal(full.sessions, 1, "a session that did not run in a game folder is not the studio's");
+    assert.equal(full.looks[0]!.dropped, 1);
+    assert.ok(lookLine(full.looks[0]!).endsWith("; 1 not the studio's and dropped"));
   });
 
   it("names scratch prefixes the engine really writes, so a rename fails here", async () => {

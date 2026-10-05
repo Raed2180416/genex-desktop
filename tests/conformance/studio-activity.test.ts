@@ -259,6 +259,32 @@ test("the agent's own edits to its instructions, skills and tools are listed in 
   assert.deepEqual(index.items(), studioActivity(log), "the incremental index keeps self-changes too");
 });
 
+test("an agent's own edit reads with the plain title and summary it wrote; an older record keeps its generated title", () => {
+  const log = [
+    custom(1, "skill_edited", {
+      slug: "facet-decomposition",
+      reason: "hud-score and referee both edited FACET WIRING",
+      title: "Give the scoreboard one owner",
+      summary: ["One part now owns the scoreboard."],
+      snapshot_id: "p1",
+    }),
+    custom(2, "skill_edited", { slug: "director", reason: "leads stall", snapshot_id: "p2" }),
+  ];
+  assert.deepEqual(
+    studioActivity(log)
+      .filter((item) => item.kind === "improvement")
+      .map((item) => [item.title, item.summary ?? null, item.detail]),
+    [
+      ["Harness rewrote how Harness leads a build", null, "leads stall"],
+      [
+        "Give the scoreboard one owner",
+        ["One part now owns the scoreboard."],
+        "hud-score and referee both edited FACET WIRING",
+      ],
+    ],
+  );
+});
+
 test("Activity incremental rows preserve outcomes, milestones and restored improvement records", () => {
   const log = [
     custom(1, "run_started", { runId: "a", project: "alpha", goal: "first" }),

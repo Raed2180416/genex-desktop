@@ -131,12 +131,8 @@ async function closePreview({ wc, waitFor }: AssetSmoke): Promise<void> {
   await waitFor(`!document.querySelector('${PREVIEW}')`);
 }
 
-/** Click a preview button by its label. */
-function clickPreviewButton(wc: WebContents, label: string): Promise<unknown> {
-  return wc.executeJavaScript(
-    `[...document.querySelectorAll('${PREVIEW} button')].find(b=>b.textContent==='${label}').click()`,
-  );
-}
+/** The viewer's animations bar, and its clip buttons. */
+const CLIPS = `${PREVIEW} [role="group"][aria-label="Animations"] button[aria-pressed]`;
 
 /** A model or texture in the 3D viewer: it loads, draws, orbits and animates. */
 async function checkModel(smoke: AssetSmoke, file: string): Promise<void> {
@@ -171,7 +167,7 @@ async function checkRendered(smoke: AssetSmoke, file: string): Promise<Capture> 
   return { bounds, pixels };
 }
 
-/** Drag across the model: the orbit control must change the view; then reset it. */
+/** Drag across the model: the orbit control must change the view; then a double-click resets it. */
 async function checkOrbit({ wc, check }: AssetSmoke, { bounds, pixels }: Capture): Promise<void> {
   const x = bounds.x + Math.round(bounds.width / 2);
   const y = bounds.y + Math.round(bounds.height / 2);
@@ -181,27 +177,20 @@ async function checkOrbit({ wc, check }: AssetSmoke, { bounds, pixels }: Capture
   await sleep(ORBIT_SETTLE_MS);
   const moved = await wc.capturePage(bounds);
   check("3D orbit pointer changes the rendered view", !moved.toBitmap().equals(pixels));
-  await clickPreviewButton(wc, "Reset view");
+  await wc.executeJavaScript(
+    `document.querySelector('${PREVIEW} canvas').dispatchEvent(new MouseEvent('dblclick',{bubbles:true}))`,
+  );
 }
 
-/** An animated model offers its clips, plays one and pauses it. */
+/** An animated model offers its clips and opens playing the first; its play button pauses it. */
 async function checkAnimation(smoke: AssetSmoke, file: string): Promise<void> {
   const { wc, check, waitFor } = smoke;
-  const count = await wc.executeJavaScript(
-    `document.querySelector('[aria-label="Animation clip"]')?.options.length??0`,
-  );
-  check(`${file} exposes embedded animation`, count > 1);
-  if (count <= 1) return;
-  await wc.executeJavaScript(
-    `(()=>{const select=document.querySelector('[aria-label="Animation clip"]');select.value='0';select.dispatchEvent(new Event('change',{bubbles:true}));})()`,
-  );
-  await waitFor(
-    `![...document.querySelectorAll('${PREVIEW} button')].find(b=>b.textContent==='Play animation')?.disabled`,
-  );
-  await clickPreviewButton(wc, "Play animation");
+  const count = await wc.executeJavaScript(`document.querySelectorAll('${CLIPS}').length`);
+  check(`${file} exposes embedded animation`, count > 0);
+  if (count === 0) return;
   const animationTime = `Number(document.querySelector('${PREVIEW} canvas').dataset.animationTime)`;
   check(`${file} animation advances`, await waitFor(`${animationTime}>.2`));
-  await clickPreviewButton(wc, "Pause animation");
+  await wc.executeJavaScript(`document.querySelector('${PREVIEW} button[aria-label^="Pause"]').click()`);
   const before = await wc.executeJavaScript(animationTime);
   await sleep(SETTLE_MS);
   const after = await wc.executeJavaScript(animationTime);

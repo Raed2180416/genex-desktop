@@ -153,5 +153,6 @@ export function facetPromptFor(
     imagesAttached: round.promptImages.length,
     move: loop.currentMove,
     fix,
+    handover: loop.handoverNotes,
   });
 }

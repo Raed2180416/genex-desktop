@@ -19,13 +19,14 @@ import type { NightReview } from "./run-review.ts";
 import type { CodexLoginState } from "./codex-login.ts";
 import type { ClaudeLoginState } from "./claude-login.ts";
 import type { ProjectAsset, ProjectAssets } from "./game-assets.ts";
+import type { ModelRig } from "./model-rig.ts";
 import type { UiEvent } from "./ui-events.ts";
 import type { GameFile } from "./game-file.ts";
 import type { ChatFileLink, ChatFileOpenOutside, ChatFileRef } from "./chat-files.ts";
 import type { ReferenceFrame } from "./protocol.ts";
 import type { ProviderUsageReport } from "./provider-usage.ts";
 import type { BootState, SandboxSetupResult } from "./boot.ts";
-import type { ReadyUpdate, UpdateCheckResult } from "./app-update.ts";
+import type { AppAbout, ReadyUpdate, UpdateCheckResult } from "./app-update.ts";
 import type { PermissionMode, PermissionSettingsView, ToolPermissionAnswer } from "./permissions.ts";
 import type { LiveBehindEvent } from "./live-behind.ts";
 import type { FieldRow, RunSharingDeleteResult, RunSharingStatus } from "./run-sharing.ts";
@@ -223,6 +224,8 @@ export interface StudioApi {
   checkForUpdates(): Promise<UpdateCheckResult>;
   /** Open the waiting downloadable release's page in the browser; false when none waits. */
   openUpdateDownload(): Promise<boolean>;
+  /** What is running (Settings → About): version, platform and architecture. */
+  appAbout(): Promise<AppAbout>;
   bootstrap(): Promise<Bootstrap>;
   send(text: string, options?: ComposerSendOptions): Promise<boolean>;
   answerPlan(threadId: string, id: string, approved: boolean): Promise<boolean>;
@@ -262,7 +265,8 @@ export interface StudioApi {
   hardware(): Promise<HardwareReport>;
   games(): Promise<GameProject[]>;
   /** A new game in a fresh folder of its own: in the games folder, or inside `parent` when the user chose one. */
-  createGame(title: string, options?: { parent?: string }): Promise<GameProject>;
+  /** `provisional`: the title waits for the game's first idea (`GameName.provisional`). */
+  createGame(title: string, options?: { parent?: string; provisional?: boolean }): Promise<GameProject>;
   /** A name for a game started from its first request, by the model picked for it; never fails for want of a model. */
   nameGame(request: GameNameRequest): Promise<GameName>;
   /**
@@ -372,6 +376,8 @@ export interface StudioApi {
   }): Promise<{ mimeType: string; data: Uint8Array<ArrayBuffer> }>;
   /** Which delivered files the game folder holds now; a build's files arrive when it lands. */
   presentProjectAssets(p: { project: string; files: string[] }): Promise<string[]>;
+  /** What these GLB and glTF files hold, read from their headers: meshes, clips and bones; other files are skipped. */
+  projectModelRigs(p: { project: string; files: string[] }): Promise<ModelRig[]>;
   projectAssets(project: string): Promise<ProjectAssets>;
   /**
    * One image from inside the game, contained and byte-sniffed. `maxPx` asks for a thumbnail;
@@ -416,6 +422,12 @@ export interface StudioApi {
   previewSound(request: import("./game-sound.ts").GameSoundRequest): Promise<boolean>;
   /** Reload the stage. `retry` is the build-failure strip's "Try again": build it again from scratch. */
   reloadPreview(options?: { retry?: boolean }): Promise<boolean>;
+  /** Stop: take the Live game off its view, so it runs no scripts, frames or sound until Play. */
+  stopPreview(): Promise<boolean>;
+  /** Play a stopped Live game again: the same page, from the top. */
+  playPreview(): Promise<boolean>;
+  /** Full screen: the window goes full screen with the Live game over all of it; holding Esc, or its exit button, ends it. */
+  previewFullScreen(): Promise<boolean>;
   /** What waits for this game's Live Reload and the build Live shows, as `live.behind` says it: read on mount. */
   liveBehind(project: string): Promise<LiveBehindEvent>;
   previewState(): Promise<unknown>;
@@ -423,6 +435,8 @@ export interface StudioApi {
   previewLive(): Promise<{
     project: string | null;
     navigating: boolean;
+    /** The person stopped the game (`stopPreview`): Live holds no page until Play. */
+    stopped: boolean;
     loadError: string | null;
     crashed: boolean;
     page: { complete: boolean; resources: number; state: Record<string, unknown> | null } | null;

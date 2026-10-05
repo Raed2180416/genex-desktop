@@ -231,11 +231,13 @@ tools (`delegation-prompts.ts`).
 **Status.** `status` names a declared action **without** confirmation. Studio calls it with no
 arguments (and the current project binding) when the toolbar mounts, on every `plugins.changed`,
 debounced to once per second, and every 30 s while a project is open. It returns a
-`PluginToolbarStatus` — `{badge?, disabled?, title?, tone?: ok | warn | err | info}` — sanitized by
-`toolbarStatusFrom` (badge ≤ 16 characters, title ≤ 120, unknown tones dropped). A backend can
-also push a status without being asked through `events.emit` with `{kind: "toolbar", item, badge,
-tone, title}`; the renderer applies it to that item, or re-asks the status action when the item is
-not named.
+`PluginToolbarStatus` — `{badge?, disabled?, title?, tone?: ok | warn | err | info, attention?}` —
+sanitized by `toolbarStatusFrom` (badge ≤ 16 characters, title ≤ 120, unknown tones dropped,
+`attention` a boolean). A button is drawn in the prompt bar's quiet pill fill, or in the accent while
+its status sets `attention` (the action is due) and the game is not empty; Genex's Publish uses
+only `title` and `attention`. A backend can also push a status without being asked through
+`events.emit` with `{kind: "toolbar", item, badge, tone, title, attention}`; the renderer applies it
+to that item, or re-asks the status action when the item is not named.
 
 ### MCP servers
 
@@ -466,8 +468,9 @@ entries carrying `id`, `name`, `publisher`, `description`, `category` (`assets`,
   before it is trusted. A failed fetch serves the last good entries with `stale: true` and an
   `error` the page shows, so the list never disappears because the network did.
 - **Fixture profiles are offline**: the marketplace is constructed with `offline: true` and never
-  calls out at all, reporting `Studio is offline in this profile`; the page's More plugins section
-  says it couldn't load the catalog and offers Try again. `studio:plugins.install-github`,
+  calls out at all, reporting `Studio is offline in this profile`; with nothing to list, the page's
+  Marketplace is only Coming soon (`[data-marketplace-soon]`), as it is whenever the catalog offers
+  nothing new. `studio:plugins.install-github`,
   `studio:plugins.lookup-github`, `studio:plugins.github-versions` and `studio:plugins.update` are
   in `FIXTURE_BLOCKED_CHANNELS`.
 - **Cataloged is not audited.** The index says where a plugin's code is pinned; Studio checks the
@@ -824,14 +827,14 @@ and checks their exit codes, refusals and JSON report.
 
 Run `npm run plugin:doctor -- src/plugins/example`: it must exit 0, probe `ready`, scan `safe`
 with no findings and no warnings. **Fixture profiles never fetch the marketplace index** — the
-marketplace is constructed offline, More plugins says it couldn't load the catalog, and the
+marketplace is constructed offline, the Marketplace shows only Coming soon, and the
 GitHub lookup, install and update channels are in `FIXTURE_BLOCKED_CHANNELS`; a readiness or smoke run that reaches GitHub is a defect, not a flake.
 The readiness run also asserts that no two controls inside `[data-stage-strip]` share a label,
 which is what the manifest's reserved-label and aria-uniqueness rules exist to protect.
 
 Run `node tests/e2e/run-build-smoke.mjs --packaged` after packaging to exercise the same plugin
 UI assertions from the actual app bundle, including the independent example, opaque frame,
-standard settings, toolbar, fabricated approval rejection, the More plugins offline line, the
+standard settings, toolbar, fabricated approval rejection, the offline Marketplace, the
 Install from GitHub window and `Scan: safe` on the example detail page. Also
 inspect the page and the toolbar visually: semantic interaction assertions do not prove
 background opacity or readable layout.

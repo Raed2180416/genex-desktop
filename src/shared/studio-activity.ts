@@ -205,14 +205,16 @@ const selfChangeItem: ItemReader = ({ event, event_type, payload: p, restored })
   if (!agentChangedFile(event_type, p)) return null;
   const snapshotId = words(p.snapshot_id);
   const undone = restored.has(snapshotId);
+  const summary = improvementSummary(p, false);
   return {
     id: event.id,
     at: event.created_at,
     kind: "improvement",
-    title: selfChangeTitle(event_type, p),
+    title: words(p.title) || selfChangeTitle(event_type, p),
     status: improvementStatus(undone, restored.get(snapshotId) === UNDONE_BY_USER),
     undone,
     detail: words(p.reason) || "Harness changed one of its own files.",
+    ...(summary.length ? { summary } : {}),
     ...(undone ? {} : { attention: true }),
     ...(snapshotId ? { snapshotId } : {}),
   };

@@ -854,8 +854,10 @@ async function checkPluginsSurface(buildSmoke: BuildSmoke): Promise<void> {
   );
   await wc.executeJavaScript(`document.querySelector('button[aria-label="Plugins"]').click()`);
   check(
-    "Plugins surface opens with bundled Genex",
-    await waitFor(`document.querySelector('[aria-label="Studio plugins"]')?.textContent.includes('Genex Tools')`),
+    "Plugins surface opens with bundled Genex, shown as the game dev tools router",
+    await waitFor(
+      `document.querySelector('[aria-label="Studio plugins"] [data-plugin-row="genex"]')?.textContent.includes('Game dev tools router')`,
+    ),
   );
   check(
     "Plugins is a workspace page, not a dialog",
@@ -865,12 +867,12 @@ async function checkPluginsSurface(buildSmoke: BuildSmoke): Promise<void> {
   );
   check(
     "Genex row offers one Connect button for a locked account",
-    await waitFor(`!!document.querySelector('[data-plugin-row="genex"] [aria-label="Connect Genex Tools"]')`),
+    await waitFor(`!!document.querySelector('[data-plugin-row="genex"] [aria-label="Connect Game dev tools router"]')`),
   );
   check(
-    "bundled plugins show their own pictures",
+    "bundled plugins show their pictures: Local Blender its own, Genex the eight tools it routes",
     await waitFor(
-      `['genex','blender'].every(id=>document.querySelector('[data-plugin-row="'+id+'"] img.extension-icon')?.naturalWidth>0)`,
+      `document.querySelector('[data-plugin-row="blender"] img.extension-icon')?.naturalWidth>0&&(()=>{const marks=[...document.querySelectorAll('[data-plugin-row="genex"] .router-icon img')];return marks.length===8&&marks.every(m=>m.naturalWidth>0);})()`,
     ),
   );
   check(
@@ -947,19 +949,19 @@ async function checkPluginSearchAndZoom(buildSmoke: BuildSmoke): Promise<void> {
 }
 
 /**
- * Genex's page draws everything itself: its account card and its own servers as Connections. No
- * plugin frame is left on it; sensitive actions still need Studio's review.
+ * Genex's page draws everything itself: its account card and the tools it routes; its own servers
+ * run unseen. No plugin frame is left on it; sensitive actions still need Studio's review.
  */
 async function checkGenexPanel(buildSmoke: BuildSmoke): Promise<void> {
   const { wc, check, waitFor } = buildSmoke;
   const { core } = buildSmoke.ctx;
   await wc.executeJavaScript(`document.querySelector('[aria-label="Extensions"] button:first-child').click()`);
-  await wc.executeJavaScript(`document.querySelector('button[aria-label="View Genex Tools"]').click()`);
+  await wc.executeJavaScript(`document.querySelector('button[aria-label="View Game dev tools router"]').click()`);
   check("Genex page draws its own account card", await waitFor(`!!document.querySelector('[data-genex-account]')`));
   check(
-    "Genex page lists its own servers as Connections, waiting on the account",
+    "Genex page lists the tools it routes and no Connections",
     await waitFor(
-      `!!document.querySelector('[data-plugin-connections] [data-plugin-connection="creator"][data-state="needs-account"]')&&!!document.querySelector('[data-plugin-connections] [data-plugin-connection="blender"]')`,
+      `!!document.querySelector('[data-genex-tools] [data-genex-tool="meshy"]')&&!document.querySelector('[data-plugin-connections]')`,
     ),
   );
   check(
@@ -1053,11 +1055,11 @@ async function checkLocalPluginToolbar(buildSmoke: BuildSmoke): Promise<void> {
 /** The offline marketplace, the GitHub install, and the example's own panel. */
 async function checkMarketplaceAndExample(buildSmoke: BuildSmoke): Promise<void> {
   const { wc, check, waitFor } = buildSmoke;
-  // A fixture profile is offline: the marketplace section exists, says so, and installs nothing.
+  // A fixture profile is offline: the catalog offers nothing, so the Marketplace is only Coming soon.
   check(
-    "More plugins says the catalog can't be read in a fixture profile, and offers Try again",
+    "the Marketplace is coming soon in a fixture profile, and lists nothing",
     await waitFor(
-      `(()=>{const m=document.querySelector('[aria-label="Studio plugins"] [data-more-plugins]');return !!m&&m.textContent.includes('Couldn’t load the plugin catalog.')&&m.textContent.includes('Try again');})()`,
+      `!!document.querySelector('[aria-label="Studio plugins"] [data-marketplace-soon]')&&!document.querySelector('[aria-label="Studio plugins"] [data-more-plugins]')`,
     ),
   );
   await wc.executeJavaScript(
@@ -2244,7 +2246,7 @@ async function checkActivityAndMcp(buildSmoke: BuildSmoke): Promise<void> {
   check(
     "MCP servers lists only the servers you added, with no hidden-row switch",
     await waitFor(
-      `(()=>{const c=document.querySelector('[data-testid="mcp-connectors"]');if(!c)return false;const t=c.textContent||'';return t.includes('Add a server to give agents tools from other apps.')&&!t.includes('Show disabled')&&!c.querySelector('[data-plugin-server]')&&!c.querySelector('[role="alert"]');})()`,
+      `(()=>{const c=document.querySelector('[data-testid="mcp-connectors"]');if(!c)return false;const t=c.textContent||'';return t.includes('Connect any MCP server')&&!t.includes('Show disabled')&&!c.querySelector('[data-plugin-server]')&&!c.querySelector('[role="alert"]');})()`,
     ),
   );
   await wc.executeJavaScript(`document.querySelector('[aria-label="Search plugins and MCP servers"]').focus()`);
@@ -2252,7 +2254,7 @@ async function checkActivityAndMcp(buildSmoke: BuildSmoke): Promise<void> {
   check(
     "a search finds a plugin's own server and names the plugin it is part of",
     await waitFor(
-      `document.querySelector('[data-testid="mcp-connectors"] [data-plugin-server="creator"]')?.textContent.includes('Part of Genex Tools')`,
+      `document.querySelector('[data-testid="mcp-connectors"] [data-plugin-server="creator"]')?.textContent.includes('Part of Game dev tools router')`,
     ),
   );
   await wc.executeJavaScript(`document.querySelector('[data-plugins-page] [aria-label="Clear search"]').click()`);

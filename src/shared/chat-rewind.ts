@@ -102,12 +102,21 @@ export function withoutRewound<T extends EventEnvelope>(events: readonly T[], re
 /**
  * The log as the harness reads it. A resumed provider session keeps its id and still holds the
  * rewound turns, so every session recorded before a rewind is forgotten there: the next turn
- * starts a fresh one from the conversation that remains. The sessions a run mirrors into the
- * chat are never the chat's to resume, rewound or not.
+ * starts a fresh one from the conversation that remains. A compaction is a new start the same
+ * way: the next turn opens a fresh session briefed with its summary instead of resuming the whole
+ * history. The sessions a run mirrors into the chat are never the chat's to resume, rewound or not.
  */
 export function harnessView<T extends EventEnvelope>(events: readonly T[], rewinds: readonly ChatRewind[]): T[] {
-  const boundary = rewinds.reduce((latest, rewind) => (rewind.through > latest ? rewind.through : latest), "");
-  return withoutRewound(events, rewinds).map((event) => withoutSession(event, event.id <= boundary));
+  const kept = withoutRewound(events, rewinds);
+  const rewound = rewinds.reduce((latest, rewind) => (rewind.through > latest ? rewind.through : latest), "");
+  const compacted = kept.findLast(isCompaction)?.id ?? "";
+  const boundary = compacted > rewound ? compacted : rewound;
+  return kept.map((event) => withoutSession(event, event.id <= boundary));
+}
+
+/** A compaction of the chat: the sessions before it are forgotten. */
+function isCompaction(event: EventEnvelope): boolean {
+  return customRecord(event.data)?.event_type === CustomEvent.Compacted;
 }
 
 /** The chat's own sessions: a rewind forgets the ones recorded before it. */

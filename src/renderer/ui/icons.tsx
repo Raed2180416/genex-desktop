@@ -161,6 +161,10 @@ const glyphs = {
     </g>
   ),
   stop: <rect className="a-pulse" x="6.5" y="6.5" width="11" height="11" rx="2.5" />,
+  // Full screen: the four corners pushed out to the edges.
+  expand: (
+    <path d="M4 9V6.5A2.5 2.5 0 0 1 6.5 4H9M15 4h2.5A2.5 2.5 0 0 1 20 6.5V9M20 15v2.5a2.5 2.5 0 0 1-2.5 2.5H15M9 20H6.5A2.5 2.5 0 0 1 4 17.5V15" />
+  ),
   send: (
     <g className="a-up">
       <path d="M12 19V5M6 11l6-6 6 6" />
@@ -318,6 +322,15 @@ const glyphs = {
       <path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3L4.5 9" />
       <path d="M4.5 4.5V9H9" />
     </g>
+  ),
+  // The Assets tab: four tiles, as the canvas lays files out.
+  assets: (
+    <>
+      <rect x="4" y="4" width="6.5" height="6.5" rx="1.8" />
+      <rect x="13.5" y="4" width="6.5" height="6.5" rx="1.8" />
+      <rect x="4" y="13.5" width="6.5" height="6.5" rx="1.8" />
+      <rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.8" />
+    </>
   ),
   box: (
     <g className="a-lift">

@@ -3,7 +3,8 @@ import { useMemo } from "react";
 import type { AppDialogs as Dialogs } from "../panels/AppDialogs.tsx";
 import { BootstrapGate } from "../panels/BootstrapGate.tsx";
 import { Sidebar } from "../panels/Sidebar.tsx";
-import { useLaunch, useShallow, useSidebarLibrary, useThreadsView, useUpdate } from "../state/hooks.ts";
+import { useLaunch, useSidebarLibrary, useThreadsView, useUpdate } from "../state/hooks.ts";
+import { launchInSidebar } from "../state/launch.ts";
 import type { Studio } from "../state/studio.ts";
 import { busyThreadIds, Room } from "../state/threads.ts";
 import { notifyProblem } from "../state/toasts.ts";
@@ -31,10 +32,14 @@ export function AppSidebar({
   welcoming: boolean;
 }): JSX.Element {
   const { records: threads, status: threadStatus, activeThreadId, project, room } = useThreadsView();
-  // A game home is starting has a row of its own only once it is made.
-  const launching = useLaunch(useShallow((s) => (s.launch && !s.launch.project ? { title: s.launch.title } : null)));
-  const atHome = room === Room.Home && !launching;
+  const launch = useLaunch((s) => s.launch);
+  const atHome = room === Room.Home && !launch;
   const { games, building, stagedCount } = useSidebarLibrary();
+  // A game home is starting has one row: a placeholder until it is made and listed, then its own.
+  const launching = useMemo(
+    () => launchInSidebar(launch, (name) => games.some((game) => game.name === name)),
+    [launch, games],
+  );
   const update = useUpdate((s) => s.ready);
   const busyThreads = useMemo(() => busyThreadIds(threadStatus), [threadStatus]);
   const { pluginsOpen } = chrome;

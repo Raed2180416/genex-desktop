@@ -31,7 +31,7 @@ for (const loop of [false, true])
             autopilot: { hours: 0.25, roles: { planner: "p", builder: "w", judge: "j", efforts: { builder: "high" } } },
           }
         : {}),
-      preferences: { contextWindow: 64000 },
+      preferences: { fast: true },
       engine: "codex",
     });
     const pending = f.records.get("chat")!;
@@ -52,7 +52,7 @@ for (const loop of [false, true])
     assert.match(f.sent[0]!.text, /User-approved implementation plan/);
     assert.equal(f.sent[0]!.options.reviewPlan, false);
     assert.equal(f.sent[0]!.options.autopilot?.hours, loop ? 0.25 : undefined);
-    assert.deepEqual(f.sent[0]!.options.preferences, { contextWindow: 64000 });
+    assert.deepEqual(f.sent[0]!.options.preferences, { fast: true });
     assert.equal(f.records.get("chat")!.state, "approved");
   });
 test("messages revise a waiting plan, including the word go; cancellation invalidates approval", async () => {
@@ -116,14 +116,10 @@ test("failed dispatch preserves the reviewed plan for an explicit retry", async 
   assert.match(f.records.get("chat")!.error!, /Harness unavailable/);
 });
 test("capabilities refuse unsupported Fast/context settings and retain exact role efforts", () => {
-  assert.deepEqual(
-    supportedPreferences({ fast: true, contextWindow: 1_000_000 }, { contextChoices: [32000, 200000] }),
-    {},
-  );
-  assert.deepEqual(
-    supportedPreferences({ fast: false, contextWindow: 32000 }, { supportsFast: true, contextChoices: [32000] }),
-    { fast: false, contextWindow: 32000 },
-  );
+  // Saved by a build that still had the Auto-compact picker: every provider compacts on its own now.
+  const savedWithWindow = { fast: false, contextWindow: 32000 };
+  assert.deepEqual(supportedPreferences({ ...savedWithWindow, fast: true }, {}), {});
+  assert.deepEqual(supportedPreferences(savedWithWindow, { supportsFast: true }), { fast: false });
   const roles = normalizeRoles("codex", {
     planner: "gpt-6-astra",
     builder: "opus",
@@ -250,7 +246,7 @@ test("the real host stores approval before dispatch and keeps 15-minute Loop set
     model: "fixture-v1",
     reviewPlan: true,
     autopilot: { hours: 0.25 },
-    preferences: { contextWindow: 64000 },
+    preferences: { fast: true },
   });
   const pending = (await core.store.getRecord(thread)).metadata?.planReview as PlanReview;
   assert.equal(pending.state, "waiting");
@@ -262,11 +258,11 @@ test("the real host stores approval before dispatch and keeps 15-minute Loop set
   assert.equal(await core.answerPlan(thread, revised.id, true), true);
   const action = dispatched[0] as {
     autopilot: { hours: number; reviewPlan: boolean };
-    preferences: { contextWindow: number };
+    preferences: { fast: boolean };
   };
   assert.equal(action.autopilot.hours, 0.25);
   assert.equal(action.autopilot.reviewPlan, false);
-  assert.equal(action.preferences.contextWindow, 64000);
+  assert.equal(action.preferences.fast, true);
 });
 
 test("each provider plans with current plugin capabilities without executable tools", async (t) => {

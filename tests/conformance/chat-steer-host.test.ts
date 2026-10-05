@@ -167,6 +167,29 @@ describe("the chat is free once a run closes", () => {
   });
 });
 
+describe("a contained change after a finished build (golden-boot-glory)", () => {
+  it("continue_build records build: false, so the harness hands the change to one builder turn instead of reopening the build", async () => {
+    const { core, api } = await lite();
+    const thread = await core.store.createThread({ title: "finished night" });
+    await core.store.appendEvents(thread, [
+      custom("run_started", { runId: "r1", project: "pond", engine: "codex" }),
+      custom("run_finished", { runId: "r1", project: "pond" }),
+    ]);
+    const continueBuild = (messageId: string, args: Record<string, unknown>) =>
+      api()["coordinator.tool"]({ threadId: thread, runId: "r1", name: "continue_build", args, messageId });
+    await continueBuild("m1", { text: "Remove the name plates", build: false });
+    await continueBuild("m1", { text: "Remove the name plates", build: false });
+    await continueBuild("m2", { text: "Add a second stadium" });
+    assert.deepEqual(
+      payloads(await core.store.listEvents(thread), "run_followup_requested").map((p) => [p.text, p.build]),
+      [
+        ["Remove the name plates", false],
+        ["Add a second stadium", undefined],
+      ],
+    );
+  });
+});
+
 describe("the composer's bubble id reaches the queue", () => {
   it("before the harness is ready, and whenever it has the queue; never to a ready loop without it", async () => {
     const { core } = await lite();

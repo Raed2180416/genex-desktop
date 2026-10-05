@@ -78,7 +78,6 @@ export interface EngineModel {
   id: string;
   label: string;
   contextWindow: number;
-  contextChoices?: number[];
   supportsFast?: boolean;
   contextSource?: ModelContextSource;
   hardLimitTokens?: number;

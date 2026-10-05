@@ -11,7 +11,6 @@ import { GamesSection } from "./GamesSection.tsx";
 import { PermissionsSection } from "./PermissionsSection.tsx";
 import { PrivacySection } from "./PrivacySection.tsx";
 import { AboutSection } from "./AboutSection.tsx";
-import { LicensesLink } from "./LicensesDialog.tsx";
 import { ABOUT_WORDS, PRIVACY_WORDS } from "../words.ts";
 
 interface SectionTab {
@@ -21,10 +20,10 @@ interface SectionTab {
 }
 
 const SECTIONS: readonly SectionTab[] = [
-  { id: SettingsSection.Games, label: "Games", icon: "folder" },
-  { id: SettingsSection.Appearance, label: "Appearance", icon: "palette" },
   { id: SettingsSection.Providers, label: "Model Providers", icon: "globe" },
   { id: SettingsSection.Local, label: "Local Models", icon: "box" },
+  { id: SettingsSection.Appearance, label: "Appearance", icon: "palette" },
+  { id: SettingsSection.Games, label: "Games", icon: "folder" },
   { id: SettingsSection.Harness, label: "Harness", icon: "harness" },
   { id: SettingsSection.Permissions, label: "Permissions", icon: "shield" },
   { id: SettingsSection.Privacy, label: PRIVACY_WORDS.tab, icon: "eye" },
@@ -144,7 +143,6 @@ export function SettingsDialog({
               </button>
             ))}
           </div>
-          <LicensesLink />
         </nav>
         <div className="settings-content flex min-h-0 min-w-0 flex-1 flex-col">
           <div className="mt-3.5 flex min-h-8 shrink-0 items-center ps-5 pe-14">

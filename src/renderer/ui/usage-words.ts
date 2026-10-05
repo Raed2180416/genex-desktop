@@ -60,13 +60,12 @@ export interface ContextReading {
 
 /**
  * The context reading for the chat's model: the orchestrator's newest measure of that model on
- * that engine, against the window it measured, else the one picked, else the model's own.
+ * that engine, against the window it measured, else the model's own.
  */
 export function contextReading(input: {
   modelKey: string | null;
   usage?: ContextUsage | null;
   contexts: ContextUsage[];
-  pickedWindow?: number;
   modelWindow?: number;
 }): ContextReading {
   const [engine, model] = input.modelKey?.split(MODEL_KEY_SEPARATOR) ?? [];
@@ -76,7 +75,7 @@ export function contextReading(input: {
     measuresPick(context, model) &&
     (!context.engine || context.engine === engine);
   const measured = (input.usage ? [input.usage, ...input.contexts] : input.contexts).find(plannerOnModel);
-  const capacity = measured?.contextWindow ?? input.pickedWindow ?? input.modelWindow;
+  const capacity = measured?.contextWindow ?? input.modelWindow;
   const used = measured?.promptTokens;
   if (used == null) {
     const summary = measured?.compacted ? "Compacted · measured again after the next reply" : "Not measured yet";

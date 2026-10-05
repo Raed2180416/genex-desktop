@@ -2,13 +2,16 @@
  * A new game's name from the first thing the user asked for, so its folder is named before
  * anything is written in it: one short, tool-free completion on the model the user picked. A
  * model that cannot answer in time, or answers nothing usable, leaves the name to the request's
- * own first words; the game is never left waiting for a name.
+ * own first words; the game is never left waiting for a name. A first message that describes no
+ * game ("Hello") makes it Untitled game, and its first idea then renames it in place
+ * (`nameFromIdea`), the folder staying where it is.
  */
 import { SECOND_MS } from "../../shared/duration.ts";
+import type { GameLibraryEntry, GameUpdate } from "../../shared/game-library.ts";
 import type { GameName, GameNameRequest } from "../../shared/game-project.ts";
 import { WorkClass } from "../../shared/harness-api.ts";
 import type { CompleteRequest, CompleteResponse, Engine } from "../../substrate/engines/types.ts";
-import { GAME_NAME_SYSTEM_PROMPT, gameNameRequest } from "./game-naming-prompts.ts";
+import { GAME_NAME_SYSTEM_PROMPT, gameNameRequest, NO_GAME_REPLY } from "./game-naming-prompts.ts";
 
 /** The longest the model may take before the request's own words name the game. */
 const NAMING_TIMEOUT_MS = 20 * SECOND_MS;
@@ -36,7 +39,9 @@ const SENTENCE_END = /[.!?。！？\n]/u;
 /** What naming needs from the core: its engines, its budget, and (for tests) its patience. */
 export interface NamingDeps {
   engines: { get(id: string): Engine; firstReady(): Promise<Engine | null> };
-  budget: { run<T extends { usage?: unknown }>(workClass: WorkClass, work: () => Promise<T>): Promise<T> };
+  budget: {
+    run<T extends { usage?: unknown }>(workClass: WorkClass, work: () => Promise<T>, engine?: string): Promise<T>;
+  };
   timeoutMs?: number;
 }
 
@@ -88,7 +93,11 @@ async function askForName(deps: NamingDeps, engine: Engine, request: GameNameReq
     messages: [{ role: "user", content: gameNameRequest(request.prompt.slice(0, REQUEST_MAX_CHARS)) }],
     tools: [],
   };
-  const answered = deps.budget.run(WorkClass.User, () => engine.complete?.(ask) as Promise<CompleteResponse>);
+  const answered = deps.budget.run(
+    WorkClass.User,
+    () => engine.complete?.(ask) as Promise<CompleteResponse>,
+    engine.id,
+  );
   // An engine that does not honour the signal still does not hold the game back.
   const timedOut = new Promise<null>((resolve) => signal.addEventListener("abort", () => resolve(null)));
   try {
@@ -102,10 +111,45 @@ async function askForName(deps: NamingDeps, engine: Engine, request: GameNameReq
   }
 }
 
-/** A name for a game started from `request.prompt`: the model's, else the request's own words. */
+/** Did the model say the message describes no game? */
+const describesNoGame = (name: string): boolean => name.toUpperCase() === NO_GAME_REPLY;
+
+/**
+ * A name for a game started from `request.prompt`: the model's; Untitled game, waiting for an
+ * idea, when the message describes none; else the request's own words, waiting for the model's.
+ */
 export async function nameGame(deps: NamingDeps, request: GameNameRequest): Promise<GameName> {
   if (typeof request?.prompt !== "string") throw new Error("A game is named from text.");
   const engine = await namingEngine(deps, request.engine);
   const reply = engine && request.prompt.trim() ? await askForName(deps, engine, request) : null;
-  return { title: (reply && nameFromReply(reply)) || nameFromRequest(request.prompt) };
+  const named = reply ? nameFromReply(reply) : null;
+  if (named && describesNoGame(named)) return { title: UNTITLED_GAME, provisional: true };
+  if (named) return { title: named };
+  return { title: nameFromRequest(request.prompt), provisional: true };
+}
+
+/** What renaming a game from its first idea needs: the library, the namer, and who to tell. */
+export interface IdeaNamingDeps {
+  games: {
+    presentation(name: string): Promise<GameLibraryEntry>;
+    update(name: string, patch: GameUpdate): Promise<unknown>;
+  };
+  name(request: GameNameRequest): Promise<GameName>;
+  changed(project: string): void;
+}
+
+/**
+ * A game whose title still waits (its first message named no game) takes the name a later
+ * message gives it, in place: the title changes, the folder stays. True when it was renamed. A
+ * title the person gave meanwhile is theirs and is never replaced.
+ */
+export async function nameFromIdea(deps: IdeaNamingDeps, project: string, request: GameNameRequest): Promise<boolean> {
+  if (!(await deps.games.presentation(project)).provisional) return false;
+  const named = await deps.name(request);
+  if (named.provisional) return false;
+  // The person may have renamed it while the model answered.
+  if (!(await deps.games.presentation(project)).provisional) return false;
+  await deps.games.update(project, { title: named.title });
+  deps.changed(project);
+  return true;
 }

@@ -38,7 +38,6 @@ import {
   autopilotStartWords,
   checkReplanWords,
   circuitBreakWords,
-  compactionWords,
   connectorWords,
   consentAskWords,
   consentOutcomeWords,
@@ -88,6 +87,7 @@ export const EntryKind = {
   Assets: "assets",
   Action: "action",
   Morning: "morning",
+  Compaction: "compaction",
 } as const;
 export type EntryKind = (typeof EntryKind)[keyof typeof EntryKind];
 
@@ -123,6 +123,8 @@ export type Entry =
   | { kind: typeof EntryKind.Tools; id: string; rows: ToolChipRow[] }
   | { kind: typeof EntryKind.Notice; id: string; row: ToolChipRow }
   | { kind: typeof EntryKind.Activity; id: string; rows: Array<{ text: string; tag?: string }> }
+  /** The conversation was compacted: its own row, opening to the summary that replaced the messages. */
+  | { kind: typeof EntryKind.Compaction; id: string; messages: number | null; summary: string | null }
   /** One plain line about what Harness learned; `link` opens Activity. */
   | { kind: typeof EntryKind.Learning; id: string; text: string; link: string }
   | {
@@ -249,7 +251,6 @@ const ROUTINE_TAGS = new Set<string>([
   SystemTag.Reviewer,
   SystemTag.Checked,
   SystemTag.Seed,
-  SystemTag.Compacted,
   SystemTag.Resumed,
   SystemTag.Checkpoint,
   SystemTag.Update,
@@ -954,9 +955,17 @@ function narrateSeed(chat: ChatDraft, event: EventEnvelope): void {
   if (seed) say(chat, event.id, SystemTag.Seed, seedUpgradeWords(seed));
 }
 
+/** A compaction is not routine work: it stays in the chat as its own row, with what it wrote. */
 function narrateCompaction(chat: ChatDraft, event: EventEnvelope): void {
   const compaction = customPayload(event.data, CustomEvent.Compacted);
-  if (compaction) say(chat, event.id, SystemTag.Compacted, compactionWords(compaction));
+  if (!compaction) return;
+  const summary = typeof compaction.summary === "string" ? compaction.summary.trim() : "";
+  chat.entries.push({
+    kind: EntryKind.Compaction,
+    id: event.id,
+    messages: typeof compaction.messages === "number" ? compaction.messages : null,
+    summary: summary || null,
+  });
 }
 
 function narrateImprovement(chat: ChatDraft, event: EventEnvelope): void {

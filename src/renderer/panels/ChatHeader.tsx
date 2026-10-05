@@ -14,6 +14,7 @@ import { TOGGLE_TERMINAL_EVENT } from "./terminal-events.ts";
 import type { ContextUsage } from "../../shared/context.ts";
 import { hostPlatform } from "../platform.ts";
 import { fileManagerWords } from "../words.ts";
+import { HarnessGuideButton } from "../chat/HarnessGuide.tsx";
 
 interface Props {
   chatTitle: string;
@@ -288,6 +289,7 @@ export function ChatHeader({
         }}
         onEdit={() => setEditing(true)}
       />
+      {isStudio && <HarnessGuideButton />}
       <span className="min-w-2 flex-1 self-stretch" />
 
       {contextUsage && contextWindow ? (

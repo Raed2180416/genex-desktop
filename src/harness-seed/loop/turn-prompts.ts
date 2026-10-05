@@ -49,7 +49,7 @@ function autopilotMoodBoard(n: number): string {
     return `They attached ${n} stills — the mood board. Those pixels are the visual bar; the critics will see them.`;
   if (n === 1)
     return `One still attached. For a visual build, ask for one or two more — a bar needs at least two angles. If they have none, ask for a textual reference: "name a game or film with the vibe".`;
-  return `No stills attached. For a visual build, ask for reference images once; if they have none, ask for a textual reference ("name a game or film that has the vibe") and use that as the bar. Also check the project's references/ folder — earlier mood boards live there. Never refuse to start for lack of references.`;
+  return `No stills attached. For a visual build, ask for reference images once; if they have none, ask for a textual reference ("name a game or film that has the vibe") and use that as the bar. Before that build, also check the project's references/ folder — earlier mood boards live there. Never refuse to start for lack of references.`;
 }
 
 function loopBriefing(loop: AnyRecord): string {

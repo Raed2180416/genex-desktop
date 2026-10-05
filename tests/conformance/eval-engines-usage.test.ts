@@ -226,6 +226,40 @@ describe("claude code session measurement", () => {
     assert.ok(readings.length > 0, "the session's context was read");
     for (const reading of readings) assert.equal(reading.payload.source, ContextSource.Provider);
   });
+
+  /** An assistant reply as Claude Code streams it, with the request's own token counts. */
+  const reply = (usage: Record<string, number>, parent: string | null = null) => ({
+    type: "assistant",
+    parent_tool_use_id: parent,
+    message: { content: [{ type: "text", text: "Working." }], usage: { output_tokens: 40, ...usage } },
+  });
+
+  it("hands back the main loop's last request size, every input kind counted, never a subagent's", async () => {
+    const engine = await claudeEngine(
+      claudeStream([
+        claudeInit,
+        reply({ input_tokens: 5, cache_read_input_tokens: 200_000, cache_creation_input_tokens: 1_000 }),
+        reply({ input_tokens: 10, cache_read_input_tokens: 500_000, cache_creation_input_tokens: 90_000 }),
+        reply({ input_tokens: 999_999 }, "tu_subagent"),
+        claudeResult({ usage: {} }),
+      ]),
+    );
+    const result = await engine.delegate({ cwd: await tmpDir("eval-engines-run-"), prompt: "Build" });
+    assert.equal(result.contextTokens, 590_010);
+  });
+
+  it("hands back no request size once the session compacted after its last reply", async () => {
+    const engine = await claudeEngine(
+      claudeStream([
+        claudeInit,
+        reply({ input_tokens: 10, cache_read_input_tokens: 700_000 }),
+        { type: "system", subtype: "compact_boundary", compact_metadata: { trigger: "auto", pre_tokens: 700_010 } },
+        claudeResult({ usage: {} }),
+      ]),
+    );
+    const result = await engine.delegate({ cwd: await tmpDir("eval-engines-run-"), prompt: "Build" });
+    assert.equal("contextTokens" in result, false);
+  });
 });
 
 /** A Codex session id: the only shape the session-file reader accepts. */
@@ -339,6 +373,7 @@ describe("codex session measurement", () => {
     assert.equal(reading?.contextWindow, 258_400);
     assert.equal(reading?.percent, 25);
     assert.equal(reading?.source, ContextSource.ProviderSession);
+    assert.equal(result.contextTokens, 64_600, "the last request's own prompt size comes back with the result");
   });
 
   it("reports no compactions for a build whose session never compacted", async () => {
@@ -350,6 +385,7 @@ describe("codex session measurement", () => {
     }));
     const result = await engine.delegate({ cwd: root, prompt: "Build" });
     assert.equal("compactions" in result.usage, false);
+    assert.equal("contextTokens" in result, false, "a session that reported no request size hands none back");
   });
 });
 

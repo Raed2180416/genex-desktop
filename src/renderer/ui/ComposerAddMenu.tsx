@@ -119,7 +119,8 @@ function mentionIntent(event: KeyboardEvent<HTMLTextAreaElement>): MentionKey | 
   return enter ? MentionKey.Pick : null;
 }
 
-interface MentionState {
+/** An option list the composer's text box drives: the @ list, and the / commands. */
+export interface MentionState {
   mentioning: boolean;
   matches: MentionOption[];
   active: number;
@@ -127,8 +128,8 @@ interface MentionState {
   onClose?: () => void;
 }
 
-/** One key in the composer's text box while the @ list is up; true when the list took it. */
-function mentionKeyDown(event: KeyboardEvent<HTMLTextAreaElement>, mention: MentionState): boolean {
+/** One key in the composer's text box while an option list is up; true when the list took it. */
+export function mentionKeyDown(event: KeyboardEvent<HTMLTextAreaElement>, mention: MentionState): boolean {
   const { matches, active } = mention;
   const intent = mention.mentioning ? mentionIntent(event) : null;
   if (intent === null) return false;

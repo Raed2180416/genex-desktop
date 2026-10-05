@@ -2,8 +2,9 @@
 import type { ConnectionSnapshot } from "../../../shared/connections.ts";
 import { SECOND_MS } from "../../../shared/duration.ts";
 import { GENEX_PLUGIN_ID } from "../../../shared/genex.ts";
-import { PLUGINS_WORDS } from "../../words.ts";
+import { GENEX_WORDS, PLUGINS_WORDS } from "../../words.ts";
 import {
+  type PluginIndexView,
   type PluginInfo,
   type PluginManifest,
   PluginAccountState,
@@ -165,6 +166,39 @@ export const isActive = (p: PluginInfo): boolean => p.enabled && !p.removed;
 
 /** Whether a plugin is off the installed list: removed, or found but never allowed. */
 export const isOffList = (p: PluginInfo): boolean => Boolean(p.removed || p.unlisted);
+
+/** Whether a plugin is Genex, which the Plugins page shows as the game dev tools router. */
+const isRouter = (p: PluginInfo): boolean => p.manifest.id === GENEX_PLUGIN_ID;
+
+/** The name a plugin's row and page show: Genex is the game dev tools router; any other its own name. */
+export const shownName = (p: PluginInfo): string => (isRouter(p) ? GENEX_WORDS.router.name : p.manifest.name);
+
+/** The line under a plugin's name in its row: Genex names the tools it routes; any other its own description. */
+export const shownDescription = (p: PluginInfo): string =>
+  isRouter(p) ? GENEX_WORDS.router.description : p.manifest.description;
+
+/** The line under a plugin's page title: Genex says what the router does; any other its own description. */
+export const shownIntro = (p: PluginInfo): string => (isRouter(p) ? GENEX_WORDS.router.intro : p.manifest.description);
+
+/** What the Marketplace shows: what the catalog offers you, or that more is coming. */
+export const MoreView = { List: "list", Soon: "soon" } as const;
+export type MoreView = (typeof MoreView)[keyof typeof MoreView];
+
+/**
+ * The Marketplace lists the catalog's entries and releases you don't have; until there are any
+ * (or while the catalog loads or can't be read) it is only Coming soon.
+ */
+export function moreView({
+  index,
+  entries,
+  releases,
+}: {
+  index: PluginIndexView | null;
+  entries: number;
+  releases: number;
+}): MoreView {
+  return index && entries + releases > 0 ? MoreView.List : MoreView.Soon;
+}
 
 /** Whether Studio draws the plugin's page itself (Genex), account problems included. */
 export const hasOwnPage = (p: PluginInfo): boolean => p.manifest.id === GENEX_PLUGIN_ID && !isOffList(p);

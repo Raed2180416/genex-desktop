@@ -46,7 +46,7 @@ import type { CommandState } from "./state/command-runs.ts";
 import type { JobState } from "./panels/plugins/genex/genex-view.ts";
 import { plural } from "../shared/skill-words.ts";
 import { type ScreenAct, ScreenDeed } from "../shared/agent-screen.ts";
-import { MINUTE_MS, SECOND_MS } from "../shared/duration.ts";
+import { HOUR_MS, MINUTE_MS, SECOND_MS } from "../shared/duration.ts";
 
 export type ToolIcon = "think" | "write" | "run" | "read" | "see" | "game";
 
@@ -112,7 +112,7 @@ function settle(words: StatusWords): StatusWords {
 /** Whole-status phrases: the chat's own work and the run stages that name no part. */
 const PHRASES: Array<[RegExp, (match: RegExpMatchArray) => StatusWords]> = [
   [/^thinking$/i, () => ({ line: "Thinking", short: "Thinking" })],
-  [/^compacting the conversation$/i, () => ({ line: "Tidying up the conversation", short: "Tidying up" })],
+  [/^compacting the conversation$/i, () => ({ line: "Compacting the conversation", short: "Compacting" })],
   [
     /^self-improving(?: · (.+))?$/i,
     (m) => ({ line: m[1] ? `Improving its own craft · ${m[1]}` : "Improving its own craft", short: "Improving" }),
@@ -1095,6 +1095,15 @@ export function liveBehindLabel(reason: LiveBehindReason, note: string | null): 
   return note ? `${words}: ${note}` : words;
 }
 
+/** The stage strip's Play/Stop and full screen, as their tooltips and accessible names say them. */
+export const STAGE_WORDS = {
+  stop: "Stop game",
+  stopping: "Stopping game",
+  play: "Play game",
+  starting: "Starting game",
+  fullScreen: "Full screen",
+} as const;
+
 // ── an agent at its screen ────────────────────────────────────────────────────────────────
 
 /** What an agent is doing at its screen, as its node says it while it happens. */
@@ -1185,6 +1194,18 @@ export const screenDone = (act: ScreenAct | undefined): string => screenWords(ac
 /** A frame this recent is happening now. */
 const SCREEN_NOW_MS = 2 * SECOND_MS;
 
+/** A minute, in the seconds a running clock shows. */
+const SECONDS_PER_MINUTE = MINUTE_MS / SECOND_MS;
+
+/** "42s", "3m 5s", "2h 10m": a running clock, as short as the time allows, and nothing under a second. */
+export function clockWords(ms: number): string {
+  const seconds = Math.floor(ms / SECOND_MS);
+  if (ms < SECOND_MS) return "";
+  if (ms < MINUTE_MS) return `${seconds}s`;
+  if (ms < HOUR_MS) return `${Math.floor(ms / MINUTE_MS)}m ${seconds % SECONDS_PER_MINUTE}s`;
+  return `${Math.floor(ms / HOUR_MS)}h ${Math.floor((ms % HOUR_MS) / MINUTE_MS)}m`;
+}
+
 /** How long ago a screen's frame came: "now", "3s", "2m" on a node, "3s ago" where there is room. */
 export function screenAgo(at: number, now: number, { ago = false }: { ago?: boolean } = {}): string {
   const ms = Math.max(0, now - at);
@@ -1265,10 +1286,10 @@ export function seedUpgradeWords(seed: CustomPayload<typeof CustomEvent.SeedUpgr
   return `app update ${done}${keptNote}${moved}`;
 }
 
-/** The conversation's earlier messages were summarised. */
-export function compactionWords(compaction: CustomPayload<typeof CustomEvent.Compacted>): string {
-  const why = compaction.trigger === "auto" ? " — context was filling up" : "";
-  return `${compaction.messages ?? "the earlier"} messages summarised${why} · originals stay in the log`;
+/** The chat's row for a finished compaction: how many messages its summary replaced. */
+export function compactedWords(messages: number | null | undefined): string {
+  if (typeof messages !== "number") return "Compacted the conversation";
+  return `Compacted ${plural(messages, "message")}`;
 }
 
 /** The studio rewrote one of its own files while idle. */
@@ -1338,6 +1359,16 @@ export function judgeRoundLine(round: CustomPayload<typeof CustomEvent.RunIterat
 
 // ── the model picker ──────────────────────────────────────────────────────────────────────
 
+/** The context panel's Compact now (`ui/ComposerLimits.tsx`). */
+export const COMPACT_WORDS = {
+  caption: "Summarize the chat to free up context.",
+  action: "Compact now",
+  running: "Compacting…",
+  /** `/compact` while a turn or a build runs: it waits for it, so it is offered but not taken. */
+  waits: "After the current work finishes",
+  commands: "Commands",
+} as const;
+
 /** The model picker's section headers, row tags and reasons (`model-choices.ts`). */
 export const MODEL_PICKER_WORDS = {
   unavailable: "This model is unavailable. Check the connection or choose another model.",
@@ -1384,6 +1415,53 @@ export function permissionWords(plugin: string, prompt: string | undefined): str
   return prompt ? `${plugin}: ${prompt}` : `${plugin} asks for permission.`;
 }
 
+// ── Harness activity ──────────────────────────────────────────────────────────────────────
+
+/** The suggestions card in Activity and its exact-edit view (`ui/ProposalsTable.tsx`). */
+export const SUGGESTION_WORDS = {
+  title: (changes: string) => `Harness suggests ${changes} to how it builds`,
+  subtitle: "Nothing changes until you apply.",
+  include: (title: string) => `Include: ${title}`,
+  fallbackSummary: "Suggested after reviewing your recent builds.",
+  whatChanges: "What changes",
+  seeExactEdit: "See the exact edit",
+  selected: (included: number, total: number) => `${included} of ${total} selected · you can undo later`,
+  discard: "Discard",
+  apply: (changes: string) => `Apply ${changes}`,
+} as const;
+
+/** Activity's header and its Self-improvement switch (`panels/ReviewPanel.tsx`). */
+export const ACTIVITY_WORDS = {
+  title: "Activity",
+  learning: "Self-improvement",
+  learningHint: "When off, Harness stops learning from your builds. What it already learned stays until you undo it.",
+} as const;
+
+/** The Harness chat's header button and the dialog it opens (`chat/HarnessGuide.tsx`). */
+export const HARNESS_GUIDE_WORDS = {
+  open: "How it works",
+  title: "How Harness works",
+  lead: "Harness is the set of instructions the agents follow when they build your games. It learns from every build and suggests better ways to work. You decide what changes.",
+  steps: [
+    { title: "You build.", body: "Every game chat and Loop run is recorded under Recent runs." },
+    {
+      title: "Harness looks back.",
+      body: "After a run it finds what went wrong or took extra work, and drafts an edit to its own instructions.",
+    },
+    {
+      title: "The edit is tested.",
+      body: "Independent reviewers compare the current and edited instructions on your past requests. Only edits they prefer go on.",
+    },
+    { title: "You decide.", body: "Suggestions wait until you apply them. Every applied change can be undone." },
+  ],
+  notes: [
+    "Reviewers compare instructions; they don’t rebuild your games. An applied change isn’t proof of better results.",
+    "Turn Self-improvement off to stop learning. What Harness already learned stays until you undo it.",
+  ],
+  settings: "Harness settings",
+  done: "Done",
+} as const;
+
 // ── app updates ───────────────────────────────────────────────────────────────────────────
 
 /** The sidebar's Relaunch to update or Download, while a new version of the app waits (`state/update.ts`). */
@@ -1412,7 +1490,25 @@ export const ABOUT_WORDS = {
   failed: "Couldn't check for updates. Check your connection and try again.",
   restart: "Relaunch to update",
   download: "Download",
+  tagline: "The desktop app to build & publish games with AI",
+  versionLine: (version: string | null) => (version ? `Version ${version}` : "Development build"),
+  updates: "Updates",
+  website: "Website",
+  source: "Source code",
+  licenses: "Licenses",
+  copy: "Copy version info",
+  copied: "Copied",
+  /** What Copy version info puts on the clipboard, and the line beside it. */
+  info: (version: string | null, platform: string, arch: string) =>
+    `Genex ${version ?? "development build"} · ${PLATFORM_NAMES[platform] ?? platform} · ${arch}`,
 } as const;
+
+/** Platforms by the names people know them by. */
+const PLATFORM_NAMES: Partial<Record<string, string>> = {
+  [StudioPlatform.Mac]: "macOS",
+  [StudioPlatform.Windows]: "Windows",
+  [StudioPlatform.Linux]: "Linux",
+};
 
 // ── toasts ────────────────────────────────────────────────────────────────────────────────
 
@@ -1686,21 +1782,41 @@ export function permissionTitleWords(event: Partial<ToolPermissionEvent>): strin
   return toolAskWords(event, tool);
 }
 
+/** A saved rule's tool and what it names: `Bash(npm test:*)` is Bash and `npm test:*`. */
+function parsedRule(rule: string): { tool: string; content: string } {
+  const parsed = /^([^(]+)\(([\s\S]*)\)$/.exec(rule.trim());
+  return { tool: parsed?.[1]?.trim() ?? rule.trim(), content: parsed?.[2]?.trim() ?? "" };
+}
+
+/** `npm test:*` and `npm test *` both allow every command that starts with the prefix. */
+const commandPrefix = (content: string): string | undefined => /^(.+?)(?::\*| \*)$/.exec(content)?.[1]?.trim();
+
+/** A path in a person's home, as `~/…`. */
+const homePath = (path: string): string => path.replace(/^\/(?:Users|home)\/[^/]+(?=\/|$)/, "~");
+
 /** What one rule allows, and where. */
 function ruleGrantWords(rule: string, scope: RuleScope): string {
   const where = scope === RuleScope.Chat ? "in this chat" : "in this game";
-  const parsed = /^([^(]+)\(([\s\S]*)\)$/.exec(rule.trim());
-  const tool = parsed?.[1]?.trim() ?? rule.trim();
-  const content = parsed?.[2]?.trim() ?? "";
+  const { tool, content } = parsedRule(rule);
   if (tool === "Bash" && content) {
-    // `npm test:*` and `npm test *` both allow every command that starts with the prefix.
-    const prefix = /^(.+?)(?::\*| \*)$/.exec(content)?.[1]?.trim();
+    const prefix = commandPrefix(content);
     return prefix ? `Always allow ${prefix} commands ${where}` : `Always allow this command ${where}`;
   }
   if (tool === "Read" && content) return `Always allow reading ${rulePath(content)} ${where}`;
   if (PERMISSION_EDIT_TOOLS.has(tool) && content) return `Always allow editing ${rulePath(content)} ${where}`;
   if (tool === "WebFetch" && content.startsWith("domain:")) return `Always allow ${content.slice(7)} ${where}`;
   return `Always allow ${permissionToolName(tool)} ${where}`;
+}
+
+/** Settings → Permissions: a saved rule as the action it allows ("Run npm install"); the rule itself when unknown. */
+export function permissionRuleWords(rule: string): string {
+  const { tool, content } = parsedRule(rule);
+  if (!content) return rule;
+  if (tool === "Bash") return `Run ${commandPrefix(content) ?? content}`;
+  if (PERMISSION_READ_TOOLS.has(tool)) return `Read files in ${homePath(rulePath(content))}`;
+  if (PERMISSION_EDIT_TOOLS.has(tool)) return `Edit files in ${homePath(rulePath(content))}`;
+  if (tool === "WebFetch" && content.startsWith("domain:")) return `Open pages on ${content.slice(7)}`;
+  return rule;
 }
 
 function grantWords(grant: PermissionGrant): string {
@@ -1752,6 +1868,34 @@ export function permissionOutcomeWords(event: Partial<ToolPermissionEvent>): str
   if (withdrawn) return withdrawn;
   const message = nonEmpty(event.message);
   return message ? `Denied · ${message}` : "Denied";
+}
+
+/** What a request was about, in a few words: a command's first line, a file's path, a page's host, a tool's name. */
+function permissionSubjectWords(event: Partial<ToolPermissionEvent>): string {
+  if (isPlanRequest(event)) return "the plan";
+  const tool = event.tool ?? "";
+  if (tool === "Bash") {
+    const command = nonEmpty(event.subject) ?? nonEmpty(event.input?.command);
+    return command?.split("\n")[0]?.trim() || "a command";
+  }
+  if (PERMISSION_EDIT_TOOLS.has(tool) || PERMISSION_READ_TOOLS.has(tool)) return permissionPath(event) ?? "a file";
+  if (tool === "WebFetch") {
+    const address = nonEmpty(event.subject) ?? nonEmpty(event.input?.url);
+    return address ? webHost(address) : "a web page";
+  }
+  return nonEmpty(event.displayName) ?? (permissionToolName(tool) || "a tool");
+}
+
+/**
+ * An answered request in one line, what came of it and then what it was about ("Allowed · npm
+ * install three"); a plan approval says the mode it continues in. The rest opens below it.
+ */
+export function permissionLineWords(event: Partial<ToolPermissionEvent>): string {
+  const approvedPlan = isPlanRequest(event) && event.state === ToolPermissionState.Allowed && event.mode;
+  if (approvedPlan) return permissionOutcomeWords(event);
+  const denied = event.state !== ToolPermissionState.Allowed && !PERMISSION_WITHDRAWN[event.by ?? ""];
+  const outcome = denied ? "Denied" : permissionOutcomeWords(event);
+  return `${outcome} · ${permissionSubjectWords(event)}`;
 }
 
 /**
@@ -1843,6 +1987,32 @@ const FILE_MANAGER_WORDS: Readonly<Record<string, FileManagerWords>> = {
 /** The file manager's words on `platform` (`renderer/platform.ts`); macOS's until main has said. */
 export function fileManagerWords(platform: string): FileManagerWords {
   return FILE_MANAGER_WORDS[platform] ?? FINDER_WORDS;
+}
+
+// ── delivered assets ──────────────────────────────────────────────────────────────────────
+
+/** What the chat's asset cards, the Assets tab and the asset viewer say. */
+export const ASSET_WORDS = {
+  openInAssets: "Open in Assets",
+  /** How to move around a model in the viewer, and around a flat texture. */
+  modelHint: "Drag to turn · Scroll to zoom · Double-click to reset",
+  textureHint: "Scroll to zoom · Double-click to reset",
+  zoomIn: "See the picture at full size",
+  zoomOut: "Fit the picture",
+  loading: "Loading preview…",
+  animations: "Animations",
+  speed: "Speed",
+  playFailed: "This sound could not be played",
+} as const;
+
+/** "1 animation", "3 animations". */
+export function animationCountWords(count: number): string {
+  return count === 1 ? "1 animation" : `${count} animations`;
+}
+
+/** A model's animation files, named for the model: "Knight animations". */
+export function modelAnimationsWords(model: string): string {
+  return `${model} animations`;
 }
 
 // ── files the chat names ──────────────────────────────────────────────────────────────────
@@ -1942,13 +2112,21 @@ export const PLUGINS_WORDS = {
   },
   more: {
     title: "More plugins",
-    failed: "Couldn’t load the plugin catalog.",
-    tryAgain: "Try again",
-    loading: "Loading plugins…",
+  },
+  /** The Marketplace while the catalog has nothing you don't have yet. */
+  marketplace: {
+    title: "Marketplace",
+    soon: "Coming soon",
+    text: "Plugins from more game dev tools are on the way.",
+  },
+  /** The MCP servers section before anyone has added one. */
+  servers: {
+    emptyTitle: "Connect any MCP server",
+    emptyText: "A command on this Mac, or a URL with browser sign-in. Agents in every game can use its tools.",
   },
   own: {
     title: "Make your own plugin",
-    text: "Local Blender and Genex Tools are plugins too: one folder with a manifest, tools and panels.",
+    text: "Local Blender and the Genex plugin are plugins too: one folder with a manifest, tools and panels.",
     guide: "Read the guide",
   },
   /** A plugin row's account, by what it needs next. */
@@ -2180,15 +2358,29 @@ export const GENEX_WORDS = {
     shared: "One balance for all your games. Failed generations are refunded.",
     outOfCredits: "Games still build with procedural assets and Local Blender.",
     paused: (kinds: string) => `Paused on Genex right now: ${kinds}.`,
-    off: "Turn on Genex Tools to connect your account.",
+    off: "Turn on the Genex plugin to connect your account.",
   },
-  makes: {
-    title: "What you can make",
-    intro: "Ask for any of these in a game chat, or describe your game and let the agent suggest assets.",
-    models: { title: "3D models", text: "Props, buildings and vehicles from a prompt or an image." },
-    characters: { title: "Characters", text: "Rigged characters and creatures, with animations." },
-    art: { title: "Textures and images", text: "Surfaces, sprites, concept art and short video." },
-    sound: { title: "Sound and music", text: "Effects, soundtracks and voice lines." },
+  /** Genex as the Plugins page shows it: the router, its line, and the tools it routes. */
+  router: {
+    name: "Game dev tools router",
+    description: "Genex · Tripo, Meshy, Uthana, ElevenLabs, GPT Image and more on one balance",
+    intro:
+      "The Genex plugin connects your agents to every game dev tool. Pay on demand, with one balance for every tool.",
+    toolsTitle: "Tools it routes",
+    toolsIntro:
+      "Ask in any game chat. Genex picks the tool, runs it on your balance and saves the file in your game. No accounts or keys of your own.",
+    /** Each routed tool's name and what it does, by `RoutedTool`. */
+    tools: {
+      tripo: { name: "Tripo", line: "3D · rig · animate" },
+      meshy: { name: "Meshy", line: "3D · characters" },
+      uthana: { name: "Uthana", line: "Rigging · animation" },
+      "gpt-image": { name: "GPT Image 2.5", line: "Images · sprites" },
+      "nano-banana": { name: "Nano Banana 2", line: "Textures" },
+      minimax: { name: "MiniMax H3 Max Turbo", line: "Video" },
+      blender: { name: "Blender", line: "Scenes · blockouts" },
+      elevenlabs: { name: "ElevenLabs", line: "SFX · music · voice" },
+      publishing: { name: "Genex", line: "Publishing" },
+    },
   },
   /** The Publish dialog on the game's stage, drawn by Studio. */
   publish: {
@@ -2264,15 +2456,6 @@ export const GENEX_WORDS = {
   review: {
     title: "Waiting for your review",
     button: (candidate: number | null) => (candidate === null ? "Review remesh" : `Review candidate ${candidate}`),
-  },
-  /** Genex's own MCP servers, as its page's Connections name them, by server id. */
-  connections: {
-    creator: { title: "Creator", text: "Game and animation search, your Genex games and generation status." },
-    blender: {
-      title: "Genex-hosted Blender",
-      text: "Optional. Blender on a Genex server instead of this Mac.",
-      setting: "Server address",
-    },
   },
   /** A generation's state, by `JobState`. */
   state: {

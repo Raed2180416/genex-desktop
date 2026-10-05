@@ -79,7 +79,8 @@ prose form the reading order, with delivered images/files as results in that con
 Use shared surfaces/type/spacing, no per-message model labels or repeated technical status cards.
 Chat uses one 15px/22px reading size for replies, activity headings and tool steps;
 14px/20px is reserved for descriptions and metadata. Headings use weight and spacing at
-the same reading size. Keep Genex fonts and palette. Soft user bubbles use 12px horizontal and 8px vertical
+the same reading size. Keep Genex fonts and palette. The transcript sits 20px in from the column's sides and
+scrolls flush under the composer, with no strip between its last line and the composer's edge. Soft user bubbles use 12px horizontal and 8px vertical
 padding; images sent with a message sit right-aligned above it as 120×84 tiles with a 12px radius (placeholders hold their place while loading), and a tile opens the image beside the chat. Names of files that exist link wherever the chat shows them; names that are not files stay plain text. In Markdown prose (inline code paths, links without a scheme, bare paths) they are 6px-radius field chips with a 13px file icon in the body font. In plain text, code and tool rows they are underlined words in their own font and colour (underline 40% of the text colour, 3px offset, full colour and ink on hover); a focused link in a user bubble takes the line-strong fill, and one reached by keyboard in a folded bubble unfolds it. A tool row's path is a link beside its disclosure toggle, which stretches over the row; the path gives up its folders before its file name. The tooltip says what a click does — "Opens beside the chat", "Opens in its default app", "Opens in Finder" or "Shows in Finder" (Explorer on Windows) — then the path when the label hides it, and "In the build · not in your game folder yet" for build-only files. Game Markdown and images open a file tab in the stage: a 60px header with the name at 15px medium, "In the build · not in your game folder yet" at 13px ink-3 only for build-only files, Show in Finder (folder files only) and Close; Markdown reads at 15px/24px in a 700px column with 28px/44px insets, text as highlighted 13px mono, images centered. The stage returns to the previous tab on Close. User messages longer than seven rendered lines fold with a 32px fade and a left-aligned, unpadded Show more text button; Show less restores the compact view. Short messages have no toggle. One disclosure groups neighboring tools and routine updates, with a trailing
 right/down chevron, 6px gap and regular weight. Failures stay visible in a muted amber count;
 the failed step itself uses the error color. Expanded tools sit in a shared 10px-radius frame with row dividers and 8px top spacing.
@@ -90,10 +91,12 @@ Workers remain compact 32px rows with 6px insets/gaps, named tasks and disclosed
 Successful tools need no repeated status. Code uses mono; tool labels, filenames and prose
 use the body font. A shown path is not repeated in the result.
 
-Working status belongs to the chat's own work (a turn, a plan, Stop, a pending permission). While only a build runs, chat shows one build card instead, and nothing under it: an 8px-inset 16px-radius composer-colored surface with the lead's latest non-black frame (88×55, 10px radius, omitted until one exists), "Building" and a chevron at 15px, one line of what is happening now at 14px ink-3 (the part at work, "and N more" when several are, else what the lead is doing — never "Running a tool"), and its clock on the right at 14px: the elapsed time, and under it in ink-3 the most it was given ("up to 10h", a cap, never "of 10h": a build may finish inside it; an ∞ build shows only the clock). The finished build is the same card: its capture, the outcome and chevron, one line of failed checks, parts added and duration ("4 parts added · 5h 17m"; orange and led by "1 check failed" when one failed), and Play on the right — a fill one step above the card with a filled play glyph. Nothing wraps under it. The whole card is one button to the build's graph on Builds (its title stretched over the card, tooltip "Open in Builds"): the pointer on it steps the card to composer-panel with a line-strong ring and inks the nudging chevron; keyboard focus rings the card in accent; Play sits above it, and the pointer on Play leaves the card unlit. Studio learning after a build is a static line. The composer placeholder during a build reads "Talk to the lead while it builds…" when its lead takes the chat (live chat), else "Sends when the build finishes…".
+Working status belongs to the chat's own work (a turn, a plan, Stop, a pending permission). While only a build runs, chat shows one build card instead, and nothing under it: an 8px-inset 16px-radius composer-colored surface with the lead's latest non-black frame (88×55, 10px radius, omitted until one exists), "Building" and a chevron at 15px, one line of what is happening now at 14px ink-3 (the part at work, "and N more" when several are, else what the lead is doing — never "Running a tool"), and its clock on the right at 14px: the elapsed time, and under it in ink-3 the most it was given ("up to 10h", a cap, never "of 10h": a build may finish inside it; an ∞ build shows only the clock). The finished build is the same card: its capture, the outcome and chevron, one line of failed checks, parts added and duration ("4 parts added · 5h 17m"; orange and led by "1 check failed" when one failed), and Play on the right in the model pill's fill (`pill-quiet`, as every result button, “See it” included) with a filled play glyph. Nothing wraps under it. The whole card is one button to the build's graph on Builds (its title stretched over the card, tooltip "Open in Builds"): the pointer on it steps the card to composer-panel with a line-strong ring and inks the nudging chevron; keyboard focus rings the card in accent; Play sits above it, and the pointer on Play leaves the card unlit. Studio learning after a build is a static line. The composer placeholder during a build reads "Talk to the lead while it builds…" when its lead takes the chat (live chat), else "Sends when the build finishes…".
 The current status names the latest running tool, falling back to the actual task. Explicit
-reply, tool and waiting phases retain priority. Only current work shimmers, without a spinner;
-waiting for the user stays static. Elapsed time follows the status on its line in the same type and ink-3; its width glides as it changes or goes while the chat waits. Work disclosures reduce their surrounding reading space by 3px above and below; the live status uses a single reading gap after the last transcript row. Stop belongs to the PromptBar; activity and sidebar status lines have no Stop control. Planning names the current phase in this same status, without another status near the composer. Starting a build yields to actual conversation/worker activity; a cancelled plan is a historical entry, never a persistent current status. Empty conversations have no introduction or starter suggestions. Historical content does
+reply, tool and waiting phases retain priority. The live status line (home's Naming and Opening
+too) is 12/18 type after a 14px halftone plasma orb (the Live loader's, `ui/StatusOrb.tsx`), 8px
+apart; its words and clock shimmer together, a bright sweep then a rest (2.1s). Waiting for the
+user stays static, with no orb. Elapsed time follows the status on its line in the same type and ink-3, in tabular figures, from its first whole second (never "0s"), and restarts with each new status; its width glides as it comes, changes or goes while the chat waits. A disclosure's chevron sits 2px closer to its words than the line's other gaps. Work disclosures reduce their surrounding reading space by 3px above and below; the live status uses a single reading gap after the last transcript row. Stop belongs to the PromptBar; activity and sidebar status lines have no Stop control. Planning names the current phase in this same status, without another status near the composer. Starting a build yields to actual conversation/worker activity; a cancelled plan is a historical entry, never a persistent current status. Empty conversations have no introduction or starter suggestions. Historical content does
 not replay entrance animations. Streams use the same Markdown as final replies and bounded
 updates. Long work trails mount 30 steps at a time, workers initially show six, and history
 is paged/windowed. Studio build reports and learning use the same `ChatDisclosure` heading, body font and framed expansion as work logs; only genuine decisions get answer controls. Routine build decisions remain activity text, with failures visible. A new running build opens Builds once (after the idea-to-crane hand-off when Live shows the first-idea state); later tab choices remain with the user. There is one elapsed timer, without a second build-total line. Scroll-follow accounts for the composer/question dock changing height and
@@ -126,17 +129,28 @@ message. **Request details** discloses the reason and the tool input. A plan lea
 max(5rem, 45vh − 19rem); its last line fades over 32px while more lies below), then **Yes, in Auto mode** (left out where Auto is unavailable for the
 model), **Yes, and accept edits**, **Yes, and ask before changes** and a "Keep planning: what
 should change?" row. Continue confirms; put aside, a card reopens from Review permission request
-or Review plan. Settled, history keeps the title, the outcome in ink-3 (Allowed, Always allowed,
-Plan approved · Auto, Denied · words, Withdrawn when the work stopped, and for a build's lead's
-card nobody answered in five minutes Withdrawn: nobody answered) and the request under Request
-details. A lead's card never offers a mode, and a lead never brings a plan for approval.
+or Review plan. Settled, history keeps one disclosure line in the "Worked on N steps" type: the
+outcome, then what it was about (Allowed · npm install three, Always allowed · …, Denied · …,
+Withdrawn when the work stopped · …, and for a build's lead's card nobody answered in five minutes
+Withdrawn: nobody answered · …; a plan reads Plan approved · Auto). It opens to the question as
+asked, the command or path, the person's words and the reason. A lead's card never offers a mode, and a lead never brings a plan for approval.
 
 Delivered media uses the shared preview tile, including model thumbnails; several visuals form a
-two-column grid. Sounds are 36px strips: play, readable name, waveform seek and time. Hover or
-keyboard focus reveals filled 13px body-font actions: View 3D/Preview at bottom-right and Open in
-Assets over chat tiles or a strip's name. Only files present in the game folder appear; Loop-run
-files wait for the landed build result. Large deliveries reveal six previews at a time. Asset
-grids omit per-file metadata and job headers; model dialogs hide the visible title and show controls over the viewer. Chat build outcomes show
+two-column grid. The picture is the card and opens the viewer: nothing sits on it at rest; hover or
+focus brightens its 1px outline, eases the picture in 3.5% and shows one 28px glass corner action,
+Open in Assets (the four-tile glyph). Animation-only files (a rig and its clips, no mesh, read from
+the GLB header) never get a card: they ride on the model whose bones they move as a "3 animations"
+chip, or, when that model came earlier, share one 52px row (Knight animations · Wave · Jump) that
+opens it. Sounds are 44px rows: a filled ink play button, the name, a 40-bar waveform seek and the
+length, which gives way to Open in Assets on hover; the row is the player, with no dialog. Every
+colour is the theme's, so models, pictures and sounds sit alike in light and dark; the Assets tab's
+sound tile draws its waveform live the same way. Only files present in the game folder appear;
+Loop-run files wait for the landed build result. Large deliveries reveal six previews at a time.
+Asset grids omit per-file metadata and job headers. The viewer is the file on the page's own colour
+(88%, blurred), with only Reveal in Finder and Close in the top corner and no title; a click on a
+picture shows it at full size around the point clicked; a model opens playing its first clip, with
+play, the clips and speed in one floating bar and "Drag to turn · Scroll to zoom · Double-click to
+reset" above it. Chat build outcomes show
 the finished build card: capture, delivery status and Play; the card itself opens Builds.
 Only current-revision captures are selected from checks. Failures stay explicit; detailed checks
 and evidence limits remain in Builds/Studio. Learning counts link to Studio and omit zeros.
@@ -148,9 +162,10 @@ composer (their height glides from one card to the next, which fades in), disclo
 turns) and the build card's first picture, which slides in. A reply being written grows line by line
 in a 150ms glide, except while the window rests (`renderer/motion-rest.ts`); work followed by a
 streaming reply stays in the transcript above it, so nothing moves when the reply is saved, and the
-saved reply does not enter again. A status label stays at least 400ms, then the newest fades in while
+saved reply does not enter again. A status label (and "Worked on N steps") stays at least a second, then the newest fades in while
 its width glides to it, the chevron sliding along and fading in and out with the work's details. A
-finished build card holds its place while its result loads. History, an opened chat and media never
+finished build card keeps its result's place, without words, for up to 3s while the result loads; a
+result that never comes closes the place, a late one opens in it. History, an opened chat and media never
 enter, and reduced motion shows every change at once. Only height and opacity move, a short layout of
 the chat's tail per frame while something moves.
 
@@ -182,7 +197,7 @@ The shell is conversation-led: a full-height sidebar contains the theme-aware Ge
 Search, the Notifications bell, **New game**, **Plugins**, **Harness**, **Settings**, then **Games**. Everything above the game
 list stays fixed; only the flat game list scrolls, with a 24px fade into the sidebar colour once it
 has moved. The four actions are one stack of 36px rows, 2px apart, with labels styled like game titles, 18px animated
-icons and an 18px accent count badge on Harness. Game rows use 28px circular covers, 14px Medium
+icons (their ink in line with the wordmark's left edge) and an 18px accent count badge on Harness. Game rows use 28px circular covers, 14px Medium
 titles and a keyboard-reachable overflow menu 6px from the row edge. The row's end is one 28px slot: the working dot, else the pin, and ⋯ in their place on hover or focus. Rows, nav items and sidebar
 buttons use the derived `--sidebar-selected`/`--sidebar-hover` fills (quieter than the shared hover in
 dark themes, visible in light ones). The toggle sits 80px from the window edge, just clear of the
@@ -220,20 +235,26 @@ to workspace is a secondary button. Add is the page's one accent button: Install
 Add MCP server…, Import MCP configuration… | Create a plugin ↗, Load local plugin…. Rows wear the
 plugin's own picture (44px, 10px radius; 64px/14px on its page; 16px/4px in menus), full-bleed
 like a Dock icon, else its initial on a `--line-strong` tile; interface glyphs use the icon colour.
+Genex's row and page name it the game dev tools router ("Genex · Tripo, Meshy, …" as its line) and
+its picture is the routed tools' marks on a dark 2×2 board that is never empty: every 1.3s a row or
+column slides one step, one tool leaving as the next of eight slides in; still in menus and under
+reduced motion. Its Connect is the accent fill.
 Descriptions are one line with an ellipsis. A row's account is one step: Connect (with a tooltip;
 a locked saved sign-in reads the same), Finish in your browser · Cancel, Reconnect, or the
-balance in mono ink-2. MCP servers lists only servers the person added, each with its switch; a
-plugin's own server lives on its page as a Connection and appears in search as "Part of …".
-More plugins appears only when the catalog has something new, or as one quiet line with Try
-again. The list ends with Make your own plugin (dashed code tile, Read the guide ↗). Install from
+balance in mono ink-2. MCP servers lists only servers the person added, each with its switch,
+and before there is one a row with a dashed plug tile, "Connect any MCP server" and what can be
+connected; a plugin's own server appears in search as "Part of …". Below it the Marketplace: its
+title with no rule, a Coming soon badge and a shelf of dashed empty slots (a few faint glyphs, one
+accent slot pulsing), until the catalog offers something you lack; then More plugins lists it. The list ends with Make your own plugin (dashed code tile, Read the guide ↗). Install from
 GitHub is a lg dialog: GitHub link field, the plugin card (picture, name, "by owner", one line,
 Version · Change), one muted note, Cancel and the accent action.
 Every plugin page leads with one setup card (Genex's account, Local Blender's runtime) in the
 same 16px-radius surface (15px medium state, 14px ink-3 line, one filled action, a failure's
 reason in 13px red inside the card). Genex's connected card shows the green dot, identity and one
 24px Credits stat with "One balance for all your games"; no per-game numbers (those are in the
-usage panel). Then a two-column grid of 40px glyph tiles (What you can make / What it does),
-Connections, Skills as one line with Show all, and Information (Developer, Version, "Can" in
+usage panel). Then Genex's Tools it routes (each tool's mark on a dark 34px tile, its name and a
+mono line, in a grid of 12px-radius cards) or another plugin's two-column grid of 40px glyph tiles
+(What it does) and Connections; then Skills as one line with Show all, and Information (Developer, Version, "Can" in
 words, the trusted-code line). No plugin frames on Genex's or Blender's pages; Publish is a
 host-drawn lg dialog on the stage, "Publish to the web" with a globe after the title, for every open game: it first asks for
 what is missing, one line and one press (an accent-tinted line "Publishing goes through" the Genex
@@ -261,6 +282,16 @@ sidebar's 7px accent dot and one `gate-pulse` (none under reduced motion), and i
 reload to see it", "A new build is ready — reload to play it", plus a builder's note). The strip's end
 holds one speaker for the game's sound, crossed out while off (⌥⌘M): no menu and no settings,
 because agents' windows are always silent and Live is silent while hidden or behind another app.
+Play/Stop sits before Reload: one icon button, ■ while the game runs, ▶ once it is stopped and a
+13px ring spinner while either is under way; each glyph fades and grows in (150ms). Full screen
+(four corners) follows the speaker and is disabled unless the running game is on the stage. In
+full screen a studio-drawn dark glass pill sits 14px from the top-right corner, “Hold esc to exit
+full screen” beside the exit glyph; after 2.6s the words fold into the icon, which rests at 45%
+until the pointer is on it. Plugin buttons wear the prompt bar's model-pill fill (`pill-quiet`);
+one whose status says its action is due (`attention`: Publish with something to publish) takes
+the accent. Publish shows no badge: two looks, nothing else. While Live or Builds loads, a 52×36
+halftone plasma in ink at 62% sits over a shimmering 13px line; it appears only after 0.4s, stays
+at least 0.6s and fades out (150ms) before the native view is uncovered.
 
 **Home** is where every launch starts and where the wordmark leads: nothing selected, one 21px
 Medium line (“Everything you need to ship a game”) over the game composer (“What do you want to
@@ -320,7 +351,10 @@ while the sidebar is hovered or scrolling. Hover strengthens the thumb without a
 Empty game chat is blank; the composer is its entry point. The Harness chat always starts with its
 first message, rendered like a reply (15/22 prose): ask about Harness and its improvements here;
 games are built in their own chats. While it is empty, three example questions follow as filled
-16px-radius chips that send in one click.
+16px-radius chips that send in one click. **How it works**, a quiet text button right after the
+Harness title in its chat header, opens a dialog: what Harness is, the four steps of its loop (you
+build, it looks back, the edit is tested, you decide), what its tests cannot prove, and
+**Harness settings** or **Done**.
 
 Build summaries keep delivery state, failed checks and interaction-coverage limits visible.
 In chat the outcome is the build card above: delivery, capture and Play; the card opens Builds.
@@ -356,14 +390,17 @@ improvements** button gone and the section saying so). Rows share one list-card 
 chevron that turns, and the shared `.disclosure-body` height/opacity transition (reduced motion
 keeps it static). Suggestions are one card: a check mark includes each row (green tint), the row
 expands to plain **What changes** lines and **See the exact edit** (file, proposer notes, diff);
-when a row has nothing else to read, the edit shows directly without that toggle. Reviewer vote
+when a row has nothing else to read, the edit shows directly without that toggle. The diff shows
+each change in file order with two unchanged lines around it and ⋯ for what it leaves out; lines
+wrap to the card's width in ink on their tint (the sign carries the colour), so it scrolls only down. Reviewer vote
 counts are not shown. The check mark and chevron stay aligned with the title's first line, and
 the footer counts the selection and applies or discards it. Run rows show
 the game cover, the request on one line, game · time and an outcome pill (Running, New build,
 No build, Failed, Stopped). Expanded, a run gives only its result: one plain sentence (the run's
 own report when it wrote one), before/after captures, Play build and Open game chat. Checks and
 revision reports stay in the game's Builds tab. Learned rows say who let the change land, describe
-it at reading size and keep the diff and **Undo this change**. Expanded bodies align with their
+it at reading size and keep the diff and **Undo this change**; a change the agent made to itself
+during a build shows the plain title and summary it wrote, like a suggestion. Expanded bodies align with their
 row's text and a hovered header never tints apart from its open body. Never lead with instruction-file names,
 reviewer rationale or counts of reviewed tasks; they belong behind the exact edit. **Look for
 improvements** appears once there are runs and reports on the button itself: a spinner with
@@ -374,9 +411,15 @@ Harness's own records never appear in the Harness conversation. An intentional S
 **Stopped**.
 
 The Live stage, Assets and an empty Activity share one empty state (`ui/EmptyState.tsx`):
-a 128×92 wireframe on a fading floor (cube, crane, teapot, the Harness glyph; theme colours,
-30 fps only while visible, a still under Reduce Motion), a one-line 15/20 title, a one-line
-13/18 subtitle of at most 40 characters and a fixed 48px button slot. Reuse it for new empty states.
+a 128×92 wireframe on a fading floor (an old-school computer drawn as a blueprint — faces in the
+stage's colour, ink edges, hidden edges dashed, an accent screen with a blinking prompt, one turn
+per 9s (`ui/wire-computer.ts`) — then a crane, teapot, the Harness glyph, the stopped game's
+upright plate; theme colours, 30 fps only while visible, a still under Reduce Motion), a one-line
+15/20 title, a one-line 13/18 subtitle of at most 40 characters and a fixed 48px button slot. A
+title-only state (Game stopped) keeps no subtitle room: its title sits 6px under the art and its
+button 15px under the title. Idea → building turns the computer to face you, boots its screen and
+hands off to the rising crane; any other change of
+scene cross-fades the art while the words rise out and in. Reuse it for new empty states.
 With no runs, Activity shows only that empty state, centred: **A self-improving harness**, “Runs and
 improvements will show up here.” and **Start building** (the last game chat, composer focused), or
 **New game** when the library is empty.
@@ -540,7 +583,7 @@ Effort is one control for every role: the pill opens **Effort** with a help tool
 ends and a stepped slider over the orchestrator's levels (click, drag or arrow keys). Workers and
 reviewers use the closest level their models accept.
 The ring panel (340px) shows Context window used/capacity with one meter, "Compacts automatically",
-and, for Claude Code, an Auto-compact choice (Auto · 200k · 1M). Below it, each signed-in subscription has a block titled with
+and, for a model whose chat can be compacted, Compact now (also `/compact` in the composer). Below it, each signed-in subscription has a block titled with
 its plan (e.g. Claude Max plan) that opens the provider's usage page, then each limit with its reset
 time, percent used and meter (amber from 75%, red from 90%). The orchestrator's plan comes first;
 with two plans, each names the roles it serves or says Not in use. While Genex is connected, a
@@ -780,7 +823,7 @@ model's choice.
 
 The build smoke enters the full `[data-plugins-page]`, checks native preview occlusion, search
 across plugins/MCP, manifest Skills, pointer cursors, compact layout at 200% zoom, the plugins'
-own pictures, the Install from GitHub window, Genex's Connections, plugin details/scan
+own pictures, the Install from GitHub window, the tools Genex routes, plugin details/scan
 information and the example's sandboxed panel. It returns via
 sidebar navigation and retains the plugin lifecycle/toolbar checks. Passing
 `--studio-build-shot=/absolute/path.png` to `test:build-ui` also saves the page, Skills, empty

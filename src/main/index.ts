@@ -39,6 +39,8 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { type ThreadStatusMap, UiEvent } from "../shared/ui-events.ts";
 import { onSoundShortcut } from "./game-sound.ts";
+import type { GameFullScreen } from "./game-full-screen.ts";
+import { wireGameFullScreen } from "./full-screen-view.ts";
 import { BootReason, HarnessState } from "../shared/protocol.ts";
 import { ClaudeCodeEngine } from "../substrate/engines/claude-code.ts";
 import { CodexEngine } from "../substrate/engines/codex.ts";
@@ -353,6 +355,8 @@ const runSharing = createRunSharing({
 let marketplace: PluginMarketplace | null = null;
 let window: BrowserWindow | null = null;
 let preview: GamePreview | null = null;
+/** The Live game's full screen in the current window. */
+let gameScreen: GameFullScreen | null = null;
 /** Where startup stands for the window: Ready, or the sandbox setup screen with its Retry. */
 const bootGate = createBootGate(
   process.platform,
@@ -767,6 +771,7 @@ function attachPreviews(studio: StudioCore, win: BrowserWindow): void {
   win.on("resize", followWindow);
   view.setOccluded(codexLogin.snapshot().visible);
   wireGameSound(studio, win, view);
+  gameScreen = wireGameFullScreen({ studio, win, view, boundsSeen: previewBoundsSeen });
 }
 
 /**
@@ -1034,7 +1039,12 @@ function registerIpc(studio: StudioCore): void {
   });
   registerGamesIpc(handle, { core: studio, runSummaryReader, pushUiEvent });
   registerModelsIpc(handle, { core: studio, subscription, pushUiEvent });
-  registerPreviewIpc(handle, { core: studio, preview: () => preview, previewBoundsSeen });
+  registerPreviewIpc(handle, {
+    core: studio,
+    preview: () => preview,
+    previewBoundsSeen,
+    fullScreen: { enter: () => gameScreen?.enter(), active: () => gameScreen?.active() ?? false },
+  });
   registerRunsIpc(handle, { core: studio, runSummaryReader, keepAwake, pushUiEvent, appendErrorDurably });
   registerLearningIpc(handle, {
     core: studio,
@@ -1100,7 +1110,16 @@ async function main(): Promise<void> {
   performanceRecorder.mark("app-ready");
   const bootHandle = createIpcHandle(ipcMain, { fixture: fixtureNativePolicy, isStudioUi: isStudioWindow });
   registerBootIpc(bootHandle, { gate: bootGate, setWindowControls: paintWindowControls });
-  registerUpdateIpc(bootHandle, { updates, check: () => updateChecker.check() });
+  registerUpdateIpc(bootHandle, {
+    updates,
+    check: () => updateChecker.check(),
+    // An unpackaged build reports Electron's version, so only a packaged one names its own.
+    about: () => ({
+      version: app.isPackaged ? app.getVersion() : null,
+      platform: process.platform,
+      arch: process.arch,
+    }),
+  });
   addCheckForUpdatesMenuItem();
   const started = await startStudio();
   if (isSmoke) {

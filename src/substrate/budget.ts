@@ -14,6 +14,7 @@
  * downward: mislabelling its own work "improvement" gets it *more* restrictions, never fewer,
  * and the scheduler that runs real improvement jobs lives host-side where the tag is trustworthy.
  */
+import { normalizedTokens } from "../shared/eval-lane.ts";
 import { WorkClass } from "../shared/harness-api.ts";
 import { atomicWriteJson, readJson } from "./fsx.ts";
 
@@ -140,9 +141,9 @@ export class BudgetLedger {
       .catch(() => {});
   }
 
-  /** A usage report's tokens, recorded against this class. */
-  recordUsage(workClass: WorkClass, usage: unknown): void {
-    this.record({ tokens: usageTokens(usage), class: workClass });
+  /** A usage report's tokens, recorded against this class; `engine` says what its input_tokens holds. */
+  recordUsage(workClass: WorkClass, usage: unknown, engine?: string): void {
+    this.record({ tokens: usageTokens(usage, engine), class: workClass });
   }
 
   gate(check: { class: WorkClass }): BudgetGate {
@@ -163,12 +164,12 @@ export class BudgetLedger {
   }
 
   /** One engine call of this class: gated, counted in flight while `work` runs, its usage recorded. */
-  async run<T extends { usage?: unknown }>(workClass: WorkClass, work: () => Promise<T>): Promise<T> {
+  async run<T extends { usage?: unknown }>(workClass: WorkClass, work: () => Promise<T>, engine?: string): Promise<T> {
     this.assertAllowed(workClass);
     this.beginWork(workClass);
     try {
       const result = await work();
-      this.recordUsage(workClass, result.usage);
+      this.recordUsage(workClass, result.usage, engine);
       return result;
     } finally {
       this.endWork(workClass);
@@ -181,9 +182,21 @@ export class BudgetLedger {
   }
 }
 
-/** Total tokens in a usage record, tolerant of partially-filled engine reports. */
-export function usageTokens(usage: unknown): number {
+/**
+ * Total tokens in a usage record, tolerant of partially-filled engine reports. Codex's
+ * `input_tokens` already holds its cache reads, so they count once (`normalizedTokens`).
+ */
+export function usageTokens(usage: unknown, engine?: string): number {
   const u = (usage ?? {}) as Record<string, unknown>;
   const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
-  return n(u.input_tokens) + n(u.output_tokens) + n(u.cache_read_tokens) + n(u.cache_write_tokens);
+  const tokens = normalizedTokens(
+    {
+      input_tokens: n(u.input_tokens),
+      output_tokens: n(u.output_tokens),
+      cache_read_tokens: n(u.cache_read_tokens),
+      cache_write_tokens: n(u.cache_write_tokens),
+    },
+    engine,
+  );
+  return tokens.uncachedInput + tokens.cacheWrite + tokens.cacheRead + tokens.output;
 }

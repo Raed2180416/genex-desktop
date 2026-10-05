@@ -270,6 +270,51 @@ it("read-only local sessions round-trip host images, save and resume without gai
     await rm(root, { recursive: true, force: true });
   }
 });
+it("a resumed local session keeps its system prompt: each request's own turn and time budget rides its message", async () => {
+  // The minutes left change on every request; in the system prompt they made a resumed session
+  // re-read its whole history instead of reusing the model's cached prefix.
+  const root = await mkdtemp(path.join(os.tmpdir(), "bonsai-session-"));
+  const cwd = path.join(root, "game");
+  await mkdir(cwd);
+  const seen: CompleteRequest[] = [];
+  const sessions = new LocalSessions({
+    root: path.join(root, "sessions"),
+    protectedPaths: [],
+    contextWindow: 16384,
+    complete: async (request) => {
+      seen.push(
+        structuredClone({
+          ...request,
+          signal: undefined,
+          onDelta: undefined,
+          onContext: undefined,
+          onActivity: undefined,
+        }),
+      );
+      return reply("Done");
+    },
+  });
+  try {
+    const first = await sessions.run({ cwd, prompt: "Build the menu", maxTurns: 30, timeoutMs: 40 * 60_000 }, model);
+    await sessions.run(
+      { cwd, prompt: "Now the HUD", resume: first.sessionId, maxTurns: 12, timeoutMs: 7 * 60_000 },
+      model,
+    );
+    assert.equal(seen.length, 2);
+    assert.equal(
+      seen[1]!.systemPrompt,
+      seen[0]!.systemPrompt,
+      "the resumed request starts from the same system prompt",
+    );
+    assert.doesNotMatch(seen[0]!.systemPrompt ?? "", /\d+ model turns|\d+ minutes/);
+    const asked = (request: CompleteRequest) => String(request.messages.at(-1)?.content ?? "");
+    assert.match(asked(seen[0]!), /Build the menu[\s\S]*at most 30 model turns and 40 minutes/);
+    assert.match(asked(seen[1]!), /Now the HUD[\s\S]*at most 12 model turns and 7 minutes/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 it("local file reads reject a symlink into an ungranted directory", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "bonsai-path-"));
   const cwd = path.join(root, "game");

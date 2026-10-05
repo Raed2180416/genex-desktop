@@ -40,10 +40,16 @@ const UNLOADED_TREES = [
   "@sentry/server-utils/build/esm/vendored/@apm-js-collab/code-transformer-bundler-plugins",
 ];
 
-/** Is this path (relative to node_modules, at any nesting) inside a tree the payload leaves out? */
+/**
+ * Files no runtime loads: TypeScript declarations and source maps, two thirds of the payload's
+ * files. Every first launch copies the payload into the plugin store before the window opens.
+ */
+const UNLOADED_FILES = /\.(d\.[cm]?ts|map)$/;
+
+/** Is this path (relative to node_modules, at any nesting) a file or inside a tree the payload leaves out? */
 const unloaded = (relative) => {
   const inside = `/${relative.split(path.sep).join("/")}/`;
-  return UNLOADED_TREES.some((tree) => inside.includes(`/${tree}/`));
+  return UNLOADED_FILES.test(relative) || UNLOADED_TREES.some((tree) => inside.includes(`/${tree}/`));
 };
 
 /** Is this path (relative to node_modules) outside it? */

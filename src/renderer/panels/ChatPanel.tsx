@@ -80,6 +80,8 @@ function ChatComposer(parts: ChatParts & { composerRef: RefObject<PromptBarHandl
   const { plan } = work;
   const busy = drafts.busy;
   const { about } = reply;
+  // A summary written mid-turn or mid-build would miss what is happening.
+  const compactWaits = busy || working || chat.answering || run?.state === RunState.Running;
   return (
     <ComposerDock
       {...(threadId ? { conversationKey: threadId } : {})}
@@ -112,12 +114,18 @@ function ChatComposer(parts: ChatParts & { composerRef: RefObject<PromptBarHandl
         contextUsage={composer.contextUsage}
         onCompact={compact.compactNow}
         compacting={compact.compacting}
+        compactBusy={compactWaits}
         // A finished or paused night is not a night in progress: leaving this true kept the
         // composer saying "Building" for the rest of the chat's life, and took the hours control
         // switch away with no way back.
         coordinating={run?.state === RunState.Running}
         leadListens={chat.leadListens}
-        placeholder={chatPlaceholder({ revisingPlan: plan.revising, studio: chat.isStudioThread, draft: chat.isDraft })}
+        placeholder={chatPlaceholder({
+          revisingPlan: plan.revising,
+          studio: chat.isStudioThread,
+          // A game still waiting for its idea asks for one, as home does.
+          draft: chat.isDraft || chat.folder?.provisional === true,
+        })}
         value={drafts.draft}
         onChange={drafts.setDraft}
         model={model.bar}

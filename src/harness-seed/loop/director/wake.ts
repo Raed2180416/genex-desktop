@@ -72,6 +72,7 @@ import {
   WrapCause,
 } from "./wake-schedule.ts";
 import { cutShortWake, midTurnUserSays } from "./live-prompts.ts";
+import { workingGoal } from "../goal-prompts.ts";
 import type { AnyRecord } from "../../types/harness.d.ts";
 import type { DelegateResult } from "../../types/host-api.d.ts";
 import type { RestoredWake } from "./journal.ts";
@@ -560,7 +561,7 @@ function cardFacts(night: Night): CardFacts {
   return {
     runId: run.runId,
     project: run.project,
-    goal: run.goal,
+    goal: workingGoal(run),
     direction: isDirection(night),
     plan: state.plan
       ? { summary: String(state.plan.summary ?? ""), parts: (state.plan.workers ?? []).map((w: AnyRecord) => w.id) }

@@ -71,7 +71,6 @@ function localChoice(engine: EngineDescriptor, model: EngineModel): ModelChoice 
     name: model.label,
     group: groupLabel(engine),
     contextWindow: model.contextWindow,
-    contextChoices: model.contextChoices,
     supportsFast: model.supportsFast,
     supportsSessions: engine.supportsSessions ?? false,
     ...(model.efforts?.length ? { efforts: model.efforts } : {}),
@@ -124,7 +123,6 @@ function subscriptionChoice(engine: EngineDescriptor, model: EngineModel, shown:
     // Each vendor publishes its own reasoning dial; the effort page offers exactly what
     // the picked model accepts, so a run never dies on a value its CLI refuses.
     contextWindow: model.contextWindow,
-    contextChoices: model.contextChoices,
     supportsFast: model.supportsFast,
     supportsSessions: engine.supportsSessions ?? engine.kind === EngineKind.Delegated,
     ...(model.efforts?.length ? { efforts: model.efforts } : {}),

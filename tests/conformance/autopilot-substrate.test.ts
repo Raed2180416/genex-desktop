@@ -8,6 +8,7 @@ import { readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { after, describe, it } from "node:test";
 import { BudgetLedger, usageTokens, workClassOf } from "../../src/substrate/budget.ts";
+import { EngineId } from "../../src/shared/providers.ts";
 import { PreviewPool } from "../../src/substrate/preview-pool.ts";
 import type { PreviewPort } from "../../src/substrate/preview-port.ts";
 import type { DelegateResult } from "../../src/substrate/engines/types.ts";
@@ -150,6 +151,16 @@ describe("budget ledger", () => {
     assert.equal(usageTokens({ input_tokens: 10, cache_read_tokens: 3 }), 13);
     assert.equal(usageTokens(undefined), 0);
     assert.equal(usageTokens({ input_tokens: Number.NaN }), 0);
+  });
+
+  it("counts a Codex cache read once: its input_tokens already holds it", async () => {
+    const codex = { input_tokens: 100, cache_read_tokens: 80, output_tokens: 5 };
+    assert.equal(usageTokens(codex, EngineId.Codex), 105);
+    assert.equal(usageTokens(codex, EngineId.ClaudeCode), 185, "Claude's input_tokens leaves cache reads out");
+    const ledger = new BudgetLedger({ file: path.join(await tmpDir("budget-"), "ledger.json") });
+    ledger.recordUsage(workClassOf("user"), codex, EngineId.Codex);
+    await ledger.run(workClassOf("user"), async () => ({ usage: codex }), EngineId.Codex);
+    assert.deepEqual(ledger.today(), { user: 210, improvement: 0 });
   });
 });
 

@@ -39,7 +39,7 @@ import {
   BootReason,
   type DispatchAction,
   DispatchActionType,
-  directorLoopEnv,
+  harnessRunEnv,
   HarnessCapability,
   HarnessState,
 } from "../shared/protocol.ts";
@@ -102,7 +102,7 @@ import { ConnectionService } from "./core/connections.ts";
 import { ConversationService } from "./core/conversation.ts";
 import { DelegationService } from "./core/delegation.ts";
 import { GameFileService } from "./core/game-files.ts";
-import { nameGame } from "./core/game-naming.ts";
+import { nameFromIdea, nameGame } from "./core/game-naming.ts";
 import { GENEX_PLUGIN_ID, GenexCliService, genexHostPreflight, genexHostTool } from "./core/genex-cli.ts";
 import { GenexPackageService } from "./core/genex-package.ts";
 import { GameThreadService } from "./core/game-threads.ts";
@@ -963,8 +963,8 @@ export class StudioCore {
       sandbox: this.sandbox,
       api: this.api(),
       updatesDir: this.layout.updates,
-      // The harness's environment is an allow-list: the director-loop override is handed on by name.
-      env: directorLoopEnv(process.env),
+      // The harness's environment is an allow-list: the run overrides are handed on by name.
+      env: harnessRunEnv(process.env),
       heartbeatTimeoutMs: HARNESS_HEARTBEAT_TIMEOUT_MS,
       crashLoop: HARNESS_CRASH_LOOP,
       onNotify: (type, payload) => this.#onHarnessNotify(type, payload),
@@ -1395,7 +1395,8 @@ export class StudioCore {
     // folder is checked before the library writes, so a refused one is left with nothing in it.
     const allowed = (real: string) => this.#assertLocationAllowed(real);
     const where = options.parent === undefined ? {} : { parent: options.parent, allowed };
-    const game = await this.#readyProject(await this.games.create(title, where));
+    const waiting = options.provisional === true ? { provisional: true } : {};
+    const game = await this.#readyProject(await this.games.create(title, { ...where, ...waiting }));
     await this.threadForGame(game.name);
     return game;
   }
@@ -1403,6 +1404,28 @@ export class StudioCore {
   /** A name for a game started from its first request, before its folder is made (`core/game-naming.ts`). */
   nameGame(request: GameNameRequest): Promise<GameName> {
     return nameGame({ engines: this.engines, budget: this.budget }, request);
+  }
+
+  /** Games being named from an idea now: a second message while the first names it waits its turn. */
+  #namingFromIdea = new Set<string>();
+
+  /** A game whose title waits for an idea takes the name this message gives it, in place (`nameFromIdea`). */
+  async nameFromIdea(project: string, request: GameNameRequest): Promise<void> {
+    if (this.#namingFromIdea.has(project)) return;
+    this.#namingFromIdea.add(project);
+    try {
+      await nameFromIdea(
+        {
+          games: this.games,
+          name: (asked) => this.nameGame(asked),
+          changed: (named) => this.emit(UiEvent.GameChanged, { project: named }),
+        },
+        project,
+        request,
+      );
+    } finally {
+      this.#namingFromIdea.delete(project);
+    }
   }
 
   /**
@@ -1804,6 +1827,16 @@ export class StudioCore {
     return this.#previews.reloadLive(p);
   }
 
+  /** The stage's Stop: Live's game stops running until Play. */
+  stopLive(): Promise<void> {
+    return this.#previews.stopLive();
+  }
+
+  /** The stage's Play on a stopped game. */
+  playLive(): Promise<void> {
+    return this.#previews.playLive();
+  }
+
   /** Something would have changed Live: it waits for the person's Reload instead (`live.behind`). */
   offerLive(...args: Parameters<PreviewService["offerLive"]>): ReturnType<PreviewService["offerLive"]> {
     return this.#previews.offerLive(...args);
@@ -1910,6 +1943,12 @@ export class StudioCore {
     ...args: Parameters<AssetService["presentProjectAssets"]>
   ): ReturnType<AssetService["presentProjectAssets"]> {
     return this.#assets.presentProjectAssets(...args);
+  }
+
+  projectModelRigs(
+    ...args: Parameters<AssetService["projectModelRigs"]>
+  ): ReturnType<AssetService["projectModelRigs"]> {
+    return this.#assets.projectModelRigs(...args);
   }
 
   saveReferenceFrames(

@@ -30,6 +30,7 @@ export const STUDIO_INVOKE_CHANNELS = {
   "studio:update.restart": "restartToUpdate",
   "studio:update.check": "checkForUpdates",
   "studio:update.download": "openUpdateDownload",
+  "studio:update.about": "appAbout",
   "studio:bootstrap": "bootstrap",
   "studio:send": "send",
   "studio:plan.answer": "answerPlan",
@@ -144,6 +145,7 @@ export const STUDIO_INVOKE_CHANNELS = {
   "studio:game.references": "readReferenceStills",
   "studio:game.asset.preview": "previewProjectAsset",
   "studio:game.asset.present": "presentProjectAssets",
+  "studio:game.asset.rigs": "projectModelRigs",
   "studio:game.assets": "projectAssets",
   "studio:game.asset.still": "readProjectAsset",
   "studio:run.feedback": "runFeedback",
@@ -153,6 +155,9 @@ export const STUDIO_INVOKE_CHANNELS = {
   "studio:preview.bounds": "previewBounds",
   "studio:preview.sound": "previewSound",
   "studio:preview.reload": "reloadPreview",
+  "studio:preview.stop": "stopPreview",
+  "studio:preview.play": "playPreview",
+  "studio:preview.fullscreen": "previewFullScreen",
   "studio:live.behind": "liveBehind",
   "studio:preview.state": "previewState",
   "studio:preview.live": "previewLive",
@@ -197,6 +202,7 @@ export interface StudioInvokePayloads {
   "studio:update.restart": undefined;
   "studio:update.check": undefined;
   "studio:update.download": undefined;
+  "studio:update.about": undefined;
   "studio:bootstrap": undefined;
   "studio:send": { text: string } & NonNullable<Arg<"send", 1>>;
   "studio:plan.answer": { threadId: string; id: string; approved: boolean };
@@ -317,6 +323,7 @@ export interface StudioInvokePayloads {
   "studio:game.references": { project: string };
   "studio:game.asset.preview": Arg<"previewProjectAsset", 0>;
   "studio:game.asset.present": Arg<"presentProjectAssets", 0>;
+  "studio:game.asset.rigs": Arg<"projectModelRigs", 0>;
   "studio:game.assets": { project: string };
   "studio:game.asset.still": Arg<"readProjectAsset", 0>;
   "studio:run.feedback": Arg<"runFeedback", 0>;
@@ -326,6 +333,9 @@ export interface StudioInvokePayloads {
   "studio:preview.bounds": Arg<"previewBounds", 0>;
   "studio:preview.sound": Arg<"previewSound", 0>;
   "studio:preview.reload": { retry: boolean };
+  "studio:preview.stop": undefined;
+  "studio:preview.play": undefined;
+  "studio:preview.fullscreen": undefined;
   "studio:live.behind": { project: string };
   "studio:preview.state": undefined;
   "studio:preview.live": undefined;
