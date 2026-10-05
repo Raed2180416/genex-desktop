@@ -217,6 +217,39 @@ test("the selected segment shows chip hover until set, and its text is measured 
   assert.equal(readability(flat, "thumb")?.ratio, 1);
 });
 
+test("the sidebar's selected and hover rows show the fill the app mixes until set, then take their own", () => {
+  const { sidebarSelected: _selected, sidebarHover: _hover, ...light } = preset("genex-light").colors;
+  assert.deepEqual(
+    [shownColor(light, "sidebarSelected"), shownColor(light, "sidebarHover")],
+    ["#e6e7e6", "#eeefee"],
+    "unset, a light sidebar's rows are the text mixed into it",
+  );
+  assert.ok(hex(shownColor(genexDark.colors, "sidebarSelected")), "a dark sidebar's too");
+  const set = themeVariables({ ...light, sidebarSelected: "#dddddd", sidebarHover: "#eeeeee" }, DEFAULT_CONTRAST);
+  assert.deepEqual([set["--sidebar-selected"], set["--sidebar-hover"]], ["#dddddd", "#eeeeee"]);
+  assert.equal(readability({ ...light, sidebarSelected: light.foreground }, "sidebarSelected")?.ratio, 1);
+  for (const role of ["sidebarSelected", "sidebarHover"] as const)
+    assert.ok(
+      ROLE_GROUPS.some((group) => group.roles.includes(role)),
+      `${role}: the panel offers it`,
+    );
+});
+
+test("the prompt bar's chips wear the canvas chip fill until given their own", () => {
+  const plain = { ...genexDark.colors, controlFill: "#202020" };
+  assert.equal(themeVariables(plain, DEFAULT_CONTRAST)["--prompt-chip-fill"], undefined, "unset, it follows");
+  assert.equal(shownColor(plain, "promptChipFill"), "#202020");
+  const set = themeVariables({ ...plain, promptChipFill: "#fafafa" }, DEFAULT_CONTRAST);
+  assert.equal(set["--prompt-chip-fill"], "#fafafa");
+  assert.equal(set["--control-fill"], "#202020", "the canvas chip does not move");
+  const flat = { ...plain, promptChipFill: "#808080", controlText: "#808080" };
+  assert.equal(readability(flat, "promptChipFill")?.ratio, 1);
+  assert.ok(
+    ROLE_GROUPS.some((group) => group.roles.includes("promptChipFill")),
+    "the panel offers it",
+  );
+});
+
 test("shadows are the place's own until set, copy as a keyed tail and paste back", () => {
   const prompt = { y: 6, blur: 20, spread: -2, color: "#102030", alpha: 12 };
   const draft = withShadow(freshDraft(genexDark), "promptBar", prompt);

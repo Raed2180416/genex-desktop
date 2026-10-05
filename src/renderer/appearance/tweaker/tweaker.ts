@@ -22,6 +22,9 @@ import {
   type ShadowPlace,
   type Shadows,
   shadowOf,
+  isSidebarRow,
+  type SidebarRow,
+  sidebarRowMix,
   type ThemePreset,
   themeVariables,
 } from "../themes.ts";
@@ -86,7 +89,20 @@ const GRAPHIC_CONTRAST = 3;
 const WELL_CANVAS_SHARE = 0.75;
 /** The variable each detail role is drawn as while it is left to the app; the selector's track and thumb are not. */
 const DETAIL_VARIABLE: Record<
-  Exclude<DetailRole, "well" | "thumb" | "artPaper" | "artMark" | "artButton" | "logoShade" | "promptEdge" | "hatch">,
+  Exclude<
+    DetailRole,
+    | "well"
+    | "thumb"
+    | "artPaper"
+    | "artMark"
+    | "artButton"
+    | "logoShade"
+    | "promptEdge"
+    | "hatch"
+    | "promptChipFill"
+    | "sidebarSelected"
+    | "sidebarHover"
+  >,
   string
 > = {
   accentFill: "--accent-fill",
@@ -116,7 +132,7 @@ const ON_GROUND: readonly { marks: readonly DetailRole[]; grounds: readonly Deta
   { marks: ["accentText"], grounds: ["accentFill", "accentHover"], minimum: TEXT_CONTRAST },
   // The Live / Assets switch writes the current view's name in the button text on its own fill.
   { marks: ["accentText"], grounds: ["viewSwitch"], minimum: TEXT_CONTRAST },
-  { marks: ["controlText"], grounds: ["controlFill", "well"], minimum: TEXT_CONTRAST },
+  { marks: ["controlText"], grounds: ["controlFill", "promptChipFill", "well"], minimum: TEXT_CONTRAST },
   { marks: ["controlTextHover"], grounds: ["controlHover", "chipHover", "thumb"], minimum: TEXT_CONTRAST },
   { marks: ["meterFill", "meterHigh", "meterFull"], grounds: ["meterTrack"], minimum: GRAPHIC_CONTRAST },
 ];
@@ -124,6 +140,7 @@ const ON_GROUND: readonly { marks: readonly DetailRole[]; grounds: readonly Deta
 /** The panel's role groups and the names it shows (the order comment above `PRESETS`). */
 export const ROLE_GROUPS: readonly { label: string; roles: readonly AnyRole[] }[] = [
   { label: "Surfaces", roles: ["background", "sidebar", "surface", "popover", "field", "hover"] },
+  { label: "Sidebar rows", roles: ["sidebarSelected", "sidebarHover"] },
   { label: "Lines", roles: ["border", "controlBorder"] },
   { label: "Text", roles: ["foreground", "muted"] },
   { label: "Accent and status", roles: ["accent", "success", "warning", "danger"] },
@@ -136,7 +153,7 @@ export const ROLE_GROUPS: readonly { label: string; roles: readonly AnyRole[] }[
   { label: "Onboarding art", roles: ["art", "artPaper", "artMark", "artButton"] },
   {
     label: "Chips, tabs and hover",
-    roles: ["controlFill", "chipHover", "controlHover", "controlText", "controlTextHover"],
+    roles: ["controlFill", "promptChipFill", "chipHover", "controlHover", "controlText", "controlTextHover"],
   },
   { label: "Selectors (Window, Loop time)", roles: ["well", "thumb"] },
   { label: "Meters", roles: ["meterTrack", "meterFill", "meterHigh", "meterFull"] },
@@ -168,11 +185,14 @@ export const ROLE_LABEL: Record<AnyRole, string> = {
   artPaper: "Plan sheet",
   artMark: "Sign-in marks",
   artButton: "Buttons",
-  controlFill: "Chip fill",
+  controlFill: "Chip fill (canvas)",
+  promptChipFill: "Chip fill (prompt bar)",
   controlHover: "Hover fill",
   controlText: "Chip text",
   controlTextHover: "Hover text",
   chipHover: "Chip hover",
+  sidebarSelected: "Selected row",
+  sidebarHover: "Row hover",
   well: "Selector track",
   thumb: "Selected fill",
   meterTrack: "Meter track",
@@ -276,12 +296,21 @@ function mixOklab(a: string, b: string, share: number): string {
   return fromOklch(mix(l1, l2), Math.hypot(A, B), Math.atan2(B, A));
 }
 
+/** An unset sidebar row fill, mixed into the sidebar as theme.css draws it. */
+function sidebarRowColor(palette: Palette, row: SidebarRow): string {
+  const { color, percent } = sidebarRowMix(palette, row);
+  return mixOklab(color, palette.sidebar, percent / 100);
+}
+
 /** The colour a role is drawn in: its own, or for an unset detail the one the app derives. */
 export function shownColor(palette: Palette, role: AnyRole): string {
   const own = palette[role];
   if (own || !isDetail(role)) return own ?? "";
   if (role === "well") return mixOklab(palette.background, palette.popover, WELL_CANVAS_SHARE);
   if (role === "thumb") return shownColor(palette, "chipHover");
+  if (isSidebarRow(role)) return sidebarRowColor(palette, role);
+  // Unset, the prompt bar's chips wear the canvas chip's fill (theme.css `--prompt-chip-fill`).
+  if (role === "promptChipFill") return shownColor(palette, "controlFill");
   // Unset, the onboarding art draws these as faint ink over the canvas, and its buttons as the accent tint.
   if (role === "artPaper") return over(palette.background, palette.foreground, SHEET_INK);
   if (role === "artMark") return over(palette.background, palette.foreground, MARK_FACE_INK);
@@ -508,6 +537,9 @@ export function readability(palette: Palette, role: AnyRole): Readability | null
   // The onboarding art and the empty-state cube draw their lines and glows in this colour on the canvas.
   if (role === "art" || role === "wireArt")
     return { ratio: contrastRatio(shownColor(palette, role), palette.background), minimum: GRAPHIC_CONTRAST };
+  // The sidebar writes the current and hovered game or page name in the text colour on these rows.
+  if (isSidebarRow(role))
+    return { ratio: contrastRatio(palette.foreground, shownColor(palette, role)), minimum: TEXT_CONTRAST };
   const pair = ON_GROUND.find((p) => [...p.marks, ...p.grounds].some((r) => r === role));
   if (!pair) return null;
   const grounds = pair.grounds.map((ground) => shownColor(palette, ground));

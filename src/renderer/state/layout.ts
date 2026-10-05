@@ -13,7 +13,12 @@ import { browserStorage, readNumber, readText, STORAGE_KEYS, writeText, type Key
 
 export const CHAT_MIN = 320;
 export const CHAT_MAX = 640;
-export const CHAT_DEFAULT = 388;
+export const CHAT_DEFAULT = 434;
+/**
+ * The default earlier builds had. Every layout change wrote the width, so a stored one equal to it
+ * was left at the default rather than chosen, and follows the current one.
+ */
+const CHAT_DEFAULT_BEFORE = 388;
 /** One arrow-key press on the resize handle. */
 export const CHAT_STEP = 20;
 
@@ -60,11 +65,12 @@ export function layoutStorage(storage: KeyValueStorage | null = browserStorage()
   return {
     getItem(): StorageValue<LayoutPrefs> {
       const view = readText(STORAGE_KEYS.previewView, storage);
+      const width = readNumber(STORAGE_KEYS.chatWidth, CHAT_MIN, CHAT_MAX, storage);
       return {
         version: 0,
         state: {
           sidebarOpen: readText(STORAGE_KEYS.sidebarOpen, storage) !== "false",
-          chatWidth: readNumber(STORAGE_KEYS.chatWidth, CHAT_MIN, CHAT_MAX, storage) ?? CHAT_DEFAULT,
+          chatWidth: width === null || width === CHAT_DEFAULT_BEFORE ? CHAT_DEFAULT : width,
           stageView: isStageView(view) ? view : StageView.Live,
         },
       };

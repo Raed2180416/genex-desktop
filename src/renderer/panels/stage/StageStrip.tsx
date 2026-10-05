@@ -74,9 +74,7 @@ function ReloadButton({ behind, onReload }: { behind: LiveBehind | null; onReloa
             "grid size-8 shrink-0 cursor-pointer place-items-center rounded-lg transition-colors duration-(--duration-quick) enabled:active:scale-[0.96]",
             // The glass's own background would cover the tint, so a lit Reload trades it for the tint.
             // Its glyph takes the ink: the accent on its own tint falls under 3:1, dimmer than unlit.
-            behind
-              ? "border border-transparent bg-accent-tint text-ink"
-              : "surface-glass text-muted-foreground hover:text-control-text-hover",
+            behind ? "border border-transparent bg-accent-tint text-ink" : "surface-glass text-foreground",
           )}
         >
           <Icon name="reload" size={15} />
@@ -91,9 +89,9 @@ function ReloadButton({ behind, onReload }: { behind: LiveBehind | null; onReloa
   );
 }
 
-/** The strip's icon buttons: a 32px glass square with a 15px glyph. */
+/** The strip's icon buttons: a 32px glass square with a 15px glyph in the text colour, faded when disabled. */
 const STRIP_ICON_BUTTON =
-  "surface-glass grid size-8 shrink-0 cursor-pointer place-items-center rounded-lg text-muted-foreground transition-colors duration-(--duration-quick) hover:text-control-text-hover enabled:active:scale-[0.96] disabled:cursor-default disabled:opacity-50";
+  "surface-glass grid size-8 shrink-0 cursor-pointer place-items-center rounded-lg text-foreground transition-colors duration-(--duration-quick) enabled:active:scale-[0.96] disabled:cursor-default disabled:opacity-50";
 
 /** What Play/Stop says for each state of the game. */
 const RUN_LABEL = {

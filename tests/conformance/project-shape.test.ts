@@ -761,7 +761,7 @@ describe("a project's own shape", () => {
     );
 
     const notes = await readFile(path.join(dir, "NOTES.md"), "utf8");
-    assert.ok(!/Empty project/.test(notes), notes);
+    assert.ok(!/Nothing built yet/.test(notes), notes);
     assert.match(notes, /landing a burning car on a moving ship/, "the folder already said what the game is");
     assert.match(notes, /README\.md/, "and where that came from");
 
@@ -797,7 +797,7 @@ describe("a project's own shape", () => {
     // are written from.
     const fresh = await games.scaffold("fresh-template");
     assert.match(await readFile(path.join(fresh.dir, "CLAUDE.md"), "utf8"), /This project starts empty/);
-    assert.match(await readFile(path.join(fresh.dir, "NOTES.md"), "utf8"), /Empty project/);
+    assert.match(await readFile(path.join(fresh.dir, "NOTES.md"), "utf8"), /Nothing built yet/);
     for (const source of ["CLAUDE.own.md", "NOTES.own.md"]) {
       assert.equal(
         await stat(path.join(fresh.dir, source)).catch(() => null),
@@ -838,7 +838,7 @@ describe("a project's own shape", () => {
     assert.match(unbuilt, /runs as written/);
     // The studio's own scaffold keeps the rules that describe it.
     const template = buildContractorBrief({ ask: "a pong game", scaffolded: true });
-    assert.match(template, /Follow CLAUDE\.md in the workspace root/);
+    assert.match(template, /When you build, follow CLAUDE\.md in the workspace root/);
     assert.match(template, /assets come from procedural code, imports, or the currently enabled plugin tools/);
     assert.doesNotMatch(template, /Genex|blender__/, "disabled plugin tools are not injected by core briefs");
     assert.ok(!/entry is/.test(template), template.slice(0, 400));
