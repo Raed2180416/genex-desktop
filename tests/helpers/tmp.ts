@@ -8,9 +8,9 @@ import { SECOND_MS } from "../../src/shared/duration.ts";
 
 /**
  * The errors Node's own `rm` tries again (its `maxRetries`): on Windows, a folder another process
- * holds open. In the Windows suite that is every few seconds: a sandboxed test file grants each
- * folder above its roots with `icacls`, which walks everything under `%TEMP%` (1.6 s for 10,000
- * files on a hosted runner) and holds each folder open while it walks it.
+ * holds open. In the Windows suite that is every few seconds: a sandboxed test file's srt-win
+ * entries are inheritable, re-propagated through every folder under the one they are on (for
+ * `.docker`, the runner's whole profile, `%TEMP%` included), each held open meanwhile.
  */
 const HELD_OPEN = new Set(["EBUSY", "EPERM", "ENOTEMPTY", "EMFILE", "ENFILE"]);
 /** The pause between two removals of a held folder. */

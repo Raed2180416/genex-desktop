@@ -10,7 +10,8 @@
  *  - The sandbox user reads nothing in the real user's profile unless granted. Node's realpath
  *    walk and Git stat every directory above a granted folder, so each directory between the
  *    profile and a grant root gets FILE_READ_ATTRIBUTES (no inheritance, no listing) as well;
- *    the directories are recorded so the grant can be taken back ({@link icaclsAncestorGrants}).
+ *    the directories are recorded so the grant can be taken back ({@link ancestorGrants}). Each
+ *    grant is set on its folder alone (`windows-folder-ace.ts`): `icacls` walked everything under it.
  *    They are granted after srt-win initializes, every time: its deny stamp puts a deny on each
  *    denied path's parent that replaces the sandbox user's entry there (userData, the parent of
  *    the secrets folder, lost its grant that way), and its reset removes that entry.
@@ -19,9 +20,9 @@
  *    sources first and deletes ({@link renderEnvFile}).
  *
  * The pure helpers work on Windows paths (`path.win32`) on any platform, so they are tested
- * everywhere; only the session's defaults touch srt-win and `icacls`.
+ * everywhere; only the session's defaults touch srt-win and the folders' entries.
  */
-import { execFile, execFileSync } from "node:child_process";
+import { execFile } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, realpathSync, rmSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
@@ -32,11 +33,19 @@ import type { SandboxRuntimeConfig } from "@anthropic-ai/sandbox-runtime";
 import { SECOND_MS } from "../shared/duration.ts";
 import { StudioPlatform } from "../shared/boot.ts";
 import { errorMessage } from "../shared/errors.ts";
+import {
+  editFolderAces,
+  editFolderAcesSync,
+  type FolderAceEdit,
+  type FolderAceEditor,
+  type FolderAceEditorSync,
+  FolderAceOp,
+} from "./windows-folder-ace.ts";
 
 const win = path.win32;
 const run = promisify(execFile);
 
-/** How long one `reg`, `git` or `icacls` call may take. */
+/** How long one `reg` or `git` call may take. */
 const TOOL_TIMEOUT_MS = 15 * SECOND_MS;
 /**
  * How often `initialize` is tried when srt-win times out. Its first egress check runs 17-23 s
@@ -54,11 +63,12 @@ const GIT_BASH = ["bin", "bash.exe"] as const;
 const EXEC_PATH_DEPTH = 3;
 /** A path on a drive letter, as Git for Windows reports its own folders. */
 const DRIVE_PATH = /^[A-Za-z]:[\\/]/;
-/** FILE_READ_ATTRIBUTES, on the folder itself only (no `(OI)(CI)`): stat works, listing does not. */
-const READ_ATTRIBUTES = "(RA)";
-/** How often an ancestor grant is tried, and the wait between tries, while another process edits the folder. */
-const ICACLS_ATTEMPTS = 3;
-const ICACLS_RETRY_MS = 1 * SECOND_MS;
+/**
+ * How often an ancestor grant is tried, and the wait between tries, while another process edits
+ * the same folder's entries.
+ */
+const GRANT_ATTEMPTS = 3;
+const GRANT_RETRY_MS = 1 * SECOND_MS;
 /** A shell variable name the env file may assign. */
 const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 /**
@@ -101,6 +111,7 @@ const MESSAGE = {
   BadEnvName: (name: string) => `refusing to write the environment variable ${JSON.stringify(name)}`,
   AncestorGrant: (dir: string, error: unknown) =>
     `could not let the sandbox user see the folder ${dir}: ${errorMessage(error)}`,
+  NoAnswer: "no answer for this folder",
   NoMembers: "the Windows sandbox session has no members",
 } as const;
 
@@ -495,31 +506,27 @@ function processAlive(pid: number): boolean {
   }
 }
 
-/** A failed icacls call's own words: Node's message names only the command, icacls writes to stdout. */
-function icaclsFailure(error: unknown): string {
-  const stdout = typeof error === "object" && error !== null && "stdout" in error ? String(error.stdout).trim() : "";
-  return [errorMessage(error), stdout].filter(Boolean).join(": ");
-}
-
-/** How the default ancestor grants reach Windows: the sandbox user's SID and an `icacls` runner. */
-export interface IcaclsDeps {
+/** How the default ancestor grants reach Windows: the sandbox user's SID and a folder-only editor. */
+export interface AncestorGrantDeps {
   /** The `srt-sandbox` SID, or null while the sandbox is not provisioned. */
   sid: () => Promise<string | null>;
-  icacls?: (args: string[]) => Promise<void>;
-  icaclsSync?: (args: string[]) => void;
+  /** Applies a batch of entry changes, each to its folder alone (default {@link editFolderAces}). */
+  edit?: FolderAceEditor;
+  /** The same on process exit (default {@link editFolderAcesSync}). */
+  editSync?: FolderAceEditorSync;
   /** This holder (default: this process). */
   pid?: number;
   /** Whether another holder's process still runs (default: signal 0). */
   alive?: (pid: number) => boolean;
-  /** The wait before a failed grant is tried again (default {@link ICACLS_RETRY_MS}). */
+  /** The wait before a failed grant is tried again (default {@link GRANT_RETRY_MS}). */
   retryDelayMs?: number;
   /** Whether a folder still exists (default: `existsSync`); one that is gone has nothing to grant. */
   exists?: (dir: string) => boolean;
 }
 
 /**
- * The ancestor grants through `icacls`, run as the real user (who owns their profile's folders),
- * addressed to the sandbox user by SID.
+ * The ancestor grants, set as the real user (who owns their profile's folders) on each folder
+ * alone, addressed to the sandbox user by SID.
  *
  * Every Genex on the machine shares the one sandbox user, and so the one grant on each folder: a
  * dev profile runs beside the app, and CI runs test files side by side. Each process records its
@@ -528,17 +535,9 @@ export interface IcaclsDeps {
  * A record whose process is gone is swept on the next sync: its folders are taken back unless a
  * running holder still needs them.
  */
-export function icaclsAncestorGrants(holders: string, deps: IcaclsDeps): AncestorGrants {
-  const icacls =
-    deps.icacls ??
-    (async (args: string[]) => {
-      await run("icacls", args, { timeout: TOOL_TIMEOUT_MS, windowsHide: true });
-    });
-  const icaclsSync =
-    deps.icaclsSync ??
-    ((args: string[]) => {
-      execFileSync("icacls", args, { timeout: TOOL_TIMEOUT_MS, windowsHide: true, stdio: "ignore" });
-    });
+export function ancestorGrants(holders: string, deps: AncestorGrantDeps): AncestorGrants {
+  const edit = deps.edit ?? editFolderAces;
+  const editSync = deps.editSync ?? editFolderAcesSync;
   const self = deps.pid ?? process.pid;
   const alive = deps.alive ?? processAlive;
   const exists = deps.exists ?? existsSync;
@@ -547,17 +546,12 @@ export function icaclsAncestorGrants(holders: string, deps: IcaclsDeps): Ancesto
     await mkdir(holders, { recursive: true });
     await writeFile(recordFile, JSON.stringify(record));
   };
-  // icacls rewrites the folder's ACL and walks what inherits from it: another process doing the
-  // same to the same folder can make one call fail, and the next one then succeeds.
-  const grant = async (dir: string, sid: string) => {
-    for (let attempt = 1; ; attempt++) {
-      try {
-        return await icacls([dir, "/grant", `*${sid}:${READ_ATTRIBUTES}`]);
-      } catch (error) {
-        if (attempt >= ICACLS_ATTEMPTS) throw new Error(MESSAGE.AncestorGrant(dir, icaclsFailure(error)));
-        await sleep(deps.retryDelayMs ?? ICACLS_RETRY_MS);
-      }
-    }
+  const grantAll = (dirs: readonly string[], sid: string) =>
+    grantEach(edit, dirs, sid, deps.retryDelayMs ?? GRANT_RETRY_MS);
+  // A folder since removed has no grant left to take back, so a removal that fails is let go.
+  const takeBackOf = async (records: readonly GrantRecord[], keep: ReadonlySet<string>) => {
+    const removals = takeBack(records, keep);
+    if (removals.length > 0) await edit(removals).catch(() => []);
   };
   return {
     async sync(dirs) {
@@ -567,13 +561,12 @@ export function icaclsAncestorGrants(holders: string, deps: IcaclsDeps): Ancesto
       const had = new Set(previous.dirs.map(pathKey));
       await save({ sid, dirs: [...previous.dirs, ...dirs.filter((dir) => !had.has(pathKey(dir)))] });
       // srt-win may have removed the sandbox user's entry on a folder granted before: grant them
-      // all, except one that is gone (a member's deleted read root), where icacls would fail.
-      for (const dir of dirs) if (exists(dir)) await grant(dir, sid);
+      // all, except one that is gone (a member's deleted read root), where the grant would fail.
+      await grantAll(dirs.filter(exists), sid);
       const others = otherHolders(holders, self, alive);
       const keep = new Set([...neededBy(others.live), ...dirs.map(pathKey)]);
       const stale = others.stale.flatMap((holder) => (holder.record ? [holder.record] : []));
-      // A folder since removed has no grant left to take back.
-      for (const args of takeBack([previous, ...stale], keep)) await icacls(args).catch(() => {});
+      await takeBackOf([previous, ...stale], keep);
       await save({ sid, dirs: [...dirs] });
       for (const holder of others.stale) rmSync(holder.file, { force: true });
     },
@@ -581,23 +574,40 @@ export function icaclsAncestorGrants(holders: string, deps: IcaclsDeps): Ancesto
       const record = readRecord(recordFile);
       rmSync(recordFile, { force: true });
       if (!record) return;
-      for (const args of takeBack([record], neededBy(otherHolders(holders, self, alive).live))) {
-        await icacls(args).catch(() => {});
-      }
+      await takeBackOf([record], neededBy(otherHolders(holders, self, alive).live));
     },
     revokeAllSync() {
       const record = readRecord(recordFile);
       rmSync(recordFile, { force: true });
       if (!record) return;
-      for (const args of takeBack([record], neededBy(otherHolders(holders, self, alive).live))) {
-        try {
-          icaclsSync(args);
-        } catch {
-          /* a folder since removed has no grant left to take back */
-        }
+      const removals = takeBack([record], neededBy(otherHolders(holders, self, alive).live));
+      try {
+        if (removals.length > 0) editSync(removals);
+      } catch {
+        /* nothing more can be done on the way out */
       }
     },
   };
+}
+
+/**
+ * Grant `dirs` in one batch, and those refused in another, up to {@link GRANT_ATTEMPTS} in all:
+ * another process changing the same folder's entries at that moment can refuse one once.
+ */
+async function grantEach(edit: FolderAceEditor, dirs: readonly string[], sid: string, retryMs: number) {
+  let pending = [...dirs];
+  for (let attempt = 1; pending.length > 0; attempt++) {
+    const outcomes = await edit(pending.map((dir) => ({ dir, sid, op: FolderAceOp.Grant })));
+    const refused = pending.flatMap((dir, i) => {
+      const outcome = outcomes[i];
+      return outcome?.ok ? [] : [{ dir, error: outcome ? outcome.error : MESSAGE.NoAnswer }];
+    });
+    const first = refused[0];
+    if (!first) return;
+    if (attempt >= GRANT_ATTEMPTS) throw new Error(MESSAGE.AncestorGrant(first.dir, first.error));
+    await sleep(retryMs);
+    pending = refused.map((r) => r.dir);
+  }
 }
 
 /** Every folder `records` name, as path keys. */
@@ -605,19 +615,19 @@ function neededBy(records: readonly GrantRecord[]): Set<string> {
   return new Set(records.flatMap((record) => record.dirs.map(pathKey)));
 }
 
-/** The icacls calls that take back each record's grants on the folders `keep` does not name, once each. */
-function takeBack(records: readonly GrantRecord[], keep: ReadonlySet<string>): string[][] {
+/** The removals that take back each record's grants on the folders `keep` does not name, once each. */
+function takeBack(records: readonly GrantRecord[], keep: ReadonlySet<string>): FolderAceEdit[] {
   const seen = new Set<string>();
-  const calls: string[][] = [];
+  const edits: FolderAceEdit[] = [];
   for (const record of records) {
     for (const dir of record.dirs) {
       const key = `${pathKey(dir)}|${record.sid}`;
       if (keep.has(pathKey(dir)) || seen.has(key)) continue;
       seen.add(key);
-      calls.push([dir, "/remove:g", `*${record.sid}`]);
+      edits.push({ dir, sid: record.sid, op: FolderAceOp.Remove });
     }
   }
-  return calls;
+  return edits;
 }
 
 // ── the session ──────────────────────────────────────────────────────────────────────────────
@@ -922,7 +932,7 @@ export function windowsSessionFor(
   const existing = sessions.get(runtime);
   if (existing) return existing;
   const holders = windowsGrantHolders(options.profile);
-  const ancestors = icaclsAncestorGrants(holders, { sid: () => srtSandboxSid(options.srtWin) });
+  const ancestors = ancestorGrants(holders, { sid: () => srtSandboxSid(options.srtWin) });
   const session = new WindowsSandboxSession({ runtime, profile: options.profile, ancestors });
   process.once("exit", () => ancestors.revokeAllSync());
   sessions.set(runtime, session);

@@ -6,8 +6,8 @@
  *
  * A fake runtime stands in for the singleton, so the proxy config can be read at every moment;
  * `sandbox.test.ts` proves the same against the real proxy. On Windows a fake grant session stands
- * in for the folder grants too: the real one runs `icacls` on every folder above the roots, which
- * walks everything under `%TEMP%` and held other test files' folders open while they removed them.
+ * in for the folder grants too, so this file changes no folder's entries: real ones re-propagate
+ * through `%TEMP%` and held other test files' folders open while they removed them.
  */
 import assert from "node:assert/strict";
 import path from "node:path";
