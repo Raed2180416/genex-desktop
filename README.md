@@ -26,8 +26,7 @@
 | Linux (x64) | `.deb`, `.rpm` or `.zip` from the [latest release](https://github.com/genex-games/genex-desktop/releases/latest) |
 | Windows | Soon |
 
-On macOS, Genex updates itself; on Linux it tells you when a new version is out. Genex is
-early: expect rough edges, and tell us about them in
+Genex is early: expect rough edges, and tell us about them in
 [issues](https://github.com/genex-games/genex-desktop/issues).
 
 ### What it does
@@ -35,10 +34,11 @@ early: expect rough edges, and tell us about them in
 → Use your Claude Code or ChatGPT subscription\
 → Or run local models\
 → Multi-agent game dev: mix Opus and GPT models across the main agent, workers and reviewers\
-→ Blender, Meshy, Tripo, ElevenLabs and more through the Genex tools router\
+→ Make 3D assets locally with the Blender plugin\
+→ Meshy, Tripo, ElevenLabs and more through the Genex tools router\
 → Export anywhere, or publish to the web\
 → Unity and Unreal plugins soon\
-→ Native games in languages like C++ soon
+→ Native C++ games soon
 
 ### Contributing
 
