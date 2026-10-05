@@ -14,7 +14,6 @@ import {
   buildReview,
   capWords,
   checkingBuild,
-  elapsedShortWords,
   foldTries,
   frontier,
   headline,
@@ -33,6 +32,7 @@ import {
   stepWord,
   STEPS,
   triesWord,
+  workedShortWords,
 } from "../../src/renderer/run-steps.ts";
 import { sideBySideWords } from "../../src/renderer/words.ts";
 const START = Date.parse("2026-09-19T15:36:00.000Z");
@@ -307,7 +307,7 @@ describe("the status line", () => {
     const { graph, summary, rows } = rowsOf(night());
     assert.deepEqual(statusLine(graph, summary, rows), {
       tone: "green",
-      strong: "Live in your game",
+      strong: "Live in your game · 17 min",
       rest: "all but tall mountain landed",
     });
   });
@@ -329,7 +329,7 @@ describe("the status line", () => {
     const { graph, summary, rows } = rowsOf(night());
     assert.deepEqual(statusLine(graph, { ...summary!, execution: "unknown" }, rows), {
       tone: "muted",
-      strong: "Status unavailable",
+      strong: "Status unavailable · 17 min",
       rest: "the run's record is incomplete",
     });
   });
@@ -441,12 +441,13 @@ describe("the time a run was given", () => {
     assert.equal(capWords(90 * 60_000), "up to 1h 30m");
   });
 
-  it("says how long a finished build took in the card's short units", () => {
-    const from = "2026-10-01T08:00:00.000Z";
-    assert.equal(elapsedShortWords(from, "2026-10-01T13:17:20.000Z"), "5h 17m");
-    assert.equal(elapsedShortWords(from, "2026-10-01T08:42:00.000Z"), "42m");
-    assert.equal(elapsedShortWords(from, "2026-10-01T10:00:00.000Z"), "2h");
-    assert.equal(elapsedShortWords(from, "2026-10-01T08:00:20.000Z"), null);
+  it("says how long a finished build worked in the card's short units", () => {
+    const took = (ms: number) => workedShortWords({ ms, since: null });
+    assert.equal(took((5 * 60 + 17) * 60_000 + 20_000), "5h 17m");
+    assert.equal(took(42 * 60_000), "42m");
+    assert.equal(took(2 * 3_600_000), "2h");
+    assert.equal(took(20_000), null);
+    assert.equal(workedShortWords(undefined), null, "a build whose start is unknown");
   });
 
   it("puts it in the status line instead of the bare elapsed time", () => {
@@ -464,6 +465,53 @@ describe("the time a run was given", () => {
     );
     const { graph, summary, rows } = rowsOf(events);
     assert.equal(statusLine(graph, summary, rows, START + 39 * 60_000).strong, "Checking · 38 min of 1 h");
+  });
+});
+
+describe("the clock counts the time a build worked", () => {
+  const HOUR = 60;
+  /** An 8 h night: an hour of work, then the app closed under it; a launch ten hours later pauses it. */
+  function interrupted(): EventEnvelope[] {
+    minute = 0;
+    const events = [
+      event("run_registered", { goal: "A sword in ice", budgets: { wallClockMs: 8 * 3_600_000 } }),
+      event("run_started", { goal: "A sword in ice", mode: "director" }),
+    ];
+    minute = HOUR;
+    events.push(event("autopilot_decision", { decision: "the sword needs more light" }));
+    minute = 11 * HOUR;
+    events.push(event("run_finished", { victory: false, stoppedBecause: "interrupted by restart" }));
+    events.push(event("autopilot_paused", {}));
+    return events;
+  }
+  /** The same night resumed two hours after the launch paused it. */
+  function resumed(): EventEnvelope[] {
+    const events = interrupted();
+    minute = 13 * HOUR;
+    events.push(event("run_registered", { goal: "A sword in ice", resumed: true }));
+    events.push(event("run_started", { goal: "A sword in ice", resumed: true }));
+    return events;
+  }
+
+  it("says how long a paused build has worked, against the time it was given", () => {
+    const { graph, summary, rows } = rowsOf(interrupted());
+    const line = statusLine(graph, summary, rows, START + 12 * HOUR * 60_000);
+    assert.equal(line.strong, "Paused · 1 h of 8 h");
+  });
+
+  it("goes on from the time worked: neither the pause nor the closed app counts", () => {
+    const events = resumed();
+    const { graph, summary, rows } = rowsOf(events);
+    const resumedAt = Date.parse(events.at(-2)?.created_at ?? "");
+    assert.equal(statusLine(graph, summary, rows, resumedAt + 5 * 60_000).strong, "Building · 1 h 5 min of 8 h");
+  });
+
+  it("names the time on every closed build", () => {
+    const { graph, summary, rows } = rowsOf(night());
+    assert.equal(statusLine(graph, summary, rows).strong, "Live in your game · 17 min");
+    const failed = [...night({ finished: true }).slice(0, -1), event("run_finished", { failure: { message: "x" } })];
+    const stopped = rowsOf(failed);
+    assert.equal(statusLine(stopped.graph, stopped.summary, stopped.rows).strong, "Build failed · 17 min");
   });
 });
 

@@ -281,6 +281,11 @@ export interface RunFinishedPayload extends RunScope {
   summary?: unknown;
   mode?: string;
   durationMs?: number;
+  /**
+   * On a close a later launch settled for a run the app died under: when its work last happened
+   * (the conversation's newest record before that launch), where its working time ends.
+   */
+  workedUntil?: string;
 }
 
 /** One part of the plan, as the start and plan-review records list it. */

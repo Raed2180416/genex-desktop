@@ -102,7 +102,7 @@ describe("a later launch reads only what came after the last one", () => {
       if (e.data.event_type === "plugin_consent" && p.state === "declined") return [`question ${p.consentId}`];
       return [];
     });
-  const question = (threadId: string): EventData =>
+  const question = (threadId: string, extra: Record<string, unknown> = {}): EventData =>
     custom("plugin_consent", {
       consentId: "publish",
       pluginId: "example",
@@ -113,6 +113,7 @@ describe("a later launch reads only what came after the last one", () => {
       threadId,
       prompt: "Publish?",
       state: "pending",
+      ...extra,
     });
 
   it("the boot repair folds on from its checkpoint and closes exactly what the new lifetime left open", async () => {
@@ -146,6 +147,28 @@ describe("a later launch reads only what came after the last one", () => {
     // Nothing is left open, so a third launch appends nothing.
     await new RecoveryService(core, {} as CoreInternals).closeInterruptedWork();
     assert.equal((await core.store.listEvents(thread)).length, events.length);
+    await lite.close();
+  });
+
+  it("closes a run with the time its work last happened, not the time of the repair's own records", async () => {
+    const lite = await coreLite();
+    const { core } = lite;
+    const thread = await core.store.createThread({ title: "night" });
+    await core.store.appendEvents(thread, [custom("run_started", { runId: "night", project: "arena" })]);
+    await new RecoveryService(core, {} as CoreInternals).closeInterruptedWork();
+    // The next lifetime starts it again, a worker asks a question, and the app dies under both.
+    await core.store.appendEvents(thread, [
+      custom("run_started", { runId: "late", project: "arena" }),
+      question(thread, { runId: "late" }),
+    ]);
+    const lastWork = (await core.store.listEvents(thread)).at(-1)?.created_at;
+    await new RecoveryService(core, {} as CoreInternals).closeInterruptedWork();
+
+    const events = await core.store.listEvents(thread);
+    assert.deepEqual(closures(events).slice(-2), ["question publish", "run late"], "the withdrawal is written first");
+    const close = events.findLast((e) => e.data.type === "custom" && e.data.event_type === "run_finished");
+    const payload = close?.data.type === "custom" ? (close.data.payload as { workedUntil?: string }) : null;
+    assert.equal(payload?.workedUntil, lastWork);
     await lite.close();
   });
 

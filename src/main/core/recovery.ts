@@ -119,6 +119,11 @@ interface RepairState {
   /** Claude's tool permission questions still unanswered, by request id, in the order they were asked. */
   toolQuestions: Array<[string, ToolPermissionEvent]>;
   inbox: InboxState;
+  /**
+   * When the conversation's newest record was written: the last moment the app was there to work
+   * on its runs. Absent from a checkpoint written before the fold kept it, until a record follows.
+   */
+  lastAt?: string;
 }
 
 /** The words a run record carries, without the fields it left out. */
@@ -179,12 +184,14 @@ const REPAIR_FOLD: ThreadFold<RepairState> = {
     const runs = new Map(previous?.runs);
     const open: OpenQuestions = { consents: new Map(previous?.questions), tools: new Map(previous?.toolQuestions) };
     for (const event of events) foldRepairRecord(event.data, runs, open);
+    const lastAt = events.at(-1)?.created_at ?? previous?.lastAt;
     return {
       turns: interruptedTurnsIn(events, previous?.turns),
       runs: [...runs],
       questions: [...open.consents],
       toolQuestions: [...open.tools],
       inbox: foldInbox(previous?.inbox ?? null, events),
+      ...(lastAt ? { lastAt } : {}),
     };
   },
 };
@@ -375,7 +382,7 @@ export class RecoveryService {
       await this.#withdrawOpenQuestions(thread.id, state.questions);
       await this.#withdrawToolQuestions(thread.id, state.toolQuestions);
       for (const [runId, started] of new Map(state.runs))
-        await this.#closeInterruptedRun(thread.id, runId, started, finishedAt);
+        await this.#closeInterruptedRun(thread.id, runId, started, { finishedAt, workedUntil: state.lastAt });
     }
   }
 
@@ -443,7 +450,12 @@ export class RecoveryService {
    * closed as "interrupted by restart" with no Resume, no head and no build card, while
    * its merges sat on a ref nobody was shown.
    */
-  async #closeInterruptedRun(threadId: string, runId: string, started: RunWords, finishedAt: string): Promise<void> {
+  async #closeInterruptedRun(
+    threadId: string,
+    runId: string,
+    started: RunWords,
+    { finishedAt, workedUntil }: { finishedAt: string; workedUntil: string | undefined },
+  ): Promise<void> {
     const journal = ((await this.#core.store.readArtifact(threadId, journalArtifact(runId)).catch(() => null)) ??
       null) as RunJournal | null;
     if (journal) await this.#closeInterruptedOptimization(threadId, runId, journal, finishedAt);
@@ -456,6 +468,9 @@ export class RecoveryService {
         victory: false,
         stoppedBecause: MESSAGE.runInterrupted,
         finishedAt,
+        // The repair writes this close (and maybe its own records before it) at the next launch:
+        // the run's work ended with the conversation's last record, not now (run-state.ts).
+        ...(workedUntil ? { workedUntil } : {}),
         ...(landing ?? {}),
       }),
       ...(paused ? [customEventData(CustomEvent.AutopilotPaused, { runId, ...started })] : []),

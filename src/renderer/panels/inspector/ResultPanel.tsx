@@ -9,7 +9,7 @@ import {
   type RunGraph as RunGraphModel,
   type RunNode,
 } from "../../run-graph.ts";
-import { buildReview, elapsedWords, resultStatus } from "../../run-steps.ts";
+import { buildReview, elapsedWords, resultStatus, workedSpan } from "../../run-steps.ts";
 import { endedWords } from "../../round-status.ts";
 import { Button } from "../../ui/Button.tsx";
 import { Icon } from "../../ui/icons.tsx";
@@ -168,10 +168,11 @@ function LastLook({ graph }: { graph: RunGraphModel }): JSX.Element | null {
   return review ? <Quote label={review.label}>{review.words}</Quote> : null;
 }
 
-/** The card's subtitle: when the run started or finished, and for how long. */
+/** The card's subtitle: when the run started or finished, and how long it worked. A paused run is not finished. */
 function resultSub(graph: RunGraphModel, run: RunNode, outcome: RunSummary | null): string {
-  const duration = elapsedWords(outcome?.startedAt ?? run.startedAt, outcome?.endedAt ?? run.finishedAt);
+  const duration = workedSpan(outcome?.worked) ?? elapsedWords(run.startedAt, run.finishedAt);
   if (graph.active) return `Started ${formatTime(run.startedAt)}${duration ? ` · ${duration} so far` : ""}`;
+  if (run.paused) return `Paused${duration ? ` · ${duration}` : ""}`;
   return `Finished ${formatTime(run.finishedAt ?? outcome?.endedAt ?? null)}${duration ? ` · ${duration}` : ""}`;
 }
 

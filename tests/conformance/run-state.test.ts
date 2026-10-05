@@ -6,11 +6,14 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  executionActivity,
   executionStep,
   recordedRunLoop,
   roundOutcome,
   runExecution,
   runExecutions,
+  workedMs,
+  workStart,
 } from "../../src/shared/run-state.ts";
 import { summarizeRun } from "../../src/shared/run-summary.ts";
 import { lastNightForProject } from "../../src/shared/run-review.ts";
@@ -147,6 +150,8 @@ describe("where a run stands", () => {
       startedAt: "run_started",
       openedAt: "run_started",
       endedAt: null,
+      worked: { ms: 0, since: "run_started" },
+      activeAt: null,
     });
     assert.equal(step(started, "run_finished")?.state, "finished");
     assert.equal(step(started, "run_finished")?.status, "completed");
@@ -181,6 +186,62 @@ describe("where a run stands", () => {
     assert.equal(step(reopened, "run_started")?.openedAt, "run_registered", "the restart's own start moves nothing");
     const resumed = step(step(started, "run_finished", { executionStatus: "paused" }), "run_registered");
     assert.equal(resumed?.openedAt, "run_started", "a resumed pause goes on with the time it had");
+  });
+
+  const at = (minute: number) => new Date(minute * 60_000).toISOString();
+  const lifecycle = (current: Parameters<typeof executionStep>[0], type: string, minute: number, payload = {}) =>
+    executionStep(current, "r", { event_type: type, payload, at: at(minute) });
+  /** A run started at minute 0 whose last own record was written at `minute`. */
+  const workingUntil = (minute: number) => executionActivity(lifecycle(null, "run_started", 0), at(minute));
+
+  it("counts the time it worked: never a pause, a closed app, or a finished run before its reopen", () => {
+    const started = lifecycle(null, "run_registered", 0);
+    const sameStretch = lifecycle(started, "run_started", 1);
+    assert.deepEqual(sameStretch?.worked, { ms: 0, since: at(0) }, "the start's own record goes on with it");
+    const working = executionActivity(sameStretch, at(60));
+    assert.equal(working?.activeAt, at(60));
+    // The app died an hour in; the next launch settles the run ten hours later and pauses it.
+    const paused = lifecycle(lifecycle(working, "run_finished", 600, { workedUntil: at(60) }), "autopilot_paused", 600);
+    assert.ok(paused);
+    assert.deepEqual(paused.worked, { ms: 60 * 60_000, since: null });
+    assert.equal(executionActivity(paused, at(601)), paused, "a closed run is not working");
+    assert.equal(workedMs(paused.worked, 900 * 60_000), 60 * 60_000, "a paused clock stands still");
+    assert.equal(workStart(paused.worked), null);
+    const resumed = lifecycle(paused, "run_registered", 720, { resumed: true });
+    assert.ok(resumed);
+    assert.deepEqual(resumed.worked, { ms: 60 * 60_000, since: at(720) });
+    assert.equal(workedMs(resumed.worked, 725 * 60_000), 65 * 60_000);
+    assert.equal(workStart(resumed.worked), 660 * 60_000, "the start it would have had without the pause");
+    const pausedAgain = lifecycle(resumed, "run_paused", 730);
+    assert.equal(pausedAgain?.worked.ms, 70 * 60_000);
+    assert.equal(lifecycle(pausedAgain, "autopilot_resumed", 800)?.worked.since, at(800));
+    const reopened = lifecycle(lifecycle(resumed, "run_finished", 740), "run_registered", 900);
+    assert.deepEqual(reopened?.worked, { ms: 0, since: at(900) }, "a reopened run's time counts from the reopen");
+  });
+
+  it("ends a stretch when the run closed it, and a settled one when its work last happened", () => {
+    const minutes = (run: ReturnType<typeof lifecycle>) => (run?.worked.ms ?? 0) / 60_000;
+    // The run's own close or pause, written as it stops: a turn may have worked long past its last record.
+    assert.equal(minutes(lifecycle(workingUntil(10), "run_finished", 22, { executionStatus: "completed" })), 22);
+    assert.equal(minutes(lifecycle(workingUntil(10), "run_finished", 22, { iterations: [] })), 22);
+    assert.equal(minutes(lifecycle(workingUntil(10), "autopilot_paused", 22)), 22, "a Stop mid-turn");
+    // Settled by the next launch: when the conversation last heard from it, not the launch's own records.
+    assert.equal(minutes(lifecycle(workingUntil(600), "run_finished", 600, { workedUntil: at(60) })), 60);
+    // Settled by a launch from before it said when: the run's newest own record.
+    assert.equal(minutes(lifecycle(workingUntil(60), "run_finished", 600, { stoppedBecause: "restart" })), 60);
+    assert.equal(minutes(lifecycle(lifecycle(null, "run_started", 0), "run_finished", 30)), 30, "nothing else heard");
+  });
+
+  it("summarizes the time worked only for a run whose start is in its history", () => {
+    clock = 300;
+    const closed = [custom("run_finished", { runId: "lost", project: "pond" })];
+    assert.equal(summarizeRun(closed, "pond", "lost").worked, undefined);
+    const worked = [
+      custom("run_started", { runId: "kept", project: "pond" }),
+      custom("facet_iteration", { runId: "kept", project: "pond" }),
+      custom("run_finished", { runId: "kept", project: "pond", executionStatus: "completed" }),
+    ];
+    assert.deepEqual(summarizeRun(worked, "pond", "kept").worked, { ms: 2000, since: null });
   });
 
   it("follows the last run started, and no other run's records", () => {
