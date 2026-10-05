@@ -45,10 +45,13 @@ export const DETAIL_ROLES = [
   "artMark",
   "artButton",
   "controlFill",
+  "promptChipFill",
   "controlHover",
   "controlText",
   "controlTextHover",
   "chipHover",
+  "sidebarSelected",
+  "sidebarHover",
   "well",
   "thumb",
   "meterTrack",
@@ -90,10 +93,13 @@ const DETAIL_SOURCE: Record<DetailRole, ColorRole> = {
   artMark: "foreground",
   artButton: "accent",
   controlFill: "hover",
+  promptChipFill: "hover",
   controlHover: "hover",
   controlText: "muted",
   controlTextHover: "foreground",
   chipHover: "controlBorder",
+  sidebarSelected: "sidebar",
+  sidebarHover: "sidebar",
   well: "background",
   thumb: "controlBorder",
   meterTrack: "hover",
@@ -118,10 +124,13 @@ const PLACE_VARIABLE: Partial<Record<DetailRole, string>> = {
   artMark: "--art-mark",
   artButton: "--art-button",
   controlFill: "--control-fill",
+  promptChipFill: "--prompt-chip-fill",
   controlHover: "--control-hover",
   controlText: "--control-text",
   controlTextHover: "--control-text-hover",
   chipHover: "--chip-hover",
+  sidebarSelected: "--sidebar-selected",
+  sidebarHover: "--sidebar-hover",
   well: "--well",
   thumb: "--thumb",
   meterTrack: "--meter-track",
@@ -212,9 +221,9 @@ export const PRESETS: ThemePreset[] = [
       "#ffffff",
       "#f9faf9",
       "#ffffff",
-      "#ededed",
+      "#f1f1f1",
       "#ebedef",
-      "#a0a1a3",
+      "#8d8e8e",
       "#eaeaea",
       "#c6c7c9",
       "#3f61f5",
@@ -235,10 +244,13 @@ export const PRESETS: ThemePreset[] = [
       artPaper: "#f6f6f6",
       artMark: "#fefeff",
       artButton: "#e8e9ec",
-      controlFill: "#f4f4f4",
+      controlFill: "#f0f0f0",
+      promptChipFill: "#f4f4f4",
       controlText: "#3f3f3f",
       controlTextHover: "#303030",
       chipHover: "#ececec",
+      sidebarSelected: "#ecedee",
+      sidebarHover: "#f0f2f3",
       well: "#efefef",
       thumb: "#ffffff",
       meterFill: "#b6b6b6",
@@ -671,6 +683,26 @@ function accentButton(p: Palette): { fill: string; hover: string; text: string }
   const hover = p.accentHover ?? (p.accentFill ? setFillHover(p.accentFill) : derived.hover);
   return { fill, hover, text: p.accentText ?? "#ffffff" };
 }
+/** The sidebar's row fills a palette may set; unset, each is mixed into the sidebar (`sidebarRowMix`). */
+export type SidebarRow = Extract<DetailRole, "sidebarSelected" | "sidebarHover">;
+/** Whether a role is one of the sidebar's row fills. */
+export const isSidebarRow = (role: AnyRole): role is SidebarRow =>
+  role === "sidebarSelected" || role === "sidebarHover";
+/** The percentage each unset row fill mixes in: of the hover on a dark sidebar, of the text on a light one. */
+const SIDEBAR_ROW_SHARE: Record<SidebarRow, { dark: number; light: number }> = {
+  sidebarSelected: { dark: 62, light: 7 },
+  sidebarHover: { dark: 45, light: 4 },
+};
+/**
+ * What an unset sidebar row fill mixes into the sidebar, and how much (in oklab). Rows are quieter
+ * than the shared hover in dark themes and visible at all in light ones.
+ */
+export function sidebarRowMix(p: Palette, row: SidebarRow): { color: string; percent: number } {
+  const share = SIDEBAR_ROW_SHARE[row];
+  return luminance(p.sidebar) > 0.4
+    ? { color: p.foreground, percent: share.light }
+    : { color: p.hover, percent: share.dark };
+}
 /**
  * The CSS variables a palette draws. Every colour is drawn exactly as set, however low its contrast:
  * the palette's author owns readability (the colour tweaker shows each role's contrast). Only a
@@ -690,10 +722,10 @@ export function themeVariables(p: Palette, contrast = DEFAULT_CONTRAST): Record<
   const controlBorder = controlEdge(p, contrast, mix);
   const hoverFill = (color: string) => mix(color, onColor(color) === "#000000" ? "#ffffff" : "#000000", 92);
   const primary = accentButton(p);
-  // Sidebar rows are quieter than the shared hover in dark themes and visible at all in light ones.
-  const lightSidebar = luminance(p.sidebar) > 0.4;
-  const sidebarFill = (dark: number, light: number) =>
-    lightSidebar ? mix(p.foreground, p.sidebar, light) : mix(p.hover, p.sidebar, dark);
+  const sidebarFill = (row: SidebarRow) => {
+    const { color, percent } = sidebarRowMix(p, row);
+    return mix(color, p.sidebar, percent);
+  };
   return {
     "--background": p.background,
     "--foreground": ink,
@@ -718,8 +750,8 @@ export function themeVariables(p: Palette, contrast = DEFAULT_CONTRAST): Record<
     "--accent-hover": primary.hover,
     "--ring": accentInk,
     "--focus-edge": mix(p.accent, controlBorder, 18),
-    "--sidebar-selected": sidebarFill(62, 7),
-    "--sidebar-hover": sidebarFill(45, 4),
+    "--sidebar-selected": sidebarFill("sidebarSelected"),
+    "--sidebar-hover": sidebarFill("sidebarHover"),
     "--primary": ink,
     "--primary-foreground": p.background,
     "--control-quiet": p.field,

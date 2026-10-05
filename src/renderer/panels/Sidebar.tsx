@@ -21,6 +21,7 @@ import {
 import { NotificationsMenu } from "./NotificationsMenu.tsx";
 import type { Notice } from "../notifications.ts";
 import type { LaunchInSidebar } from "../state/launch.ts";
+import { sidebarGames } from "../state/threads.ts";
 
 interface Props {
   threads: ConversationRecord[];
@@ -89,23 +90,9 @@ function Hint({
 /** How long after the last scroll the list's scrollbar stays shown. */
 const SCROLL_SETTLE_MS = 800;
 
-/** Pinned games first, then the most recently opened or worked on, then by title. */
+/** The games in the sidebar's order (`sidebarGames`). */
 function useSortedGames(games: GameProject[], threads: ConversationRecord[]): GameProject[] {
-  return useMemo(
-    () =>
-      [...games].sort((a, b) => {
-        if (Boolean(a.pinned) !== Boolean(b.pinned)) return a.pinned ? -1 : 1;
-        const recent = (game: GameProject) =>
-          Math.max(
-            Date.parse(game.lastOpenedAt || game.createdAt) || 0,
-            ...threads
-              .filter((thread) => meta(thread).project === game.name)
-              .map((thread) => Date.parse(thread.updated_at) || 0),
-          );
-        return recent(b) - recent(a) || a.title.localeCompare(b.title);
-      }),
-    [games, threads],
-  );
+  return useMemo(() => sidebarGames(games, threads), [games, threads]);
 }
 
 /**

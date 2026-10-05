@@ -32,6 +32,7 @@ import {
   returnTarget,
   Room,
   roomOf,
+  sidebarGames,
   statusBootstrapped,
   statusReported,
   threadMeta,
@@ -348,6 +349,23 @@ describe("the threads store: the open game is derived from the open chat", () =>
     assert.equal(gameRemovedFromThreads(inPond, "rift"), inPond, "another game's removal changes nothing here");
   });
 
+  it("orders the sidebar's games by work in their chats, never by which one was opened last", () => {
+    const names = (games: GameProject[]) => games.map((game) => game.name);
+    const games = [
+      gameProject("rift", { lastOpenedAt: "2026-09-05T00:00:00Z" }),
+      gameProject("pond"),
+      gameProject("moss", { pinned: true }),
+      gameProject("fern", { createdAt: "2026-09-02T12:00:00Z" }),
+    ];
+    assert.deepEqual(names(sidebarGames(games, [studioThread, pond, rift])), ["moss", "pond", "fern", "rift"]);
+    const replied = thread("rift-chat", { kind: "game", project: "rift" }, "2026-09-04T00:00:00Z");
+    assert.deepEqual(
+      names(sidebarGames(games, [studioThread, pond, replied])),
+      ["moss", "rift", "pond", "fern"],
+      "a message or reply in its chat moves a game up",
+    );
+  });
+
   it("orders the rail and finds Cmd-1's target among live games", () => {
     const games = [gameProject("rift", { primaryThreadId: "rift-chat" }), gameProject("pond")];
     assert.deepEqual(railThreadIds(loaded.records, games), ["studio", "rift-chat", "pond-chat"]);
@@ -544,8 +562,15 @@ describe("agent screens, toasts and layout", () => {
     const fresh = createLayoutStore(memoryStorage({ "studio.chatWidth": "9000", "studio.previewView": "gone" }));
     assert.deepEqual(
       { ...fresh.getState() },
-      { sidebarOpen: true, chatWidth: 388, stageView: "live", chatDragWidth: null },
+      { sidebarOpen: true, chatWidth: 434, stageView: "live", chatDragWidth: null },
     );
+  });
+
+  it("moves a chat left at the earlier default width to the current default, and keeps one a person set", () => {
+    // Any layout change wrote the width, so 388 in storage is the earlier default, not a choice.
+    const old = createLayoutStore(memoryStorage({ "studio.chatWidth": "388" }));
+    assert.equal(old.getState().chatWidth, 434);
+    assert.equal(createLayoutStore(memoryStorage({ "studio.chatWidth": "408" })).getState().chatWidth, 408);
   });
 
   it("never remembers a file opened beside the chat as the stage view", () => {
