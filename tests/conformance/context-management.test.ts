@@ -84,10 +84,10 @@ test("context is provider/model/role specific; unknown remains unknown and compa
   );
 });
 
-test("context policies persist by model/chat, inherit, validate bounds and refuse unsupported native control", async () => {
+test("context policies persist by model/chat, inherit, validate bounds and refuse a threshold for a provider's CLI", async () => {
   const dir = await tmpDir("context-settings-"),
     file = path.join(dir, "context.json");
-  const settings = new ContextPreferences(file, async () => ({ supported: false, reason: "unavailable" }));
+  const settings = new ContextPreferences(file);
   await settings.set("bonsai", "small", { mode: "custom", thresholdPercent: 55 });
   assert.equal((await settings.get("bonsai", "small", "chat")).policy.thresholdPercent, 55);
   await Promise.all([
@@ -98,13 +98,20 @@ test("context policies persist by model/chat, inherit, validate bounds and refus
   assert.equal((await reopened.get("bonsai", "small", "chat")).policy.thresholdPercent, 65);
   await reopened.set("bonsai", "small", null, "chat");
   assert.equal((await reopened.get("bonsai", "small", "chat")).policy.thresholdPercent, 55);
-  await assert.rejects(
-    settings.set("claude-code", "default", { mode: "custom", thresholdPercent: 70 }),
-    /not verified/,
-  );
+  // Claude Code and Codex compact at their own point (owner, 2026-10-05): no threshold of ours.
+  for (const engine of ["claude-code", "codex"]) {
+    await assert.rejects(
+      settings.set(engine, "default", { mode: "custom", thresholdPercent: 70 }),
+      /applies only to local models/,
+    );
+    assert.deepEqual(
+      [(await settings.get(engine, "default")).owner, (await settings.get(engine, "default")).configurable],
+      ["provider", false],
+    );
+  }
   for (const value of [0, 100, NaN, Infinity])
     assert.throws(() => validateContextPolicy({ mode: "custom", thresholdPercent: value }));
-  assert.ok(!(await readFile(file, "utf8")).includes("claude-code"));
+  assert.ok(!/claude-code|codex/.test(await readFile(file, "utf8")));
 });
 
 test("later context samples retain the recorded checkpoint time only for the same session", () => {

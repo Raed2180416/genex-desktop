@@ -34,6 +34,7 @@ import { clip, CLIP_BRIEF, CLIP_GAME_TITLE } from "./text.ts";
 import { SECOND_MS, sleep } from "./time.ts";
 import { recordFirstPreview } from "./first-preview.ts";
 import { canFallBack, runToolLoop } from "./tool-loop.ts";
+import { briefSummary, goesOn } from "./chat-continuity.ts";
 import { compactedSummary, endedByCompaction } from "./compaction-log.ts";
 import { TurnStop, sayInTurn } from "./turn-record.ts";
 import type { TurnOptions, TurnOutcome } from "./turn-loop.ts";
@@ -295,19 +296,25 @@ async function readChat(ctx: HarnessCtx, options: DelegatedOptions): Promise<Cha
   const reopening = reopens(options.afterNight, commission);
   const launchTool = launchToolFor(options, reopening);
   // This chat's contractor session, if any — follow-ups resume it instead of starting a new
-  // mind that only sees the last line ("keep going" with no idea what the game is).
+  // mind that only sees the last line ("keep going" with no idea what the game is). Only the
+  // chat's latest goes on: one another model answered after missed those turns (chat-continuity.ts).
   const events = await ctx.call(HostMethod.EventsList, { threadId });
-  const prior = lastContractorSession(events, engine);
+  const latest = lastContractorSession(events);
+  const prior = goesOn(latest, engine);
   // A message sent while the chat was compacted carries the session the compaction ended.
   const asked = endedByCompaction(events, options.resume) ? null : options.resume;
   const resume = asked || prior?.sessionId || null;
-  const compacted = compactedSummary(events);
   // Which workspace gets the brief: THIS chat's folder, never the preview and never "the
   // newest game". Those two fallbacks were how a follow-up quietly wandered into a sibling.
   const games = await ctx.call(HostMethod.GameList);
-  const project = resolveChatProject(options, games) ?? priorProject(prior, games);
+  const project = resolveChatProject(options, games) ?? priorProject(latest, games);
   // A prior real ask means this chat is mid-conversation, whatever happened to its session.
   const hasPriorAsk = messages.some((m) => m.role === "user" && m.content?.trim() && m.content.trim() !== ask);
+  // A fresh session mid-conversation is briefed with a summary when its brief cannot carry it.
+  const compacted =
+    resume || !hasPriorAsk
+      ? compactedSummary(events)
+      : await briefSummary(ctx, { threadId, engine, model: options.model, events });
   return { ask, messages, commission, launchTool, reopening, resume, compacted, hasPriorAsk, project, games };
 }
 

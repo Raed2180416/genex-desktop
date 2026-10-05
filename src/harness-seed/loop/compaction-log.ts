@@ -1,6 +1,7 @@
 /**
- * A chat's compactions as its log records them: the `compacted` event a summary or a session's
- * handover writes (compact.ts, session-compact.ts), and what a later turn reads back from it.
+ * A chat's compactions as its log records them: the `compacted` event a summary, a session's
+ * handover or the provider's own compaction writes (compact.ts, session-compact.ts), and what a
+ * later turn reads back from it.
  */
 import { HostMethod } from "./host-methods.ts";
 import { EventKind, RunEvent } from "./run-events.ts";
@@ -34,10 +35,28 @@ export function latestCompaction(
   return null;
 }
 
-/** The handover the chat's latest compaction wrote, for a fresh session's brief; null when there is none. */
+/**
+ * The latest summary a compaction wrote, for a fresh session's brief; null when there is none. A
+ * Codex compaction writes none (it keeps its own sealed in its session), so the one before it stands.
+ */
 export function compactedSummary(events: readonly AnyRecord[] | undefined): string | null {
-  const summary = latestCompaction(events)?.payload?.summary;
-  return typeof summary === "string" && summary.trim() ? summary.trim() : null;
+  for (const event of [...(events ?? [])].reverse()) {
+    const data = event?.data ?? event;
+    if (data?.type !== EventKind.Custom || data.event_type !== RunEvent.Compacted) continue;
+    const summary = data.payload?.summary;
+    if (typeof summary === "string" && summary.trim()) return summary.trim();
+  }
+  return null;
+}
+
+/**
+ * Does this record end the chat's provider sessions? A handover or a log summary does: the next
+ * turn starts fresh, briefed with it. The provider's own compaction (`native`) does not: it
+ * compacted the session in place, and the next turn resumes it. The app's copy is
+ * shared/chat-rewind.ts `endsChatSessions`.
+ */
+export function endsSessions(data: AnyRecord | undefined): boolean {
+  return data?.type === EventKind.Custom && data.event_type === RunEvent.Compacted && data.payload?.native !== true;
 }
 
 /**
@@ -51,7 +70,6 @@ export function endedByCompaction(
   if (!sessionId) return false;
   return (events ?? []).some((event) => {
     const data = event?.data ?? event;
-    const compaction = data?.type === EventKind.Custom && data.event_type === RunEvent.Compacted;
-    return compaction && data.payload?.sessionId === sessionId;
+    return endsSessions(data) && data.payload?.sessionId === sessionId;
   });
 }

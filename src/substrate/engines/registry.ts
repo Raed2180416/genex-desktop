@@ -127,6 +127,7 @@ export class EngineRegistry {
           label: engine.label,
           kind: engine.kind,
           supportsSessions: engine.supportsSessions ?? typeof engine.delegate === "function",
+          compactsNatively: engine.compactsNatively === true,
           status,
           usage: engine.usageSnapshot?.() ?? null,
           catalog: engine.catalogSnapshot?.(),

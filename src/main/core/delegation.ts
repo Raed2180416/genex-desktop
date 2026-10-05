@@ -94,6 +94,7 @@ const MESSAGE = {
   outsideProject: (file: string) => `path is outside this project's folder: ${file}`,
   symlink: (file: string) => `refused: ${file} is a symlink`,
   directEngine: (engineId: string) => `${engineId} is a direct engine; use engine.complete`,
+  cannotCompact: (engineId: string) => `${engineId} has no compaction of its own, or no session was named to compact`,
   coordinatorOnCandidate: "coordinator cannot edit an optimization candidate",
   coordinatorNeedsThread: "coordinator needs a thread",
   candidateFrozen: "candidate is frozen",
@@ -965,6 +966,7 @@ export class DelegationService {
     const steersMidTurn = engine.steersMidTurn === true;
     const delegateTo = engine.delegate?.bind(engine);
     if (!delegateTo) throw new Error(MESSAGE.directEngine(engineId));
+    if (p.compact && !(engine.compactsNatively && p.resume)) throw new Error(MESSAGE.cannotCompact(engineId));
     const workClass = workClassOf(p.class);
     this.#core.budget.assertAllowed(workClass);
     // Coordinators and optimization workers have separate workspace authority.
@@ -1324,6 +1326,7 @@ export class DelegationService {
       // chat default when none was given.
       timeoutMs: p.timeoutMs ?? DEFAULT_CHAT_DELEGATION_TIMEOUT_MS,
       ...(p.resume ? { resume: p.resume } : {}),
+      ...(p.compact ? { compact: true } : {}),
       ...(extraReads.length ? { extraReads } : {}),
       ...(denyReads.length ? { denyReads } : {}),
       ...askFields(reach),

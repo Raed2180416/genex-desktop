@@ -294,9 +294,11 @@ async function holdingChat(compactions: Compactions, threadId: string, compactio
 }
 
 /**
- * The user's Compact now. A chat with a provider session has that session write its handover, and
- * its next turn starts fresh (session-compact.ts); otherwise, or when the session wrote none, the
- * log is summarised regardless of pressure, at low effort.
+ * The user's Compact now. A chat on an engine with a compaction of its own has its session compact
+ * itself in place (Claude Code, Codex); a chat with any other provider session, or one whose own
+ * compaction did not run, has that session write its handover, and its next turn starts fresh
+ * (session-compact.ts); otherwise, or when the session wrote none, the log is summarised
+ * regardless of pressure, at low effort.
  */
 async function compactOnRequest(studio: Studio, action: Extract<DispatchAction, { type: "compact" }>): Promise<void> {
   const { host } = studio;
@@ -309,8 +311,16 @@ async function compactOnRequest(studio: Studio, action: Extract<DispatchAction, 
   try {
     const engine = action.engine ?? EngineId.Ollama;
     const described = await host.call(HostMethod.EngineDescribe, {});
-    const sessions = supportsSessions(described.find((e: AnyRecord) => e.id === engine));
-    const bySession = sessions ? await compactSession(ctx, { threadId, engine, model: action.model }) : null;
+    const descriptor = described.find((e: AnyRecord) => e.id === engine);
+    // Only names session-compact.ts has always exported: an agent's kept copy still links.
+    const bySession = supportsSessions(descriptor)
+      ? await compactSession(ctx, {
+          threadId,
+          engine,
+          model: action.model,
+          native: descriptor?.compactsNatively === true,
+        })
+      : null;
     const report = bySession?.compacted
       ? bySession
       : await compactThread(ctx, {

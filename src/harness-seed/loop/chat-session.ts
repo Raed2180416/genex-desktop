@@ -8,16 +8,13 @@ import { launchRules, RESUME_LOOP_CHAT, type LaunchGrant } from "./launch-prompt
 import { handoverSection } from "./session-compact-prompts.ts";
 import { toolCall } from "./model-roles.ts";
 import { EventKind, InterviewMode, RunEvent } from "./run-events.ts";
+import { TRANSCRIPT_CHARS, TRANSCRIPT_MESSAGES } from "./brief-window.ts";
 import type { AnyRecord } from "../types/harness.d.ts";
 
 /** How many content words of the ask a folder name keeps. */
 const NAME_WORDS = 3;
 /** How much of the original ask a contractor's brief quotes. */
 const ORIGINAL_ASK_CHARS = 4_000;
-/** The recent conversation a contractor brief carries: its last messages, and at most this much of their text. */
-const TRANSCRIPT_MESSAGES = 20;
-const TRANSCRIPT_CHARS = 18_000;
-
 /** A game's shape as a brief reads it: its page, its entry module and its build. */
 export interface BriefShape {
   entry?: string;

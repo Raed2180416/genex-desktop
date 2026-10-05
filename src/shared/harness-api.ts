@@ -173,6 +173,8 @@ export interface HarnessDelegateParams {
   maxTurns?: number;
   timeoutMs?: number;
   resume?: string;
+  /** Compact the `resume` session with its provider's own compaction instead of a turn (`EngineDescriptor.compactsNatively`). */
+  compact?: boolean;
   extraReads?: string[];
   class?: HarnessWorkClass;
   /** A Loop chat's launch tool and `ask_user`, bridged to the contractor (MCP for Claude, the bridge for Codex). */
