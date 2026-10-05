@@ -222,11 +222,17 @@ async function probe(
     });
   });
 }
+/** The ChatGPT app's bundle names: today's, then the one it had as the Codex app. */
+const CHATGPT_APP_NAMES = ["ChatGPT.app", "Codex.app"];
+/** Where macOS apps are installed: for everyone, then for this account alone. */
+const macApplications = (home: string): string[] => ["/Applications", path.join(home, "Applications")];
+
 /**
  * Where installers put these CLIs when the login shell does not say (a slow or broken shell profile,
  * or an install whose PATH line was never added). Settings has no manual path picker, so this list
  * is the whole answer: native installers, Homebrew, npm prefixes, Volta, Bun, Claude Code's legacy
- * `~/.claude/local` install (reached only through a shell alias) and nvm's Node versions, newest first.
+ * `~/.claude/local` install (reached only through a shell alias), pnpm, mise and asdf shims, the
+ * Node versions of nvm and fnm, newest first, and last the copies the Claude and ChatGPT apps ship.
  * On Windows: Claude Code's and Codex's native installers, npm's global prefix,
  * the Node installer's folder, pnpm, Volta, Bun and Scoop.
  */
@@ -234,17 +240,14 @@ export async function standardCliDirs(
   home: string,
   platform: NodeJS.Platform = process.platform,
   env: NodeJS.ProcessEnv = process.env,
+  applications: string[] = macApplications(home),
 ): Promise<string[]> {
   if (isWindows(platform)) return windowsCliDirs(home, env);
-  let nvm: string[] = [];
-  try {
-    const root = path.join(home, ".nvm/versions/node");
-    const versions = (await readdir(root)).filter((v) => /^v\d+\.\d+\.\d+$/.test(v));
-    versions.sort(newestVersionFirst);
-    nvm = versions.map((v) => path.join(root, v, "bin"));
-  } catch {
-    /* no nvm */
-  }
+  const mac = platform === "darwin";
+  const fnmRoots = [".fnm", mac ? "Library/Application Support/fnm" : ".local/share/fnm"].map((dir) =>
+    path.join(home, dir, "node-versions"),
+  );
+  const fnm = await Promise.all(fnmRoots.map((root) => nodeVersionBins(root, "installation/bin")));
   return [
     "/opt/homebrew/bin",
     "/usr/local/bin",
@@ -254,10 +257,51 @@ export async function standardCliDirs(
     path.join(home, ".volta/bin"),
     path.join(home, ".bun/bin"),
     path.join(home, ".codex/bin"),
-    ...nvm,
+    path.join(home, mac ? "Library/pnpm" : ".local/share/pnpm"),
+    path.join(home, ".local/share/mise/shims"),
+    path.join(home, ".asdf/shims"),
+    ...(await nodeVersionBins(path.join(home, ".nvm/versions/node"), "bin")),
+    ...fnm.flat(),
     "/usr/bin",
     "/bin",
+    ...(mac ? await desktopAppCliDirs(home, applications) : []),
   ];
+}
+/**
+ * The CLIs the desktop apps ship, searched last so that one the person installed always wins. The
+ * Claude app keeps Claude Code under Application Support, one folder per version and build; the
+ * ChatGPT app (named Codex before) carries a Codex launcher that runs the copy inside it.
+ */
+async function desktopAppCliDirs(home: string, applications: string[]): Promise<string[]> {
+  const claude = path.join(home, "Library/Application Support/Claude/claude-code");
+  const builds = await Promise.all(
+    (await versionsNewestFirst(claude)).map(async (version) =>
+      (await entryNames(path.join(claude, version))).map((build) =>
+        path.join(claude, version, build, "claude.app/Contents/MacOS"),
+      ),
+    ),
+  );
+  const chatgpt = applications.flatMap((dir) =>
+    CHATGPT_APP_NAMES.map((app) => path.join(dir, app, "Contents/Resources/codex-cli/bin")),
+  );
+  return [...builds.flat(), ...chatgpt];
+}
+/** Each Node version's `bin` under a version manager's `root`, newest first; none without the manager. */
+async function nodeVersionBins(root: string, bin: string): Promise<string[]> {
+  return (await versionsNewestFirst(root)).map((version) => path.join(root, version, bin));
+}
+/** The `1.2.3` or `v1.2.3` folders in `dir`, newest first; none when `dir` cannot be read. */
+async function versionsNewestFirst(dir: string): Promise<string[]> {
+  const versions = (await entryNames(dir)).filter((name) => /^v?\d+\.\d+\.\d+$/.test(name));
+  return versions.sort(newestVersionFirst);
+}
+/** The names in `dir`; none when it is missing or unreadable. */
+async function entryNames(dir: string): Promise<string[]> {
+  try {
+    return await readdir(dir);
+  } catch {
+    return [];
+  }
 }
 /** Where the coding CLIs install themselves on Windows, native installers first. */
 function windowsCliDirs(home: string, env: NodeJS.ProcessEnv): string[] {
@@ -278,10 +322,10 @@ function windowsCliDirs(home: string, env: NodeJS.ProcessEnv): string[] {
     join(home, "scoop", "shims"),
   ];
 }
-/** Sort order for `v24.1.0`-style names: the newest version first. */
+/** Sort order for `v24.1.0`- and `2.1.286`-style names: the newest version first. */
 function newestVersionFirst(a: string, b: string): number {
-  const left = a.slice(1).split(".").map(Number);
-  const right = b.slice(1).split(".").map(Number);
+  const left = a.replace(/^v/, "").split(".").map(Number);
+  const right = b.replace(/^v/, "").split(".").map(Number);
   for (const [index, part] of right.entries()) {
     const difference = part - (left[index] ?? 0);
     if (difference) return difference;

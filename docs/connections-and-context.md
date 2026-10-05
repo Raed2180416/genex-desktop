@@ -88,8 +88,8 @@ A sign-in event names its own provider; its adjacent harness reply replaces dupl
 
 ## Install a coding CLI
 
-Install (Update for a CLI too old) in first launch, Settings → Model Providers and the chat's
-sign-in card installs Claude Code or Codex with its vendor's own installer, in the background:
+Install (Update for a CLI too old) in Settings → Model Providers and the chat's sign-in card, and
+Set up in first launch, installs Claude Code or Codex with its vendor's own installer, in the background:
 `install.sh` on macOS and Linux, `install.ps1` on Windows, from `claude.ai` and
 `chatgpt.com/codex`. Main fetches the script over HTTPS itself, runs it as the person with the
 contractor environment (no keys, none of the other vendor's variables; Codex with

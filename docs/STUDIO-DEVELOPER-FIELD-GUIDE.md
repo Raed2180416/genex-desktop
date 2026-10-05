@@ -39,6 +39,8 @@ the temporary folder as HOME (outside the checkout, where the app never takes a 
 links your login keychain, which macOS finds through HOME), the system PATH,
 none of the caller's provider variables, and a Claude Code Keychain item named after the
 profile's own folder ([fresh-machine.ts](../scripts/studio-dev/fresh-machine.ts)).
+Machine-wide installs still count, as on a new account: Homebrew, `/usr/local/bin` and the
+ChatGPT app's Codex in `/Applications`.
 `shell --profile <name>` opens that account's terminal for installing and signing in by hand, and
 its `npm install -g` stays in the profile. A Claude Code sign-in leaves a
 `Claude Code-credentials-<hash>` item in your login keychain that neither sign-out nor `clean`
