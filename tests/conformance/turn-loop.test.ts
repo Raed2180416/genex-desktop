@@ -1118,7 +1118,7 @@ describe("chat intake", () => {
     assert.match(briefs[0]!, /add fog/);
     const messages = await rig.core.store.listMessages(rig.core.mainThread);
     assert.ok(
-      !messages.some((m) => m.content?.includes("Tell me what to build")),
+      !messages.some((m) => m.content?.includes("What should we make?")),
       "a bound chat must never get the smalltalk deflection",
     );
   });
@@ -1145,7 +1145,7 @@ describe("chat intake", () => {
     assert.equal(delegations, 0, "'hi' is not a brief");
     assert.equal((await rig.core.games.list()).length, 0, "'hi' must never become a project");
     const messages = await rig.core.store.listMessages(rig.core.mainThread);
-    assert.match(messages.at(-1)?.content ?? "", /Tell me what to build/);
+    assert.match(messages.at(-1)?.content ?? "", /What should we make\?/);
   });
 });
 
