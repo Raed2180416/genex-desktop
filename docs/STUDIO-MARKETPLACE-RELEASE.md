@@ -26,7 +26,8 @@ records are immutable and still name the old repository, so the move takes three
    (`STUDIO_CATALOG_POLICY` in `src/substrate/plugins/marketplace.ts`) and treats them as one
    source, so an installed official plugin keeps its identity, account and data. Done.
 2. The next official Genex and Blender releases name `genex-games/genex-desktop` in their
-   records, and `policy.json` in genex-plugins switches to it.
+   records; `policy.json` in genex-plugins lists it first, then the legacy repository. Done for
+   Genex 1.5.0; Local Blender 1.1.1 (the bundled 1.1.0 code; catalog installs get the current backend and panel) is next.
 3. Once every current official record names the new repository, a later app release drops
    `Rabneba/ai-game-studio` from its policy.
 

@@ -52,7 +52,8 @@ try {
     if (spec.subdir) entry.subdir = spec.subdir;
     if (spec.docsUrl) entry.docsUrl = spec.docsUrl;
     if (spec.minStudioVersion) entry.minStudioVersion = spec.minStudioVersion;
-    if (spec.tier === "official") official[manifest.id] = { publisher: manifest.publisher, repo: spec.repo };
+    // The catalog policy shape: an official id's repositories, current first, then any it moved from.
+    if (spec.tier === "official") official[manifest.id] = { publisher: manifest.publisher, repos: [spec.repo] };
     entries.push(entry);
     await mkdir(path.dirname(path.join(uploads, rel)), { recursive: true });
     await writeFile(path.join(uploads, rel), bytes);
