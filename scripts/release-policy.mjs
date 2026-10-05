@@ -14,10 +14,15 @@ const WINDOWS_FEED_ASSETS = {
   "the Windows installer": (name) => name.endsWith(".exe"),
 };
 
+/** The tag a release of `version` is published under; a malformed version has none. */
+export function releaseTag(version) {
+  if (!VERSION.test(version)) throw new Error("Invalid release version");
+  return `v${version}`;
+}
+
 /** Decide release eligibility before any signing credentials or packaging work are available. */
 export function releaseIntent({ version, refType, refName, publish, mainAncestor }) {
-  if (!VERSION.test(version)) throw new Error("Invalid release version");
-  const tag = `v${version}`;
+  const tag = releaseTag(version);
   const tagged = refType === "tag";
   if (tagged && refName !== tag) throw new Error(`Tag ${refName} does not match ${tag}`);
   const uploads = tagged || publish;

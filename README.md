@@ -97,9 +97,11 @@ installed; a Squirrel `Setup.exe` on Windows). Run `npm run test:packaged` again
 build is ad-hoc signed and does not establish trusted distribution. Package from a checkout with its
 own `node_modules`; a symlinked one is refused.
 
-Signed releases come from [`.github/workflows/release.yml`](.github/workflows/release.yml): push a
-`v<version>` tag matching `package.json` from `main` history (a version with `-` is a
-pre-release), or dispatch on `main` with **publish** checked. Build-only dispatches on `dev`
+Signed releases come from [`.github/workflows/release.yml`](.github/workflows/release.yml): merge
+a `package.json` version bump into `main` and
+[`tag-release.yml`](.github/workflows/tag-release.yml) tags it `v<version>` and starts the
+release (a version with `-` is a pre-release; an existing tag is never moved). Pushing that tag
+by hand, or dispatching on `main` with **publish** checked, works too. Build-only dispatches on `dev`
 produce unsigned candidates without signing access. Distribution needs a protected `release`
 environment with these secrets:
 

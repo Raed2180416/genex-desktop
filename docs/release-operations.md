@@ -54,8 +54,11 @@ also exercises its terminal; Windows checks
 the installer/uninstaller and a scripted packaged chat turn. Apps and DMGs both
 need notarization/stapling. Platform provenance records the source and lock digest alongside
 artifact hashes; `SHA256SUMS` covers the final inventory. Existing public assets and drafts from
-a different source cannot be replaced. The owner creates the matching version tag; draft upload
-resolves that remote tag to the candidate commit and refuses missing or mismatched tags. A draft
+a different source cannot be replaced. The owner merges the version bump into `main`, and
+`tag-release.yml` creates the matching annotated tag on that commit and dispatches `release.yml`
+on it (a tag the workflow token pushes starts no workflow); a version whose tag exists is left
+alone. Draft upload resolves that remote tag to the candidate commit and refuses missing or
+mismatched tags. A draft
 release is reviewed before publication. Maintain release notes that
 name behavior changes, migration requirements and known limitations.
 
@@ -89,8 +92,10 @@ the release CDN answers 304 and Electron forgets the update. Copies built before
 
 Rules for every release, because each mistake strands installed copies:
 
-1. Bump `package.json` `version`; tag exactly `v<version>` on `main`, in the public repository
-   (`release.yml` drafts into the repository it runs in).
+1. Bump `package.json` `version` and merge it into `main` in the public repository, which tags
+   exactly `v<version>` (`release.yml` drafts into the repository it runs in). Run the full
+   `npm test` first: the PR checks run only its fast group, and the release regression stops on
+   any failure.
 2. Publish each reviewed draft as a full release. The service skips drafts and pre-releases, so a
    `-rc` version reaches no installed copy. Draft upload refuses a release missing what the
    service serves: the `-darwin-arm64` zip, and Windows `RELEASES`, full `.nupkg` and installer.
