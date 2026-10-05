@@ -51,14 +51,16 @@ const SIDECAR_POLL_MS = 400;
 
 /** What this engine says to the user. */
 const MESSAGE = {
-  StartRemedy: "Start Ollama (or let the studio start its bundled copy) and try again.",
+  StartRemedy: "Install or start Ollama, then try again.",
   PullRemedy: "Pull a recommended model from the Models tab.",
   NoModel: "no local model is installed",
   NoVision: "vision input is not supported by this model's reported capabilities",
   NoTools: "tool calling is not supported by this model's reported capabilities",
   EstimatedContext: "Runtime context is unknown; 8K is an estimated planning budget. Load the model to measure it.",
   NotAnswering: (host: string) =>
-    `Ollama is not running at ${host} (it no longer answers). Start Ollama (or let the studio start its bundled copy) and try again.`,
+    `Ollama is not running at ${host} (it no longer answers). Start Ollama and try again.`,
+  NotRunningForDownload: (host: string) =>
+    `Ollama is not running at ${host}. Install or start Ollama, then download again.`,
   ModelMissing: (model: string) =>
     `the model ${model} is not installed in Ollama — pull it from the Models tab or pick another`,
   NotInstalled: (model: string) => `${model || "This model"} is not installed in Ollama.`,
@@ -134,7 +136,7 @@ export class OllamaClient {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ model, stream: true }),
       ...(signal ? { signal } : {}),
-    });
+    }).catch((err: unknown) => this.#rethrowUnlessGone(err));
     if (!response.ok || !response.body) {
       throw classifyHttpFailure(EngineId.Ollama, response.status, await response.text().catch(() => ""));
     }
@@ -142,7 +144,7 @@ export class OllamaClient {
     const decoder = new TextDecoder();
     let buffer = "";
     while (true) {
-      const { done, value } = await reader.read();
+      const { done, value } = await reader.read().catch((err: unknown) => this.#rethrowUnlessGone(err));
       if (done) break;
       const lines = `${buffer}${decoder.decode(value, { stream: true })}`.split("\n");
       // The last piece has no newline yet: it is a line still arriving.
@@ -152,6 +154,15 @@ export class OllamaClient {
         if (line) yield JSON.parse(line) as PullProgress;
       }
     }
+  }
+
+  /**
+   * A download whose connection failed: with no server answering, that is Ollama missing or
+   * stopped, said so instead of the fetch's own "fetch failed"; any other failure stays as it was.
+   */
+  async #rethrowUnlessGone(err: unknown): Promise<never> {
+    if (await this.version()) throw err;
+    throw new EngineError(EngineFailureKind.Unavailable, EngineId.Ollama, MESSAGE.NotRunningForDownload(this.host));
   }
 
   async remove(model: string): Promise<void> {

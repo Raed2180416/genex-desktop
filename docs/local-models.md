@@ -27,6 +27,11 @@ has no search API, so main reads that tag's manifest from `registry.ollama.ai` (
 Download through the normal Ollama pull. Fixture profiles refuse the lookup. Installed Ollama models
 outside the catalog are listed as added from Ollama.
 
+Every Ollama download goes through the person's own Ollama at its host; Studio neither installs
+nor starts one. A pull that finds nothing answering there fails as `Unavailable` with that host
+named, not as the fetch's bare error, and its row then offers Install Ollama beside Download: the
+platform's page on ollama.com. The person installs and starts Ollama, then downloads again.
+
 Settings → Local Models downloads Bonsai weights and the Q8 vision projector directly from pinned
 Prism ML Hugging Face revisions, plus the pinned Prism llama.cpp macOS arm64 release.
 Stock Ollama cannot run these Bonsai 2 packs. Ollama remains independently available.

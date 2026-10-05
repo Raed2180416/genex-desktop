@@ -71,7 +71,7 @@ npm run package
 open "out/Genex-darwin-arm64/Genex.app"
 ```
 
-The package targets macOS on Apple Silicon (see the [README](../README.md#status-and-platforms)).
+The package targets macOS on Apple Silicon (see [release readiness](release-readiness.md) for the platform matrix).
 Packaging is needed for delivery/resource checks, not every edit. `npm run watch` rebuilds
 resources, including plugins; restart an owned profile when changed host code needs reloading.
 Watch and owned `--dev-build` builds bundle React's development build (StrictMode replays and
@@ -211,8 +211,7 @@ tests/e2e/run-squirrel-install.mjs` installs `Genex-Setup.exe` for the current u
 shortcuts and path lengths, then uninstalls it. CI: `package.yml` makes and smokes unsigned packages on
 PRs into `main` and pushes to `main` (with that install on Windows, and there a packaged fixture chat turn:
 `node tests/e2e/run-electron-e2e.mjs --packaged`), and a dispatch with `only` (`darwin`, `linux` or `win32`)
-builds one platform; `release.yml` signs, notarizes, verifies and uploads to a draft release (README "Build a
-release").
+builds one platform; `release.yml` signs, notarizes, verifies and uploads to a draft release ([release operations](release-operations.md)).
 Optimization UI replay additionally needs prior AG-931 result data; it is conditional, not a
 clean-checkout gate. Seed-upgrade, interrupted, snapshots, sandbox, harness-host and
 self-improving conformance tests protect product behavior. Native login/picker/download

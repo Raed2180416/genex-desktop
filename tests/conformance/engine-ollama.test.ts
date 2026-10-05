@@ -16,6 +16,7 @@ import {
   toPiMessages,
 } from "../../src/substrate/engines/ollama.ts";
 import { EngineError } from "../../src/substrate/engines/types.ts";
+import { EngineFailureKind } from "../../src/shared/engine-requests.ts";
 import { startFakeOllama, type FakeOllama } from "../helpers/fake-ollama.ts";
 import { cliName, writeCliLauncher } from "../helpers/external-cli.ts";
 import { tmpDir } from "../helpers/tmp.ts";
@@ -64,6 +65,28 @@ describe("ollama management API", () => {
   it("reports no server rather than throwing when nothing is listening", async () => {
     const client = new OllamaClient("http://127.0.0.1:1");
     assert.equal(await client.version(), null);
+  });
+
+  it("says Ollama is not running when a download finds no server, instead of a bare fetch failure", async () => {
+    const client = new OllamaClient("http://127.0.0.1:1");
+    await assert.rejects(
+      client.pull("qwen3.5:4b").next(),
+      (err) =>
+        err instanceof EngineError &&
+        err.kind === EngineFailureKind.Unavailable &&
+        err.message.includes("http://127.0.0.1:1"),
+    );
+  });
+
+  it("keeps a download's own failure when Ollama still answers", async () => {
+    const server = await fake();
+    const client = new OllamaClient(server.host);
+    const pull = client.pull("qwen3.6:27b", AbortSignal.abort());
+    await assert.rejects(
+      pull.next(),
+      (err) => !(err instanceof EngineError),
+      "an aborted pull is not a missing Ollama",
+    );
   });
 
   it("streams pull progress", async () => {

@@ -7,7 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { checkCatalog } from "../../marketplace/template/scripts/check-catalog.mjs";
 
-async function fixture() {
+async function fixture(tier = "community") {
   const root = await mkdtemp(path.join(os.tmpdir(), "catalog-release-"));
   const pkg = path.join(root, "package");
   await cp("src/plugins/example", pkg, { recursive: true });
@@ -16,7 +16,7 @@ async function fixture() {
     config,
     JSON.stringify({
       artifactBaseUrl: "https://plugins.example.invalid/releases",
-      packages: [{ directory: pkg, category: "tools", tier: "community", repo: "acme/plugins", sha: "a".repeat(40) }],
+      packages: [{ directory: pkg, category: "tools", tier, repo: "acme/plugins", sha: "a".repeat(40) }],
     }),
   );
   const output = path.join(root, "output");
@@ -120,6 +120,18 @@ test("base policy cannot be expanded by a candidate and official IDs are reserve
     f.entry.tier = "official";
     await f.save();
     await assert.rejects(f.check(), /Official identity not approved/);
+  } finally {
+    await f.clean();
+  }
+});
+test("an official package's policy names its repositories, current first, and passes the catalog's own tests", async () => {
+  const f = await fixture("official");
+  try {
+    const policy = JSON.parse(await readFile(path.join(f.catalog, "policy.json"), "utf8"));
+    assert.deepEqual(policy.official, { [f.entry.id]: { publisher: f.entry.publisher, repos: ["acme/plugins"] } });
+    assert.equal((await f.check(f.uploads)).entries, 1);
+    // The prepared repository carries its validator's tests; they include "this catalog passes".
+    execFileSync(process.execPath, ["--test", "scripts/check-catalog.test.mjs"], { cwd: f.catalog, stdio: "pipe" });
   } finally {
     await f.clean();
   }
