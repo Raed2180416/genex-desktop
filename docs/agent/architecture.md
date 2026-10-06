@@ -1060,13 +1060,14 @@ with a managed local runtime; core has no special Blender tool.
   `changeRoot` accepts only a folder whose such subfolders the index already knows (library or
   removed games). It turns old-root games into aliases so names and threads hold; the sandbox gains
   write access to the new root.
-- **Secrets.** `SecretStore` ([`src/substrate/secrets.ts`](../../src/substrate/secrets.ts)) uses
-  OS-backed `safeStorage`, failing closed with `SecretStorageUnavailableError` and a
-  `SecretStorageIssue` code. Linux `basic_text` uses a public key and stays locked. Startup selects
-  `gnome-libsecret` outside KDE/Plasma, preserves KWallet and explicit `--password-store` choices;
-  without encryption, credentials stay locked. After the app rename, old-key values read as missing,
-  so Genex/MCP users reconnect. Plaintext backends are tests only. Settings, coding-CLI overrides
-  and connector files use atomic writes ([`src/substrate/fsx.ts`](../../src/substrate/fsx.ts)).
+- **Secrets.** `SecretStore` ([`src/substrate/secrets.ts`](../../src/substrate/secrets.ts)) is
+  Keychain-backed through safeStorage and fails closed, raising `SecretStorageUnavailableError` with
+  a `SecretStorageIssue` code. On Linux, `basic_text` (a public key) or a backend that cannot start
+  reports `NoKeyring`; startup asks for the Secret Service outside KDE (`linuxSecretStorageSwitches`).
+  A value the current key cannot decrypt reads as missing; a store locked right now still throws.
+  Cookie encryption uses the same store, so a session whose keyring stays locked at login prompts on
+  each launch. Plaintext backends are tests only. Settings, coding-CLI override and connector files
+  use atomic writes ([`src/substrate/fsx.ts`](../../src/substrate/fsx.ts)).
 - **Skill inventory.** `studio:skills.list` resolves the host's harness workspace, returns bounded
   active skill text, excludes symlinks and `.best.md` archives and never takes a root from the
   renderer.
