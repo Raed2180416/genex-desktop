@@ -36,7 +36,7 @@ const MESSAGE = {
 const LOCKED_MESSAGE = {
   [SecretStorageIssue.OsCredentialsDisabled]: "OS credential access is disabled for this process.",
   [SecretStorageIssue.EncryptionUnavailable]: "OS encryption is unavailable; secret storage remains locked.",
-  [SecretStorageIssue.NoKeyring]: "No OS keyring is available; secret storage remains locked.",
+  [SecretStorageIssue.NoKeyring]: "No system keyring is running. Start GNOME Keyring or KWallet, then restart Studio.",
 } as const satisfies Record<SecretStorageIssue, string>;
 
 /** The secret store is locked, and `issue` says why; nothing was written. */
