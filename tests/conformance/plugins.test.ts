@@ -2051,3 +2051,29 @@ test("bundled Genex indexes its vendored skills, serves them through genex__skil
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("a name that breaks the id rule is refused with the rule, so get_scene is fixable from the error alone", async () => {
+  const manifest = await manifestOf();
+  const [tool] = manifest.tools;
+  const named: Array<[string, Record<string, unknown>]> = [
+    ["tool", { tools: [{ ...tool, name: "get_scene" }] }],
+    ["action", { actions: [{ name: "Run_It", label: "Run" }] }],
+    ["setting", { settings: [{ key: "api_key", label: "Key", type: "string", default: "" }] }],
+    ["panel", { panels: [{ id: "My Panel", title: "Panel", file: "panel.html", placement: "settings" }] }],
+    ["plugin skill", { skills: [{ name: "how_to", text: "Use it." }] }],
+  ];
+  for (const [kind, change] of named)
+    assert.throws(
+      () => validateManifest({ ...manifest, ...change }),
+      new RegExp(`Invalid ${kind} name .*lowercase letters, digits and hyphens`),
+      kind,
+    );
+});
+
+test("a plugin server whose connector id would be too long is refused by the manifest, where doctor sees it", async () => {
+  const manifest = await manifestOf();
+  const withServer = (id: string, server: string) => ({ ...manifest, id, mcpServers: [mcpServer({ id: server })] });
+  // `<plugin>-<server>` becomes the connector id, which is at most 32 characters.
+  assert.throws(() => validateManifest(withServer("a-long-plugin-name-for-tools", "server")), /connector id/);
+  assert.doesNotThrow(() => validateManifest(withServer("short-plugin", "server")));
+});
