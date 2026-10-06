@@ -941,6 +941,13 @@ test("export.stage is capability-gated, needs the host export and stages under p
     });
     assert.deepEqual(seen, [{ binding: f.binding, target }]);
     assert.ok((await stat(path.dirname(target))).isDirectory());
+    // The copy has no package.json, so the game's Genex part of its own rides along for the CLI.
+    await writeFile(
+      path.join(f.binding.directory, "package.json"),
+      JSON.stringify({ dependencies: { "@genex-ai/embed-sdk": "0.30.0", three: "^0.170.0" } }),
+    );
+    const withSdk = await f.registry.tool("example__greet", { name: "Ada" }, f.binding);
+    assert.deepEqual(withSdk.genex, { dependencies: { "@genex-ai/embed-sdk": "0.30.0" } });
     await assert.rejects(
       f.services.call("example", "export.stage", {}, { project: "../escape", directory: f.root }),
       /Invalid project name/,
