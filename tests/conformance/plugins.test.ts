@@ -7,6 +7,8 @@ import net from "node:net";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { PluginConsentDeclined, PluginRegistry, type PluginMcpLaunch } from "../../src/substrate/plugins/registry.ts";
+import { SecretStorageIssue } from "../../src/shared/secret-storage.ts";
+import { SecretStorageUnavailableError } from "../../src/substrate/secrets.ts";
 import { EXAMPLE_PLUGIN, copyOfExample as copyOf, pluginFixture as fixture } from "../helpers/plugins.ts";
 import {
   RESERVED_TOOLBAR_LABELS,
@@ -1568,6 +1570,51 @@ test("an unlock that fails leaves the plugin locked, and its servers without a c
     await assert.rejects(registry.action("example", "unlock", {}), /Keychain access was denied/);
     assert.equal(await launch.credentialFile(), undefined, "a refused unlock does not authorize the server");
     assert.equal(seen.at(-1)!.kind, "register", "and the server is republished, so the card still says why");
+  } finally {
+    registry.cancel();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("an unlock refused by a locked secret store says why, though the backend reports a generic failure", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "studio-plugin-keyring-"));
+  const seeds = path.join(root, "seeds"),
+    seed = path.join(seeds, "example");
+  await mkdir(seeds);
+  await cp(source, seed, { recursive: true });
+  const manifest = await manifestOf();
+  manifest.capabilities.push("credentials");
+  manifest.actions.push(
+    ...["connect", "unlock", "disconnect"].map((name) => ({
+      name,
+      label: name,
+      confirmation: "Explicit account action",
+    })),
+    { name: "status", label: "Status" },
+  );
+  manifest.account = { connect: "connect", unlock: "unlock", disconnect: "disconnect", status: "status" };
+  await writeFile(path.join(seed, "plugin.json"), JSON.stringify(manifest));
+  // Like the Genex backend: whatever the host answers, the backend raises its own generic error.
+  await writeFile(
+    path.join(seed, "backend.mjs"),
+    `export async function activate(){return {async action(n,a,c){if(n==='unlock'){try{await c.host('credentials.read',{});}catch{throw new Error('Saved account could not be unlocked. Automatic retries are paused.');}}return {};}};}`,
+  );
+  const registry = new PluginRegistry(
+    path.join(root, "installed"),
+    seeds,
+    path.resolve("src/plugin-sdk/backend.mjs"),
+    async () => {
+      throw new SecretStorageUnavailableError(SecretStorageIssue.NoKeyring);
+    },
+  );
+  try {
+    await registry.init();
+    await assert.rejects(registry.action("example", "unlock", {}), /Start GNOME Keyring or KWallet/);
+    await assert.rejects(
+      registry.action("example", "unlock", {}),
+      /Start GNOME Keyring or KWallet/,
+      "and says so again",
+    );
   } finally {
     registry.cancel();
     await rm(root, { recursive: true, force: true });
